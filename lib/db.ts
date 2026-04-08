@@ -6,12 +6,12 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 
 import * as schema from "@/lib/schema";
 
-const dbDirectory = path.join(process.cwd(), "db");
+const dbDirectory = path.join(/* turbopackIgnore: true */ process.cwd(), "db");
 const dbFilePath = path.join(dbDirectory, "onion.db");
+const SQLITE_HEADER = Buffer.from("SQLite format 3\0");
 
 let sqlite: Database.Database | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
-let bootstrapped = false;
 
 function bootstrap(connection: Database.Database) {
   connection.pragma("journal_mode = WAL");
@@ -219,16 +219,81 @@ function bootstrap(connection: Database.Database) {
   }
 }
 
-export function getSqlite() {
-  if (!sqlite) {
-    fs.mkdirSync(dbDirectory, { recursive: true });
-    sqlite = new Database(dbFilePath);
-    sqlite.pragma("foreign_keys = ON");
+export function isSqliteDatabaseFile(filePath: string) {
+  if (!fs.existsSync(filePath)) {
+    return false;
   }
 
-  if (!bootstrapped) {
-    bootstrap(sqlite);
-    bootstrapped = true;
+  const stats = fs.statSync(filePath);
+  if (stats.size < SQLITE_HEADER.length) {
+    return false;
+  }
+
+  const fd = fs.openSync(filePath, "r");
+  try {
+    const header = Buffer.alloc(SQLITE_HEADER.length);
+    fs.readSync(fd, header, 0, SQLITE_HEADER.length, 0);
+    return header.equals(SQLITE_HEADER);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+export function archiveInvalidDatabaseFiles(filePath: string) {
+  const archivedPaths: string[] = [];
+  const timestamp = Date.now();
+
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const currentPath = `${filePath}${suffix}`;
+    if (!fs.existsSync(currentPath)) {
+      continue;
+    }
+
+    const archivedPath = `${currentPath}.invalid-${timestamp}`;
+    fs.renameSync(currentPath, archivedPath);
+    archivedPaths.push(archivedPath);
+  }
+
+  return archivedPaths;
+}
+
+function isNotDatabaseError(error: unknown) {
+  return error instanceof Error && /file is not a database/i.test(error.message);
+}
+
+export function initializeSqliteConnection(filePath: string = dbFilePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
+  if (fs.existsSync(filePath) && !isSqliteDatabaseFile(filePath)) {
+    archiveInvalidDatabaseFiles(filePath);
+  }
+
+  let connection = new Database(filePath);
+  connection.pragma("foreign_keys = ON");
+
+  try {
+    bootstrap(connection);
+    return connection;
+  } catch (error) {
+    connection.close();
+
+    if (isNotDatabaseError(error)) {
+      fs.rmSync(`${filePath}-wal`, { force: true });
+      fs.rmSync(`${filePath}-shm`, { force: true });
+
+      connection = new Database(filePath);
+      connection.pragma("foreign_keys = ON");
+      bootstrap(connection);
+      return connection;
+    }
+
+    throw error;
+  }
+}
+
+export function getSqlite() {
+  if (!sqlite) {
+    sqlite = initializeSqliteConnection(dbFilePath);
   }
 
   return sqlite;
