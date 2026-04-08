@@ -7,5 +7,7 @@ const dbPath = new URL("../db.ts", import.meta.url);
 test("db module marks its process cwd path lookup as turbopack-ignored", async () => {
   const source = await readFile(dbPath, "utf8");
 
-  assert.match(source, /turbopackIgnore:\s*true/);
+  assert.match(source, /getDbFilePath/);
+  assert.match(source, /getLegacyDbFilePath/);
+  assert.doesNotMatch(source, /process\.cwd\(/);
 });

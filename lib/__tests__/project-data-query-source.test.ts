@@ -16,3 +16,15 @@ test("scoped workspace query helpers do not rebuild the full workspace for graph
   assert.doesNotMatch(canvasSection, /getProjectWorkspace\(/);
   assert.doesNotMatch(statusSection, /getProjectWorkspace\(/);
 });
+
+test("deleteDirection uses a batched config-id lookup instead of querying configs inside nested copy loops", async () => {
+  const source = await readFile(projectDataPath, "utf8");
+
+  const deleteDirectionSection = source.slice(
+    source.indexOf("export async function deleteDirection"),
+    source.indexOf("export function listCopyCards"),
+  );
+
+  assert.match(deleteDirectionSection, /listDirectionImageConfigIds/);
+  assert.doesNotMatch(deleteDirectionSection, /where\(eq\(imageConfigs\.copyId/);
+});

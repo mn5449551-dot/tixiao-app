@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
+import { getProjectExportContext } from "@/lib/project-data";
 import {
   buildExportFileName,
   classifyExportAdaptation,
@@ -15,7 +16,7 @@ import {
 } from "@/lib/export/utils";
 import { zipAndCleanupDirectory } from "@/lib/export/zip";
 import { getLogoAssetPath } from "@/lib/logo-assets";
-import { copyCards, directions, exportRecords, generatedImages, imageConfigs, imageGroups, projects } from "@/lib/schema";
+import { exportRecords } from "@/lib/schema";
 import { getStorageRoot, writeExportImage } from "@/lib/storage";
 
 export async function POST(
@@ -32,21 +33,11 @@ export async function POST(
     };
 
     const db = getDb();
-    const project = db.select().from(projects).where(eq(projects.id, id)).get();
-    if (!project) {
+    const exportContext = getProjectExportContext(id);
+    if (!exportContext) {
       return NextResponse.json({ error: "项目不存在" }, { status: 404 });
     }
-
-    const projectDirections = db.select().from(directions).where(eq(directions.projectId, id)).all();
-    const directionIds = projectDirections.map((item) => item.id);
-    const projectCopyCards = directionIds.flatMap((directionId) => db.select().from(copyCards).where(eq(copyCards.directionId, directionId)).all());
-    const configMap = new Map(projectCopyCards.flatMap((card) => db.select().from(imageConfigs).where(eq(imageConfigs.directionId, card.directionId)).all()).map((cfg) => [cfg.id, cfg]));
-
-    const groups = Array.from(configMap.keys()).flatMap((configId) => db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, configId)).all());
-    const confirmedGroups = groups.filter((group) => group.isConfirmed === 1);
-    const chosenGroups = confirmedGroups;
-
-    const images = chosenGroups.flatMap((group) => db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all().filter((image) => image.filePath));
+    const { project, configMap, images } = exportContext;
     if (images.length === 0) {
       return NextResponse.json({ error: "请先选定稿" }, { status: 422 });
     }
