@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   ASPECT_RATIOS,
@@ -10,6 +11,14 @@ import {
   LOGO_OPTIONS,
 } from "../constants";
 import { buildGraph } from "../workflow-graph";
+
+test("workflow graph delegates pool node construction to dedicated builders", async () => {
+  const source = await readFile(new URL("../workflow-graph.ts", import.meta.url), "utf8");
+
+  assert.match(source, /buildCandidatePoolNode/);
+  assert.match(source, /buildFinalizedPoolNode/);
+  assert.match(source, /buildImageConfigNode/);
+});
 
 test("buildGraph keeps the canvas free of direction nodes before directions are generated", () => {
   const graph = buildGraph({
