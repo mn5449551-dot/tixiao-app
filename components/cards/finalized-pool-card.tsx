@@ -10,6 +10,12 @@ import { Handle, Position } from "@xyflow/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  deleteDerivedGroup,
+  exportFinalizedImages,
+  generateFinalizedVariants,
+} from "@/components/cards/finalized-pool/finalized-pool-actions";
+import { FinalizedPreviewCard } from "@/components/cards/finalized-pool/finalized-preview-card";
 import { Field, Input, Select } from "@/components/ui/field";
 import {
   classifyExportAdaptation,
@@ -163,7 +169,7 @@ export function FinalizedPoolCard({
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {group.images.map((image) => (
-                    <PreviewCard key={image.id} image={image} onPreview={setPreviewImage} />
+                    <FinalizedPreviewCard key={image.id} image={image} onPreview={setPreviewImage} />
                   ))}
                 </div>
                 {isDerivedGroup(group) ? (
@@ -175,8 +181,10 @@ export function FinalizedPoolCard({
                       onClick={async () => {
                         setActionLoadingGroupId(group.id);
                         try {
-                          await fetch(`/api/image-groups/${group.id}`, { method: "DELETE" });
-                          dispatchWorkspaceInvalidated();
+                          const ok = await deleteDerivedGroup(group.id);
+                          if (ok) {
+                            dispatchWorkspaceInvalidated();
+                          }
                         } finally {
                           setActionLoadingGroupId(null);
                         }
@@ -202,7 +210,7 @@ export function FinalizedPoolCard({
                 </div>
                 <div className={cn("grid gap-2", displayMode === "double" ? "grid-cols-2" : "grid-cols-3")}>
                   {group.images.map((image) => (
-                    <PreviewCard key={image.id} image={image} compact onPreview={setPreviewImage} />
+                    <FinalizedPreviewCard key={image.id} image={image} compact onPreview={setPreviewImage} />
                   ))}
                 </div>
                 {isDerivedGroup(group) ? (
@@ -214,8 +222,10 @@ export function FinalizedPoolCard({
                       onClick={async () => {
                         setActionLoadingGroupId(group.id);
                         try {
-                          await fetch(`/api/image-groups/${group.id}`, { method: "DELETE" });
-                          dispatchWorkspaceInvalidated();
+                          const ok = await deleteDerivedGroup(group.id);
+                          if (ok) {
+                            dispatchWorkspaceInvalidated();
+                          }
                         } finally {
                           setActionLoadingGroupId(null);
                         }
@@ -323,24 +333,20 @@ export function FinalizedPoolCard({
             setIsGeneratingVariants(true);
             setFeedback(null);
             try {
-              const response = await fetch(`/api/projects/${projectId}/finalized/variants`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  target_channels: selectedChannels,
-                  target_slots: selectedSlotSpecs.map((slot) => slot.slotName),
-                }),
+              const result = await generateFinalizedVariants({
+                projectId,
+                selectedChannels,
+                slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
               });
-              const payload = (await response.json().catch(() => ({}))) as { error?: string; groups?: Array<{ id: string }> };
-              if (!response.ok) {
-                setFeedback(payload.error ?? "生成适配版本失败");
+              if (!result.ok) {
+                setFeedback(result.error ?? "生成适配版本失败");
                 return;
               }
-              if (!payload.groups || payload.groups.length === 0) {
+              if (result.groups.length === 0) {
                 setFeedback("当前选中版位都可直接导出，无需生成适配版本。");
                 return;
               }
-              setFeedback(`已生成 ${payload.groups.length} 个适配版本。`);
+              setFeedback(`已生成 ${result.groups.length} 个适配版本。`);
               dispatchWorkspaceInvalidated();
             } finally {
               setIsGeneratingVariants(false);
@@ -359,30 +365,17 @@ export function FinalizedPoolCard({
           setIsExporting(true);
           setFeedback(null);
           try {
-            const response = await fetch(`/api/projects/${projectId}/export`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                target_channels: selectedChannels,
-                target_slots: selectedSlotSpecs.map((slot) => slot.slotName),
-                file_format: fileFormat,
-                naming_rule: namingRule,
-              }),
+            const result = await exportFinalizedImages({
+              projectId,
+              selectedChannels,
+              slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
+              fileFormat,
+              namingRule,
             });
-
-            if (!response.ok) {
-              const payload = (await response.json().catch(() => ({}))) as { error?: string };
-              setFeedback(payload.error ?? "导出失败");
+            if (!result.ok) {
+              setFeedback(result.error ?? "导出失败");
               return;
             }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "export.zip";
-            a.click();
-            window.URL.revokeObjectURL(url);
             setFeedback("导出已开始下载。");
           } finally {
             setIsExporting(false);
@@ -404,33 +397,3 @@ export function FinalizedPoolCard({
     </div>
   );
 }
-
-function PreviewCard({
-  image,
-  compact = false,
-  onPreview,
-}: {
-  image: FinalizedImage;
-  compact?: boolean;
-  onPreview: (image: FinalizedImage) => void;
-}) {
-  return (
-    <div className={cn("overflow-hidden rounded-xl border border-[var(--line-soft)] bg-white", compact ? "p-1.5" : "p-2")}>
-      <button
-        type="button"
-        className="relative w-full overflow-hidden rounded-lg bg-[var(--surface-2)]"
-        style={{ aspectRatio: toCssAspectRatio(image.aspectRatio) }}
-        onClick={() => onPreview(image)}
-      >
-        {image.fileUrl ? (
-          <Image src={image.fileUrl} alt="定稿预览" fill sizes="200px" className="object-contain" />
-        ) : null}
-      </button>
-      <div className="mt-1.5">
-        <p className="text-[10px] font-medium text-[var(--ink-700)]">{image.groupLabel ?? image.id}</p>
-        <p className="text-[10px] text-[var(--ink-400)]">比例 {image.aspectRatio}</p>
-      </div>
-    </div>
-  );
-}
-

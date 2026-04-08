@@ -27,7 +27,8 @@ import {
   WORKSPACE_CANVAS_INVALIDATED,
   WORKSPACE_FOCUS_NODE,
 } from "@/lib/workspace-events";
-import { getNodeTier, type GraphNodeData, type GraphNodeType } from "@/lib/workflow-graph";
+import { getNodeTier } from "@/lib/workflow-graph";
+import type { GraphNodeData, GraphNodeType } from "@/lib/workflow-graph-types";
 
 type CanvasData = NonNullable<ReturnType<typeof getCanvasData>>;
 
