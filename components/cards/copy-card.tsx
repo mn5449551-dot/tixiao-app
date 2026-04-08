@@ -8,7 +8,15 @@ import { Handle, Position } from "@xyflow/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/field";
+import {
+  appendCopyGenerationAction,
+  deleteCopyCardAction,
+  deleteCopyItemAction,
+  generateCopyConfigAction,
+  saveCopyItem,
+} from "@/components/cards/copy-card/copy-card-actions";
+import { CopyItemEditor } from "@/components/cards/copy-card/copy-item-editor";
+import { CopyItemRow } from "@/components/cards/copy-card/copy-item-row";
 import {
   areAllSelectableCopiesSelected,
   getSelectableCopyIds,
@@ -106,16 +114,13 @@ export function CopyCard({
     }
 
     try {
-      const response = await fetch(`/api/copies/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title_main: next.main,
-          title_sub: next.sub || null,
-          title_extra: next.extra || null,
-        }),
+      const ok = await saveCopyItem({
+        id: item.id,
+        titleMain: next.main,
+        titleSub: next.sub || null,
+        titleExtra: next.extra || null,
       });
-      if (!response.ok) throw new Error("保存失败");
+      if (!ok) throw new Error("保存失败");
 
       setLocalItems((prev) =>
         prev.map((current) =>
@@ -138,18 +143,8 @@ export function CopyCard({
   const generateCopyConfig = async (id: string, shouldRefresh = true) => {
     if (isGenerating) return;
     try {
-      const response = await fetch(`/api/copies/${id}/image-config`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          aspect_ratio: imageForm === "single" ? "1:1" : "3:2",
-          style_mode: "normal",
-          logo: "onion",
-          image_style: "realistic",
-          count: 1,
-        }),
-      });
-      if (!response.ok) {
+      const ok = await generateCopyConfigAction({ copyId: id, imageForm });
+      if (!ok) {
         throw new Error("生成失败");
       }
       if (shouldRefresh) {
@@ -192,8 +187,8 @@ export function CopyCard({
 
   const deleteCopy = async (id: string) => {
     try {
-      const response = await fetch(`/api/copies/${id}`, { method: "DELETE" });
-      if (!response.ok) {
+      const ok = await deleteCopyItemAction(id);
+      if (!ok) {
         throw new Error("删除失败");
       }
       setLocalItems((prev) => prev.filter((item) => item.id !== id));
@@ -223,8 +218,8 @@ export function CopyCard({
     if (!copyCardId || isDeletingCard) return;
     setIsDeletingCard(true);
     try {
-      const response = await fetch(`/api/copy-cards/${copyCardId}`, { method: "DELETE" });
-      if (!response.ok) {
+      const ok = await deleteCopyCardAction(copyCardId);
+      if (!ok) {
         throw new Error("删除失败");
       }
       dispatchWorkspaceInvalidated();
@@ -242,14 +237,9 @@ export function CopyCard({
       const directionId = data.directionId;
       if (!directionId) return;
 
-      const response = await fetch(`/api/directions/${directionId}/copy-cards/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ append: true, use_ai: true }),
-      });
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "追加生成失败");
+      const ok = await appendCopyGenerationAction(directionId);
+      if (!ok) {
+        throw new Error("追加生成失败");
       }
       dispatchWorkspaceInvalidated();
     } catch {
@@ -339,159 +329,60 @@ export function CopyCard({
           const isChecked = selectedIds.has(item.id);
 
           return (
-            <div
+            <CopyItemRow
               key={item.id}
-              className="relative overflow-visible rounded-[22px] border border-[var(--line-soft)] bg-[var(--surface-1)] transition"
-            >
-              <div className="flex items-center gap-2 p-3">
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => toggleSelect(item.id)}
-                  disabled={item.isLocked}
-                  className="h-4 w-4 shrink-0 accent-[var(--brand-500)] disabled:cursor-not-allowed disabled:opacity-40"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[var(--ink-900)]">
-                      文案 #{item.variantIndex || index + 1}
-                    </span>
-                    {item.isLocked ? <span className="text-[10px] text-[var(--ink-400)]">{"\u{1F512}"}</span> : null}
-                  </div>
-                </div>
-                <span className="max-w-[150px] truncate text-xs text-[var(--ink-500)]">
-                  {compactSummary}
-                </span>
-                <div className="flex shrink-0 items-center gap-1">
-                  {actions.statusLabel ? (
-                    <span className="rounded-full bg-[var(--surface-0)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-500)]">
-                      {actions.statusLabel}
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    title={isEditing ? "保存" : "编辑"}
-                    className={cn(
-                      "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs hover:bg-[var(--surface-2)]",
-                      isEditing
-                        ? "text-[var(--brand-500)]"
-                        : "text-[var(--ink-500)] hover:text-[var(--ink-700)]",
-                      item.isLocked && "cursor-not-allowed opacity-40",
-                    )}
-                    disabled={item.isLocked}
-                    onClick={() => {
-                      if (!isEditing) {
-                        startEdit(item);
-                      } else {
-                        cancelEdit();
-                      }
+              item={item}
+              index={index}
+              compactSummary={compactSummary}
+              statusLabel={actions.statusLabel ?? undefined}
+              expanded={isExpanded}
+              editing={isEditing}
+              selected={isChecked}
+              canDelete={actions.canDelete}
+              onToggleSelect={() => toggleSelect(item.id)}
+              onToggleExpand={() => toggleExpand(item.id)}
+              onToggleEdit={() => {
+                if (!isEditing) startEdit(item);
+                else cancelEdit();
+              }}
+              onDelete={() => deleteCopy(item.id)}
+              expandedContent={
+                isEditing ? (
+                  <CopyItemEditor
+                    rows={rows}
+                    value={buffer}
+                    locked={item.isLocked}
+                    onChange={(field, value) => {
+                      const nextBase = {
+                        main: buffer?.main ?? item.titleMain,
+                        sub: buffer?.sub ?? item.titleSub ?? "",
+                        extra: buffer?.extra ?? item.titleExtra ?? "",
+                      };
+                      setEditBuffer((prev) => ({
+                        ...prev,
+                        [item.id]: {
+                          ...nextBase,
+                          [field]: value,
+                        },
+                      }));
                     }}
-                  >
-                    {"\u270E"}
-                  </button>
-                  <button
-                    type="button"
-                    title="删除"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
-                    onClick={() => deleteCopy(item.id)}
-                    disabled={!actions.canDelete}
-                  >
-                    {"\u2716"}
-                  </button>
-                  <button
-                    type="button"
-                    title={isExpanded ? "收起" : "展开"}
-                    className={cn(
-                      "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition",
-                      isExpanded
-                        ? "rotate-180 text-[var(--brand-500)]"
-                        : "text-[var(--ink-500)]",
-                    )}
-                    onClick={() => toggleExpand(item.id)}
-                  >
-                    {"\u25BC"}
-                  </button>
-                </div>
-                <Handle
-                  id={item.sourceHandleId}
-                  className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
-                  position={Position.Right}
-                  type="source"
-                  style={{ top: 28, right: -7, transform: "translateY(-50%)" }}
-                />
-              </div>
-
-              {isExpanded ? (
-                <div className="border-t border-[var(--line-soft)] p-3 pt-2">
-                  {isEditing ? (
-                    item.isLocked ? (
-                      <p className="text-[11px] text-[var(--ink-400)]">已锁定，需先删除对应图片配置卡才能修改</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {rows.map((row) => (
-                          <label key={row.label} className="grid grid-cols-[64px_1fr] items-center gap-2 text-[11px] text-[var(--ink-600)]">
-                            <span>{row.label}：</span>
-                            <Textarea
-                              minRows={1}
-                              className="rounded-xl px-2.5 py-2 text-xs focus:ring-2"
-                              value={
-                                row.label === "主标题" || row.label === "图1文案"
-                                  ? (buffer?.main ?? item.titleMain)
-                                  : row.label === "副标题" || row.label === "图2文案"
-                                    ? (buffer?.sub ?? item.titleSub ?? "")
-                                    : row.label === "图3文案"
-                                      ? (buffer?.extra ?? item.titleExtra ?? "")
-                                      : row.value
-                              }
-                              disabled={row.label === "图间关系"}
-                              onChange={(e) => {
-                                const nextBase = {
-                                  main: buffer?.main ?? item.titleMain,
-                                  sub: buffer?.sub ?? item.titleSub ?? "",
-                                  extra: buffer?.extra ?? item.titleExtra ?? "",
-                                };
-                                const nextValue =
-                                  row.label === "主标题" || row.label === "图1文案"
-                                    ? { ...nextBase, main: e.target.value }
-                                    : row.label === "副标题" || row.label === "图2文案"
-                                      ? { ...nextBase, sub: e.target.value }
-                                      : row.label === "图3文案"
-                                        ? { ...nextBase, extra: e.target.value }
-                                        : nextBase;
-
-                                setEditBuffer((prev) => ({
-                                  ...prev,
-                                  [item.id]: nextValue,
-                                }));
-                              }}
-                            />
-                          </label>
-                        ))}
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                          <Button variant="ghost" onClick={cancelEdit}>
-                            取消
-                          </Button>
-                          <Button variant="primary" onClick={() => saveEdit(item)}>
-                            保存
-                          </Button>
-                        </div>
+                    onCancel={cancelEdit}
+                    onSave={() => saveEdit(item)}
+                  />
+                ) : (
+                  <div className="space-y-1.5">
+                    {rows.map((row) => (
+                      <div key={row.label} className="grid grid-cols-[64px_1fr] gap-1.5 text-sm">
+                        <span className="text-[var(--ink-500)]">{row.label}：</span>
+                        <span className={cn("text-[var(--ink-900)]", row.label === "主标题" || row.label === "图1文案" ? "font-medium" : "")}>
+                          {row.value}
+                        </span>
                       </div>
-                    )
-                  ) : (
-                    <div className="space-y-1.5">
-                      {rows.map((row) => (
-                        <div key={row.label} className="grid grid-cols-[64px_1fr] gap-1.5 text-sm">
-                          <span className="text-[var(--ink-500)]">{row.label}：</span>
-                          <span className={cn("text-[var(--ink-900)]", row.label === "主标题" || row.label === "图1文案" ? "font-medium" : "")}>
-                            {row.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
+                    ))}
+                  </div>
+                )
+              }
+            />
           );
         })}
       </div>
