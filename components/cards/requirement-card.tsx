@@ -12,6 +12,7 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import { getDefaultDirectionGenerationInput } from "@/lib/workflow-defaults";
 import { cn } from "@/lib/utils";
 import { FEATURE_LIBRARY } from "@/lib/constants";
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 // -- Types -----------------------------------------------------------------
 
@@ -174,7 +175,7 @@ export function RequirementCard({
           throw new Error("方向生成失败");
         }
 
-        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+        dispatchWorkspaceInvalidated();
         setStatus("done");
       } catch {
         setStatus("error");

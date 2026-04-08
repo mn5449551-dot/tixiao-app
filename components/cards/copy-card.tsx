@@ -20,6 +20,7 @@ import {
   getCopyDisplayRows,
 } from "@/lib/copy-card-presenter";
 import { cn } from "@/lib/utils";
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
@@ -153,7 +154,7 @@ export function CopyCard({
         throw new Error("生成失败");
       }
       if (shouldRefresh) {
-        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+        dispatchWorkspaceInvalidated();
       }
     } catch {
       // Silently fail
@@ -171,7 +172,7 @@ export function CopyCard({
       for (const id of selectableIds) {
         await generateCopyConfig(id, false);
       }
-      window.dispatchEvent(new CustomEvent("canvas-refresh"));
+      dispatchWorkspaceInvalidated();
     } finally {
       setIsGenerating(false);
     }
@@ -213,7 +214,7 @@ export function CopyCard({
         return next;
       });
       setEditingId((current) => (current === id ? null : current));
-      window.dispatchEvent(new CustomEvent("canvas-refresh"));
+      dispatchWorkspaceInvalidated();
     } catch {
       // Silently fail
     }
@@ -227,7 +228,7 @@ export function CopyCard({
       if (!response.ok) {
         throw new Error("删除失败");
       }
-      window.dispatchEvent(new CustomEvent("canvas-refresh"));
+      dispatchWorkspaceInvalidated();
     } catch {
       // Silently fail
     } finally {
@@ -251,7 +252,7 @@ export function CopyCard({
         const payload = (await response.json()) as { error?: string };
         throw new Error(payload.error ?? "追加生成失败");
       }
-      window.dispatchEvent(new CustomEvent("canvas-refresh"));
+      dispatchWorkspaceInvalidated();
     } catch {
       // Silently fail
     } finally {

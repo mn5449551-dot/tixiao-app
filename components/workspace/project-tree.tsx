@@ -1,23 +1,20 @@
 "use client";
 
-import type { getProjectWorkspace } from "@/lib/project-data";
+import type { getProjectTreeData } from "@/lib/project-data";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { dispatchFocusCanvasNode } from "@/lib/workspace-events";
 
-type WorkspaceData = NonNullable<ReturnType<typeof getProjectWorkspace>>;
+type ProjectTreeData = NonNullable<ReturnType<typeof getProjectTreeData>>;
 
 interface ProjectTreeProps {
-  workspace: WorkspaceData;
+  tree: ProjectTreeData;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
 
-function focusCanvasNode(nodeId: string) {
-  window.dispatchEvent(new CustomEvent("focus-canvas-node", { detail: { nodeId } }));
-}
-
-export function ProjectTree({ workspace, collapsed, onToggleCollapse }: ProjectTreeProps) {
+export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreeProps) {
   if (collapsed) {
     return (
       <button
@@ -38,7 +35,7 @@ export function ProjectTree({ workspace, collapsed, onToggleCollapse }: ProjectT
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--ink-400)]">Project Tree</p>
-            <h2 className="mt-1.5 text-lg font-semibold text-[var(--ink-900)]">{workspace.project.title}</h2>
+            <h2 className="mt-1.5 text-lg font-semibold text-[var(--ink-900)]">{tree.project.title}</h2>
           </div>
           <button
             type="button"
@@ -50,8 +47,8 @@ export function ProjectTree({ workspace, collapsed, onToggleCollapse }: ProjectT
           </button>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <Badge tone="brand">{workspace.project.status}</Badge>
-          <Badge>{workspace.directions.length} 条方向</Badge>
+          <Badge tone="brand">{tree.project.status}</Badge>
+          <Badge>{tree.directions.length} 条方向</Badge>
         </div>
       </div>
 
@@ -59,18 +56,18 @@ export function ProjectTree({ workspace, collapsed, onToggleCollapse }: ProjectT
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <TreeItem
           label="需求卡"
-          status={workspace.requirement ? "已填写" : "待填写"}
-          onClick={() => focusCanvasNode("requirement")}
+          status={tree.requirement ? "已填写" : "待填写"}
+          onClick={() => dispatchFocusCanvasNode("requirement")}
         />
 
-        {workspace.directions.length === 0 ? (
+        {tree.directions.length === 0 ? (
           <p className="mt-2 text-sm text-[var(--ink-500)]">暂无方向</p>
         ) : (
-          workspace.directions.map((dir) => (
+          tree.directions.map((dir) => (
             <TreeGroup
               key={dir.id}
               label={dir.title}
-              onClick={() => focusCanvasNode("direction-board")}
+              onClick={() => dispatchFocusCanvasNode("direction-board")}
             >
               {dir.copyCards.length === 0 ? (
                 <p className="text-[11px] text-[var(--ink-400)]">暂无文案卡</p>
@@ -80,17 +77,17 @@ export function ProjectTree({ workspace, collapsed, onToggleCollapse }: ProjectT
                     <TreeItem
                       label={`${dir.title} · V${card.version}`}
                       sublabel={`${card.copies.length} 条文案`}
-                      onClick={() => focusCanvasNode(`copy-card-${card.id}`)}
+                      onClick={() => dispatchFocusCanvasNode(`copy-card-${card.id}`)}
                     />
                     {card.copies
-                      .filter((copy) => copy.imageConfig)
+                      .filter((copy) => copy.imageConfigId)
                       .map((copy) => (
                         <TreeItem
                           key={copy.id}
                           compact
                           label={`配置 #${copy.variantIndex}`}
                           sublabel={copy.titleMain}
-                          onClick={() => focusCanvasNode(`image-config-${copy.imageConfig!.id}`)}
+                          onClick={() => dispatchFocusCanvasNode(`image-config-${copy.imageConfigId!}`)}
                         />
                       ))}
                   </div>

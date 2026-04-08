@@ -14,13 +14,9 @@ import {
   sanitizeExportSegment,
 } from "@/lib/export/utils";
 import { zipAndCleanupDirectory } from "@/lib/export/zip";
+import { getLogoAssetPath } from "@/lib/logo-assets";
 import { copyCards, directions, exportRecords, generatedImages, imageConfigs, imageGroups, projects } from "@/lib/schema";
 import { getStorageRoot, writeExportImage } from "@/lib/storage";
-
-const LOGO_PATHS = {
-  onion: "public/brand/onion-logo.png",
-  onion_app: "public/brand/onion-app-logo.png",
-} as const;
 
 export async function POST(
   request: Request,
@@ -75,8 +71,8 @@ export async function POST(
         const config = configMap.get(image.imageConfigId);
         const logoKey = config?.logo;
         const logoPath =
-          logoKey && logoKey in LOGO_PATHS
-            ? path.resolve(process.cwd(), LOGO_PATHS[logoKey as keyof typeof LOGO_PATHS])
+          logoKey === "onion" || logoKey === "onion_app"
+            ? getLogoAssetPath(logoKey)
             : null;
         const slotSize = parseSlotSize(slotSpec.size);
         const outputPath = path.join(exportDir, buildExportFileName({

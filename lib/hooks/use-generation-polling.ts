@@ -1,42 +1,65 @@
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
-import type { getProjectWorkspace } from "@/lib/project-data";
+import type { getGenerationStatusData } from "@/lib/project-data";
 
-type WorkspaceData = NonNullable<ReturnType<typeof getProjectWorkspace>>;
+type GenerationStatusData = NonNullable<ReturnType<typeof getGenerationStatusData>>;
 
-/**
- * Auto-polls every 3 seconds when any image is in "generating" or "pending" state.
- * Stops automatically when all images reach "done" or "failed".
- */
-export function useGenerationPolling(workspace: WorkspaceData) {
-  const router = useRouter();
+type UseGenerationPollingOptions = {
+  projectId: string;
+  enabled: boolean;
+  onStatuses: (payload: GenerationStatusData) => void;
+};
+
+function isGenerationStatusData(value: unknown): value is GenerationStatusData {
+  return typeof value === "object" && value !== null && "images" in value;
+}
+
+export function useGenerationPolling({
+  projectId,
+  enabled,
+  onStatuses,
+}: UseGenerationPollingOptions) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const hasPendingImages = workspace.directions.some((direction) =>
-      direction.copyCards.some((card) =>
-        card.copies.some((copy) =>
-          copy.groups.some((group) =>
-            group.images.some(
-              (img) => img.status === "generating" || img.status === "pending",
-            ),
-          ),
-        ),
-      ),
-    );
+    const clearPolling = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
 
-    if (hasPendingImages && !intervalRef.current) {
-      intervalRef.current = setInterval(() => {
-        router.refresh();
-      }, 3000);
-    } else if (!hasPendingImages && intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (!enabled) {
+      clearPolling();
+      return clearPolling;
     }
 
-    return () => {
-      // Don't clear interval on unmount if still polling — let next mount handle it.
+    let cancelled = false;
+
+    const pollStatuses = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/generation-status`);
+        const payload = (await response.json()) as GenerationStatusData | { error?: string };
+        if (!response.ok || !isGenerationStatusData(payload)) {
+          return;
+        }
+        if (!cancelled) {
+          onStatuses(payload);
+        }
+      } catch {
+        // Keep the last known graph state when polling fails.
+      }
     };
-  }, [workspace, router]);
+
+    void pollStatuses();
+    clearPolling();
+    intervalRef.current = setInterval(() => {
+      void pollStatuses();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearPolling();
+    };
+  }, [enabled, onStatuses, projectId]);
 }

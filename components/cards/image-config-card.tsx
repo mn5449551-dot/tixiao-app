@@ -19,6 +19,7 @@ import {
 } from "@/lib/workflow-defaults";
 import { ASPECT_RATIOS, IMAGE_STYLES, LOGO_OPTIONS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
@@ -407,7 +408,7 @@ export function ImageConfigCard({
               throw new Error(payload.error ?? "图片生成失败");
             }
 
-            window.dispatchEvent(new CustomEvent("canvas-refresh"));
+            dispatchWorkspaceInvalidated();
           } catch (error) {
             setSubmitError(error instanceof Error ? error.message : "图片生成失败");
           } finally {

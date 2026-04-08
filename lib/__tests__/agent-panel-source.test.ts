@@ -7,7 +7,7 @@ const agentPanelPath = new URL("../../components/workspace/agent-panel.tsx", imp
 test("agent panel source uses assistant API routes instead of local keyword parsing", async () => {
   const source = await readFile(agentPanelPath, "utf8");
 
-  assert.match(source, /\/api\/projects\/\$\{workspace\.project\.id\}\/assistant/);
+  assert.match(source, /\/api\/projects\/\$\{projectId\}\/assistant/);
   assert.doesNotMatch(source, /Simple keyword-based field filling/);
   assert.doesNotMatch(source, /featureMap/);
 });

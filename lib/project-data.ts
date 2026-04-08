@@ -1259,6 +1259,17 @@ export function getCanvasData(projectId: string) {
     projectId,
     nodes: graph.nodes,
     edges: graph.edges,
+    hasPendingImages: workspace.directions.some((direction) =>
+      direction.copyCards.some((card) =>
+        card.copies.some((copy) =>
+          copy.groups.some((group) =>
+            group.images.some(
+              (image) => image.status === "generating" || image.status === "pending",
+            ),
+          ),
+        ),
+      ),
+    ),
   };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -10,13 +11,18 @@ import { Handle, Position } from "@xyflow/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
-import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import {
   classifyExportAdaptation,
   EXPORT_SLOT_SPECS,
   type ExportSlotSpec,
 } from "@/lib/export/utils";
 import { cn } from "@/lib/utils";
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
+
+const ImagePreviewModal = dynamic(
+  () => import("@/components/ui/image-preview-modal").then((mod) => mod.ImagePreviewModal),
+  { ssr: false },
+);
 
 export const CHANNELS = ["OPPO", "VIVO", "小米", "荣耀"] as const;
 
@@ -166,7 +172,7 @@ export function FinalizedPoolCard({
                         setActionLoadingGroupId(group.id);
                         try {
                           await fetch(`/api/image-groups/${group.id}`, { method: "DELETE" });
-                          window.dispatchEvent(new CustomEvent("canvas-refresh"));
+                          dispatchWorkspaceInvalidated();
                         } finally {
                           setActionLoadingGroupId(null);
                         }
@@ -205,7 +211,7 @@ export function FinalizedPoolCard({
                         setActionLoadingGroupId(group.id);
                         try {
                           await fetch(`/api/image-groups/${group.id}`, { method: "DELETE" });
-                          window.dispatchEvent(new CustomEvent("canvas-refresh"));
+                          dispatchWorkspaceInvalidated();
                         } finally {
                           setActionLoadingGroupId(null);
                         }
@@ -331,7 +337,7 @@ export function FinalizedPoolCard({
                 return;
               }
               setFeedback(`已生成 ${payload.groups.length} 个适配版本。`);
-              window.dispatchEvent(new CustomEvent("canvas-refresh"));
+              dispatchWorkspaceInvalidated();
             } finally {
               setIsGeneratingVariants(false);
             }

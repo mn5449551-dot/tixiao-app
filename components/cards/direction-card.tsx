@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { CHANNELS, getAvailableImageForms } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
@@ -280,7 +281,7 @@ export function DirectionCard({
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ regenerate: true }),
                         });
-                        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+                        dispatchWorkspaceInvalidated();
                       } catch (error) {
                         console.error("Failed to regenerate direction:", error);
                       }
@@ -316,7 +317,7 @@ export function DirectionCard({
                       if (!confirm(`确定删除方向 #${index + 1} 及其所有下游产物？`)) return;
                       try {
                         await fetch(`/api/directions/${direction.id}`, { method: "DELETE" });
-                        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+                        dispatchWorkspaceInvalidated();
                       } catch (error) {
                         console.error("Failed to delete direction:", error);
                       }
@@ -427,7 +428,7 @@ export function DirectionCard({
                                 }),
                               });
                               cancelEdit();
-                              window.dispatchEvent(new CustomEvent("canvas-refresh"));
+                              dispatchWorkspaceInvalidated();
                             } catch (error) {
                               console.error("Failed to save direction:", error);
                             }
@@ -499,7 +500,7 @@ export function DirectionCard({
                   use_ai: true,
                 }),
               });
-              window.dispatchEvent(new CustomEvent("canvas-refresh"));
+              dispatchWorkspaceInvalidated();
             } catch (error) {
               console.error("Error appending direction:", error);
             } finally {
@@ -542,7 +543,7 @@ export function DirectionCard({
                 console.error(`Error generating copy for direction ${direction.id}:`, error);
               }
             }
-            window.dispatchEvent(new CustomEvent("canvas-refresh"));
+            dispatchWorkspaceInvalidated();
           }}
         >
           {"\u26A1"} 生成选中方向的文案

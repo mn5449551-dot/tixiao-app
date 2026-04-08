@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -9,9 +10,18 @@ import { Handle, Position } from "@xyflow/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import { cn } from "@/lib/utils";
-import { InpaintModal } from "@/components/inpaint/inpaint-modal";
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
+
+const ImagePreviewModal = dynamic(
+  () => import("@/components/ui/image-preview-modal").then((mod) => mod.ImagePreviewModal),
+  { ssr: false },
+);
+
+const InpaintModal = dynamic(
+  () => import("@/components/inpaint/inpaint-modal").then((mod) => mod.InpaintModal),
+  { ssr: false },
+);
 
 export type CandidateImage = {
   id: string;
@@ -93,7 +103,7 @@ export function CandidatePoolCard({
       setActionLoading(imageId);
       const response = await fetch(`/api/images/${imageId}`, { method: "DELETE" });
       if (response.ok) {
-        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+        dispatchWorkspaceInvalidated();
       }
     } finally {
       setActionLoading(null);
@@ -105,7 +115,7 @@ export function CandidatePoolCard({
       setActionLoading(groupId);
       const response = await fetch(`/api/image-groups/${groupId}`, { method: "DELETE" });
       if (response.ok) {
-        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+        dispatchWorkspaceInvalidated();
       }
     } finally {
       setActionLoading(null);
@@ -121,7 +131,7 @@ export function CandidatePoolCard({
         body: JSON.stringify({ regenerate: true }),
       });
       if (response.ok) {
-        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+        dispatchWorkspaceInvalidated();
       }
     } finally {
       setActionLoading(null);
@@ -138,7 +148,7 @@ export function CandidatePoolCard({
       });
       if (response.ok) {
         void targetNodeId;
-        window.dispatchEvent(new CustomEvent("canvas-refresh"));
+        dispatchWorkspaceInvalidated();
       }
     } finally {
       setActionLoading(null);
@@ -292,7 +302,7 @@ export function CandidatePoolCard({
                     group_ids: newGroupIds,
                   }),
                 });
-                window.dispatchEvent(new CustomEvent("canvas-refresh"));
+                dispatchWorkspaceInvalidated();
               } catch (error) {
                 console.error("Failed to append generate:", error);
               }

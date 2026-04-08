@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,12 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { LOGO_OPTIONS } from "@/lib/constants";
 import type { AssistantState } from "@/lib/assistant-state";
-import type { getProjectWorkspace } from "@/lib/project-data";
-
-type WorkspaceData = NonNullable<ReturnType<typeof getProjectWorkspace>>;
+import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 interface AgentPanelProps {
-  workspace: WorkspaceData;
+  projectId: string;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -22,8 +19,7 @@ function isAssistantState(value: unknown): value is AssistantState {
   return typeof value === "object" && value !== null && "messages" in value && "draft" in value && "stage" in value;
 }
 
-export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPanelProps) {
-  const router = useRouter();
+export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +38,7 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
     setAssistantLoading(true);
     setError(null);
 
-    fetch(`/api/projects/${workspace.project.id}/assistant`)
+    fetch(`/api/projects/${projectId}/assistant`)
       .then(async (response) => {
         const payload = (await response.json()) as AssistantState | { error?: string };
         if (!response.ok || !isAssistantState(payload)) {
@@ -66,7 +62,7 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
     return () => {
       cancelled = true;
     };
-  }, [workspace.project.id]);
+  }, [projectId]);
 
   const handleConversationSend = useCallback(async () => {
     if (!conversationInput.trim()) return;
@@ -74,7 +70,7 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
     setAssistantLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${workspace.project.id}/assistant/messages`, {
+      const response = await fetch(`/api/projects/${projectId}/assistant/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: conversationInput.trim() }),
@@ -90,13 +86,13 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
     } finally {
       setAssistantLoading(false);
     }
-  }, [conversationInput, workspace.project.id]);
+  }, [conversationInput, projectId]);
 
   const confirmAndFill = useCallback(async () => {
     setAssistantLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${workspace.project.id}/assistant/confirm`, {
+      const response = await fetch(`/api/projects/${projectId}/assistant/confirm`, {
         method: "POST",
       });
       const payload = (await response.json()) as AssistantState | { error?: string };
@@ -104,13 +100,13 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
         throw new Error(!isAssistantState(payload) && "error" in (payload as { error?: string }) ? payload.error ?? "确认填充需求卡失败" : "确认填充需求卡失败");
       }
       setAssistantState(payload);
-      router.refresh();
+      dispatchWorkspaceInvalidated();
     } catch (confirmError) {
       setError(confirmError instanceof Error ? confirmError.message : "确认填充需求卡失败");
     } finally {
       setAssistantLoading(false);
     }
-  }, [workspace.project.id, router]);
+  }, [projectId]);
 
   // --- Reference mode state ---
   const [referenceModeOpen, setReferenceModeOpen] = useState(false);
@@ -127,7 +123,7 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
       setError(null);
       try {
         await callback();
-        router.refresh();
+        dispatchWorkspaceInvalidated();
       } catch (actionError) {
         setError(actionError instanceof Error ? actionError.message : "操作失败");
       }
@@ -323,7 +319,7 @@ export function AgentPanel({ workspace, collapsed, onToggleCollapse }: AgentPane
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
-                        project_id: workspace.project.id,
+                        project_id: projectId,
                         reference_image_url: referenceForm.imageUrl,
                         instruction: `${referenceForm.instruction}\n目标比例：${referenceForm.aspectRatio}\nLogo：${referenceForm.logo}`,
                       }),

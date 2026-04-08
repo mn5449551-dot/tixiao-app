@@ -1,15 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import type { getProjectWorkspace } from "@/lib/project-data";
+const AgentPanel = dynamic(
+  () => import("@/components/workspace/agent-panel").then((mod) => mod.AgentPanel),
+  {
+    ssr: false,
+    loading: () => <div className="h-full border-l border-[var(--line-soft)] bg-[var(--panel-strong)]" />,
+  },
+);
 
-import { WorkflowCanvas } from "@/components/canvas/workflow-canvas";
-import { AgentPanel } from "@/components/workspace/agent-panel";
-import { ProjectTree } from "@/components/workspace/project-tree";
+const ProjectTreePanel = dynamic(
+  () => import("@/components/workspace/project-tree-panel").then((mod) => mod.ProjectTreePanel),
+  {
+    ssr: false,
+    loading: () => <div className="h-full border-r border-[var(--line-soft)] bg-[var(--panel-strong)]" />,
+  },
+);
 
-type WorkspaceData = NonNullable<ReturnType<typeof getProjectWorkspace>>;
+const WorkflowCanvasPanel = dynamic(
+  () => import("@/components/workspace/workflow-canvas-panel").then((mod) => mod.WorkflowCanvasPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.94),rgba(247,243,239,0.98))]" />
+    ),
+  },
+);
 
 const EXPANDED_LEFT = 240;
 const COLLAPSED_LEFT = 24;
@@ -17,7 +36,15 @@ const EXPANDED_RIGHT = 360;
 const COLLAPSED_RIGHT = 24;
 const RIGHT_COLLAPSE_BREAKPOINT = 1280;
 
-export function WorkspaceShell({ workspace }: { workspace: WorkspaceData }) {
+type WorkspaceShellProps = {
+  project: {
+    id: string;
+    title: string;
+    status: string;
+  };
+};
+
+export function WorkspaceShell({ project }: WorkspaceShellProps) {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
@@ -49,30 +76,30 @@ export function WorkspaceShell({ workspace }: { workspace: WorkspaceData }) {
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-[var(--ink-400)]">Onion Workflow</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-950)]">
-              {workspace.project.title}
+              {project.title}
             </h1>
           </div>
         </div>
         <div className="rounded-xl bg-[var(--surface-1)] px-4 py-2 text-right">
           <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-400)]">Status</p>
-          <p className="mt-0.5 text-base font-semibold text-[var(--ink-900)]">{workspace.project.status}</p>
+          <p className="mt-0.5 text-base font-semibold text-[var(--ink-900)]">{project.status}</p>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div style={{ width: leftWidth, flexShrink: 0 }}>
-          <ProjectTree
-            workspace={workspace}
+          <ProjectTreePanel
+            projectId={project.id}
             collapsed={leftCollapsed}
             onToggleCollapse={() => setLeftCollapsed((v) => !v)}
           />
         </div>
         <div className="flex-1" style={{ minWidth: 0 }}>
-          <WorkflowCanvas workspace={workspace} />
+          <WorkflowCanvasPanel projectId={project.id} />
         </div>
         <div style={{ width: rightWidth, flexShrink: 0 }}>
           <AgentPanel
-            workspace={workspace}
+            projectId={project.id}
             collapsed={rightCollapsed}
             onToggleCollapse={() => setRightCollapsed((v) => !v)}
           />

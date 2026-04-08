@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
-import { getProjectWorkspace } from "@/lib/project-data";
+import { getWorkspaceHeader } from "@/lib/project-data";
 
 export default async function ProjectWorkspacePage({
   params,
@@ -9,15 +9,15 @@ export default async function ProjectWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const workspace = getProjectWorkspace(id);
+  const header = getWorkspaceHeader(id);
 
-  if (!workspace) {
+  if (!header) {
     notFound();
   }
 
   return (
     <main className="flex h-screen flex-col">
-      <WorkspaceShell workspace={workspace} />
+      <WorkspaceShell project={header.project} />
     </main>
   );
 }

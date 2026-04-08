@@ -3,9 +3,11 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
+const logoAssetRoot = path.join(/* turbopackIgnore: true */ process.cwd(), "public", "brand");
+
 const LOGO_ASSET_PATHS = {
-  onion: path.resolve(process.cwd(), "public/brand/onion-logo.png"),
-  onion_app: path.resolve(process.cwd(), "public/brand/onion-app-logo.png"),
+  onion: path.join(logoAssetRoot, "onion-logo.png"),
+  onion_app: path.join(logoAssetRoot, "onion-app-logo.png"),
 } as const;
 
 export function getLogoAssetPath(logo: keyof typeof LOGO_ASSET_PATHS) {

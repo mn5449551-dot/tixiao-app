@@ -2,7 +2,6 @@
 
 import "@xyflow/react/dist/style.css";
 
-import { useRouter } from "next/navigation";
 import type { Node } from "@xyflow/react";
 import {
   Background,
@@ -23,11 +22,14 @@ import { ImageConfigCard } from "@/components/cards/image-config-card";
 import { RequirementCard } from "@/components/cards/requirement-card";
 import { canvasInteractionProps } from "@/lib/canvas-interaction";
 import { arrangeNodesByHierarchy, mergeGraphNodes } from "@/lib/canvas-layout";
-import { useGenerationPolling } from "@/lib/hooks/use-generation-polling";
-import type { getProjectWorkspace } from "@/lib/project-data";
-import { buildGraph, getNodeTier, type GraphNodeData, type GraphNodeType } from "@/lib/workflow-graph";
+import type { getCanvasData } from "@/lib/project-data";
+import {
+  WORKSPACE_CANVAS_INVALIDATED,
+  WORKSPACE_FOCUS_NODE,
+} from "@/lib/workspace-events";
+import { getNodeTier, type GraphNodeData, type GraphNodeType } from "@/lib/workflow-graph";
 
-type WorkspaceData = NonNullable<ReturnType<typeof getProjectWorkspace>>;
+type CanvasData = NonNullable<ReturnType<typeof getCanvasData>>;
 
 const nodeTypes = {
   frame: FrameNode,
@@ -41,10 +43,20 @@ const nodeTypes = {
 
 // -- Component -------------------------------------------------------------
 
-export function WorkflowCanvas({ workspace }: { workspace: WorkspaceData }) {
-  const router = useRouter();
-  useGenerationPolling(workspace);
-  const fullGraph = useMemo(() => buildGraph(workspace), [workspace]);
+export function WorkflowCanvas({
+  graph,
+  onInvalidate,
+}: {
+  graph: CanvasData;
+  onInvalidate: () => void;
+}) {
+  const fullGraph = useMemo(
+    () => ({
+      nodes: graph.nodes,
+      edges: graph.edges,
+    }),
+    [graph.edges, graph.nodes],
+  );
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const [canvasNodes, setCanvasNodes, onNodesChange] = useNodesState(fullGraph.nodes);
   const [canvasEdges, setCanvasEdges, onEdgesChange] = useEdgesState(fullGraph.edges);
@@ -98,11 +110,16 @@ export function WorkflowCanvas({ workspace }: { workspace: WorkspaceData }) {
     [canvasNodes, maxVisibleTier, highlightedNodeId],
   );
 
+  const nodeMap = useMemo(
+    () => new Map(canvasNodes.map((node) => [node.id, node])),
+    [canvasNodes],
+  );
+
   const edges = useMemo(
     () =>
       canvasEdges.filter((e) => {
-        const src = canvasNodes.find((n) => n.id === e.source);
-        const tgt = canvasNodes.find((n) => n.id === e.target);
+        const src = nodeMap.get(e.source);
+        const tgt = nodeMap.get(e.target);
         return (
           src &&
           tgt &&
@@ -110,17 +127,13 @@ export function WorkflowCanvas({ workspace }: { workspace: WorkspaceData }) {
           getNodeTier(tgt) <= maxVisibleTier
         );
       }),
-    [canvasEdges, canvasNodes, maxVisibleTier],
+    [canvasEdges, maxVisibleTier, nodeMap],
   );
 
-  // Listen for canvas-refresh events from card actions
   useEffect(() => {
-    const handler = () => {
-      router.refresh();
-    };
-    window.addEventListener("canvas-refresh", handler);
-    return () => window.removeEventListener("canvas-refresh", handler);
-  }, [router]);
+    window.addEventListener(WORKSPACE_CANVAS_INVALIDATED, onInvalidate);
+    return () => window.removeEventListener(WORKSPACE_CANVAS_INVALIDATED, onInvalidate);
+  }, [onInvalidate]);
 
   return (
     <div className="relative h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.94),rgba(247,243,239,0.98))]">
@@ -180,8 +193,8 @@ function CanvasEventBridge({
       });
     };
 
-    window.addEventListener("focus-canvas-node", handleFocus);
-    return () => window.removeEventListener("focus-canvas-node", handleFocus);
+    window.addEventListener(WORKSPACE_FOCUS_NODE, handleFocus);
+    return () => window.removeEventListener(WORKSPACE_FOCUS_NODE, handleFocus);
   }, [allNodes, getZoom, onHighlight, setCenter]);
 
   return null;
