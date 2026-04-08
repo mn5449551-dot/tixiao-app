@@ -10,6 +10,15 @@ import { Handle, Position } from "@xyflow/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  appendCandidateGeneration,
+  confirmCandidateGroup,
+  deleteCandidateGroup,
+  deleteCandidateImage,
+  regenerateCandidateImage,
+} from "@/components/cards/candidate-pool/candidate-pool-actions";
+import { CandidateGroupCard } from "@/components/cards/candidate-pool/candidate-group-card";
+import { CandidateImageCard } from "@/components/cards/candidate-pool/candidate-image-card";
 import type { CardStatus } from "@/lib/constants";
 import { cn, toCssAspectRatio } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
@@ -100,8 +109,8 @@ export function CandidatePoolCard({
   const handleDeleteImage = useCallback(async (imageId: string) => {
     try {
       setActionLoading(imageId);
-      const response = await fetch(`/api/images/${imageId}`, { method: "DELETE" });
-      if (response.ok) {
+      const ok = await deleteCandidateImage(imageId);
+      if (ok) {
         dispatchWorkspaceInvalidated();
       }
     } finally {
@@ -112,8 +121,8 @@ export function CandidatePoolCard({
   const handleDeleteGroup = useCallback(async (groupId: string) => {
     try {
       setActionLoading(groupId);
-      const response = await fetch(`/api/image-groups/${groupId}`, { method: "DELETE" });
-      if (response.ok) {
+      const ok = await deleteCandidateGroup(groupId);
+      if (ok) {
         dispatchWorkspaceInvalidated();
       }
     } finally {
@@ -124,12 +133,8 @@ export function CandidatePoolCard({
   const handleRegenerateImage = useCallback(async (imageId: string) => {
     try {
       setActionLoading(imageId);
-      const response = await fetch(`/api/images/${imageId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regenerate: true }),
-      });
-      if (response.ok) {
+      const ok = await regenerateCandidateImage(imageId);
+      if (ok) {
         dispatchWorkspaceInvalidated();
       }
     } finally {
@@ -140,12 +145,8 @@ export function CandidatePoolCard({
   const handleConfirmGroup = useCallback(async (groupId: string, confirmed: boolean, targetNodeId?: string) => {
     try {
       setActionLoading(groupId);
-      const response = await fetch(`/api/image-groups/${groupId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmed }),
-      });
-      if (response.ok) {
+      const ok = await confirmCandidateGroup(groupId, confirmed);
+      if (ok) {
         void targetNodeId;
         dispatchWorkspaceInvalidated();
       }
@@ -204,10 +205,9 @@ export function CandidatePoolCard({
         {displayMode === "single"
           ? groups.flatMap((group) =>
               group.images.map((img) => (
-                <SingleImageCard
+                <CandidateImageCard
                   key={img.id}
                   image={img}
-                  group={group}
                   selected={selectedIds.has(img.id)}
                   loadingKey={actionLoading}
                   onToggleSelect={toggleSelect}
@@ -215,18 +215,33 @@ export function CandidatePoolCard({
                   onInpaint={setInpaintImageId}
                   onRegenerate={handleRegenerateImage}
                   onDelete={handleDeleteImage}
-                  onConfirm={() =>
-                    handleConfirmGroup(
-                      group.id,
-                      !group.isConfirmed,
-                      data.imageConfigId ? `finalized-${data.imageConfigId}` : undefined,
-                    )
+                  footer={
+                    <>
+                      <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
+                        <span>第 {group.variantIndex} 组</span>
+                        <span>{group.isConfirmed ? "已定稿" : "候选中"}</span>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        className="h-7 px-2 text-[10px]"
+                        onClick={() =>
+                          handleConfirmGroup(
+                            group.id,
+                            !group.isConfirmed,
+                            data.imageConfigId ? `finalized-${data.imageConfigId}` : undefined,
+                          )
+                        }
+                        disabled={img.status !== "done"}
+                      >
+                        {group.isConfirmed ? "取消定稿" : "选定稿"}
+                      </Button>
+                    </>
                   }
                 />
               )),
             )
           : groups.map((group) => (
-              <GroupImageCard
+              <CandidateGroupCard
                 key={group.id}
                 group={group}
                 displayMode={displayMode}
@@ -255,52 +270,7 @@ export function CandidatePoolCard({
             onClick={async () => {
               try {
                 if (!data.imageConfigId) return;
-                const configResponse = await fetch(`/api/image-configs/${data.imageConfigId}`);
-                if (!configResponse.ok) throw new Error("无法获取图片配置");
-                const configPayload = (await configResponse.json()) as {
-                  image_config?: {
-                    copyId?: string;
-                    aspectRatio?: string;
-                    styleMode?: string;
-                    ipRole?: string | null;
-                    logo?: string;
-                    imageStyle?: string;
-                    referenceImageUrl?: string | null;
-                  };
-                };
-                const copyId = configPayload?.image_config?.copyId;
-                if (!copyId) throw new Error("缺少文案配置上下文");
-
-                const saveResponse = await fetch(`/api/copies/${copyId}/image-config`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    aspect_ratio: configPayload?.image_config?.aspectRatio,
-                    style_mode: configPayload?.image_config?.styleMode,
-                    ip_role: configPayload?.image_config?.ipRole ?? null,
-                    logo: configPayload?.image_config?.logo,
-                    image_style: configPayload?.image_config?.imageStyle,
-                    reference_image_url: configPayload?.image_config?.referenceImageUrl ?? null,
-                    count: 1,
-                    append: true,
-                  }),
-                });
-                if (!saveResponse.ok) throw new Error("追加候选组失败");
-                const savePayload = (await saveResponse.json()) as { id?: string; groups?: Array<{ id: string }> };
-                if (!savePayload.id) throw new Error("追加候选组失败");
-                const newGroupIds =
-                  (savePayload.groups ?? [])
-                    .slice(-1)
-                    .map((group) => group.id)
-                    .filter(Boolean);
-
-                await fetch(`/api/image-configs/${savePayload.id}/generate`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    group_ids: newGroupIds,
-                  }),
-                });
+                await appendCandidateGeneration({ imageConfigId: data.imageConfigId });
                 dispatchWorkspaceInvalidated();
               } catch (error) {
                 console.error("Failed to append generate:", error);
@@ -342,179 +312,3 @@ export function CandidatePoolCard({
     </div>
   );
 }
-
-function SingleImageCard({
-  image,
-  group,
-  selected,
-  loadingKey,
-  onToggleSelect,
-  onPreview,
-  onInpaint,
-  onRegenerate,
-  onDelete,
-  onConfirm,
-}: {
-  image: CandidateImage;
-  group: CandidateGroup;
-  selected: boolean;
-  loadingKey: string | null;
-  onToggleSelect: (id: string) => void;
-  onPreview: (id: string) => void;
-  onInpaint: (id: string) => void;
-  onRegenerate: (id: string) => void;
-  onDelete: (id: string) => void;
-  onConfirm: () => void;
-}) {
-  const isGenerating = image.status === "generating" || image.status === "pending";
-  const isFailed = image.status === "failed";
-  const isDone = image.status === "done";
-
-  return (
-    <div className="group overflow-hidden rounded-xl border border-[var(--line-soft)] bg-white">
-      <button
-        type="button"
-        className="relative w-full overflow-hidden bg-[var(--surface-2)]"
-        style={{ aspectRatio: toCssAspectRatio(image.aspectRatio) }}
-        onClick={() => isDone && onPreview(image.id)}
-        disabled={!isDone}
-      >
-        {isDone && image.fileUrl ? (
-          <Image src={image.fileUrl} alt={`候选图 ${image.slotIndex}`} fill sizes="240px" className="object-contain" />
-        ) : isGenerating ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-            <svg className="h-6 w-6 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-30" />
-              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            <span className="text-[10px] text-[var(--ink-400)]">生成中</span>
-          </div>
-        ) : isFailed ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1">
-            <span className="text-lg text-[#c0392b]">{"\u2716"}</span>
-            <span className="text-[10px] font-medium text-[#c0392b]">生成失败</span>
-          </div>
-        ) : null}
-
-        {isDone && (
-          <label className="absolute left-1.5 top-1.5 flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={selected}
-              onChange={() => onToggleSelect(image.id)}
-              className="h-3.5 w-3.5 accent-[var(--brand-500)]"
-            />
-          </label>
-        )}
-      </button>
-      <div className="space-y-2 p-2.5">
-        <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
-          <span>第 {group.variantIndex} 组</span>
-          <span>{group.isConfirmed ? "已定稿" : "候选中"}</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <Button variant="secondary" className="h-7 px-2 text-[10px]" onClick={onConfirm} disabled={!isDone}>
-            {group.isConfirmed ? "取消定稿" : "选定稿"}
-          </Button>
-          <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>
-            重绘
-          </Button>
-          <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onRegenerate(image.id)} disabled={loadingKey === image.id}>
-            重生成
-          </Button>
-          <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onDelete(image.id)} disabled={loadingKey === image.id}>
-            删除
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GroupImageCard({
-  group,
-  displayMode,
-  loadingKey,
-  onPreview,
-  onInpaint,
-  onRegenerate,
-  onDeleteGroup,
-  onConfirmGroup,
-}: {
-  group: CandidateGroup;
-  displayMode: "double" | "triple";
-  loadingKey: string | null;
-  onPreview: (id: string) => void;
-  onInpaint: (id: string) => void;
-  onRegenerate: (id: string) => void;
-  onDeleteGroup: (id: string) => void;
-  onConfirmGroup: () => void;
-}) {
-  const groupHasGenerating = group.images.some((image) => image.status === "generating" || image.status === "pending");
-  return (
-    <div className="overflow-hidden rounded-[24px] border border-[var(--line-soft)] bg-white p-4 shadow-[var(--shadow-inset)]">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套</p>
-          <p className="mt-1 text-[11px] text-[var(--ink-400)]">{displayMode === "double" ? "双图" : "三图"}</p>
-        </div>
-        <Badge tone={group.isConfirmed ? "success" : groupHasGenerating ? "brand" : "neutral"}>
-          {group.isConfirmed ? "已定稿" : groupHasGenerating ? "生成中" : "候选中"}
-        </Badge>
-      </div>
-      <div className={cn("grid gap-3", displayMode === "double" ? "grid-cols-2" : "grid-cols-3")}>
-        {group.images.map((image) => {
-          const isGenerating = image.status === "generating" || image.status === "pending";
-          const isFailed = image.status === "failed";
-          const isDone = image.status === "done";
-
-          return (
-            <div key={image.id} className="space-y-2">
-              <button
-                type="button"
-                className="relative w-full overflow-hidden rounded-[20px] border border-[var(--line-soft)] bg-[var(--surface-2)]"
-                style={{ aspectRatio: toCssAspectRatio(image.aspectRatio) }}
-                onClick={() => isDone && onPreview(image.id)}
-                disabled={!isDone}
-              >
-                <div className="absolute left-2 top-2 z-10 rounded-full bg-white/92 px-2 py-1 text-[10px] font-medium text-[var(--ink-700)] shadow-[var(--shadow-card)]">
-                  图 {image.slotIndex}
-                </div>
-                {isDone && image.fileUrl ? (
-                  <Image src={image.fileUrl} alt={`候选图 ${image.slotIndex}`} fill sizes="160px" className="object-contain" />
-                ) : isGenerating ? (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-                    <svg className="h-5 w-5 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-30" />
-                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                    <span className="text-[10px] text-[var(--ink-400)]">生成中</span>
-                  </div>
-                ) : isFailed ? (
-                  <div className="flex h-full w-full items-center justify-center text-[10px] text-[#c0392b]">失败</div>
-                ) : null}
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="ghost" className="h-8 px-2 text-[11px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>
-                  重绘
-                </Button>
-                <Button variant="ghost" className="h-8 px-2 text-[11px]" onClick={() => onRegenerate(image.id)} disabled={loadingKey === image.id}>
-                  重生成
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-4 flex items-center gap-2 border-t border-[var(--line-soft)] pt-3">
-        <Button variant="secondary" className="h-9 px-3 text-[11px]" onClick={onConfirmGroup} disabled={groupHasGenerating}>
-          {group.isConfirmed ? "取消定稿" : "选定稿"}
-        </Button>
-        <Button variant="ghost" className="h-9 px-3 text-[11px]" onClick={() => onDeleteGroup(group.id)} disabled={loadingKey === group.id || groupHasGenerating}>
-          删除整套
-        </Button>
-      </div>
-    </div>
-  );
-}
-
