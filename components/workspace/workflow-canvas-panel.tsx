@@ -4,13 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { getCanvasData, getGenerationStatusData } from "@/lib/project-data";
 
-import type { CandidatePoolCardData } from "@/components/cards/candidate-pool-card";
 import { WorkflowCanvas } from "@/components/canvas/workflow-canvas";
 import { useGenerationPolling } from "@/lib/hooks/use-generation-polling";
+import {
+  mergeGenerationStatusesIntoGraph,
+  shouldReloadGraphAfterStatusPoll,
+} from "@/lib/workspace-graph-sync";
 
 type CanvasData = NonNullable<ReturnType<typeof getCanvasData>>;
 type GenerationStatusData = NonNullable<ReturnType<typeof getGenerationStatusData>>;
-type CandidateImageStatus = CandidatePoolCardData["groups"][number]["images"][number]["status"];
 
 function isCanvasData(value: unknown): value is CanvasData {
   return typeof value === "object" && value !== null && "nodes" in value && "edges" in value;
@@ -52,46 +54,13 @@ export function WorkflowCanvasPanel({ projectId }: { projectId: string }) {
   const handleStatuses = useCallback((payload: GenerationStatusData) => {
     setGraph((current) => {
       if (!current) return current;
-
-      const imageStatusMap = new Map(payload.images.map((image) => [image.id, image]));
-
-      return {
-        ...current,
-        hasPendingImages: payload.images.some(
-          (image) => image.status === "pending" || image.status === "generating",
-        ),
-        nodes: current.nodes.map((node) => {
-          if (node.type !== "candidatePool") {
-            return node;
-          }
-
-          const candidateData = node.data as CandidatePoolCardData;
-
-          return {
-            ...node,
-            data: {
-              ...candidateData,
-              groups: candidateData.groups.map((group) => ({
-                ...group,
-                images: group.images.map((image) => {
-                  const nextImage = imageStatusMap.get(image.id);
-                  if (!nextImage) {
-                    return image;
-                  }
-
-                  return {
-                    ...image,
-                    fileUrl: nextImage.fileUrl,
-                    status: nextImage.status as CandidateImageStatus,
-                  };
-                }),
-              })),
-            },
-          };
-        }),
-      };
+      if (shouldReloadGraphAfterStatusPoll(current, payload)) {
+        queueMicrotask(loadGraph);
+        return current;
+      }
+      return mergeGenerationStatusesIntoGraph(current, payload);
     });
-  }, []);
+  }, [loadGraph]);
 
   useGenerationPolling({
     projectId,
