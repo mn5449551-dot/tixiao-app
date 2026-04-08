@@ -1,13 +1,12 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
-const logoAssetRoot = path.join(/* turbopackIgnore: true */ process.cwd(), "public", "brand");
-
 const LOGO_ASSET_PATHS = {
-  onion: path.join(logoAssetRoot, "onion-logo.png"),
-  onion_app: path.join(logoAssetRoot, "onion-app-logo.png"),
+  onion: fileURLToPath(new URL("../public/brand/onion-logo.png", import.meta.url)),
+  onion_app: fileURLToPath(new URL("../public/brand/onion-app-logo.png", import.meta.url)),
 } as const;
 
 export function getLogoAssetPath(logo: keyof typeof LOGO_ASSET_PATHS) {
