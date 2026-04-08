@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# tixiao-app
 
-## Getting Started
+洋葱学园图文提效工作流的本地开发版本。
 
-First, run the development server:
+## 当前阶段
+- 已创建独立新项目目录 `tixiao-app/`
+- 已接入 Next.js App Router + SQLite + Drizzle + React Flow
+- 已完成项目列表页、工作区三栏骨架、需求卡/方向卡/文案卡/图片配置的初始 API 骨架
+- Claude Code 已安装，但当前本机未登录；后续可补跑前端 UI 设计深化产物
 
+## 启动
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 常用命令
+```bash
+npm run lint
+npm run typecheck
+npm run db:generate
+npm run db:push
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 环境变量
+复制 `.env.example` 为 `.env.local` 后填写：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEW_API_BASE_URL=https://ops-ai-gateway.yc345.tv
+NEW_API_KEY=replace-me
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 目录
+```text
+app/                 # 页面与 API Route
+components/          # UI、Dashboard、Workspace、Canvas
+lib/                 # db、schema、仓储与生成逻辑
+ db/onion.db         # 本地 SQLite 数据库（运行时自动创建）
+db/migrations/       # Drizzle 迁移输出目录
+```

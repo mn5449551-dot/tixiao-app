@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f3ee;
+  --foreground: #211c18;
+
+  --surface-0: #fffdfb;
+  --surface-1: #f8f3ef;
+  --surface-2: #efe6df;
+  --panel-strong: rgba(255, 251, 247, 0.92);
+
+  --ink-950: #1d1714;
+  --ink-900: #2f2824;
+  --ink-800: #4b433e;
+  --ink-700: #615953;
+  --ink-600: #80756c;
+  --ink-500: #a19389;
+  --ink-400: #b9ada4;
+
+  --brand-50: #fff3e8;
+  --brand-300: #f7bb8b;
+  --brand-400: #f39a57;
+  --brand-500: #f26e24;
+  --brand-600: #db5c15;
+  --brand-700: #aa420d;
+  --brand-ring: rgba(242, 110, 36, 0.16);
+
+  --success-soft: #e8f7ee;
+  --success-700: #1f7a43;
+  --warning-soft: #fff3dc;
+  --warning-700: #9b6513;
+  --danger-soft: #ffe8e6;
+  --danger-soft-hover: #ffd9d5;
+  --danger-700: #b9382a;
+
+  --line-soft: rgba(85, 65, 47, 0.09);
+  --line-strong: rgba(85, 65, 47, 0.14);
+
+  --shadow-card: 0 18px 46px rgba(77, 49, 18, 0.08);
+  --shadow-panel: 0 26px 80px rgba(77, 49, 18, 0.1);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 24%),
+    linear-gradient(180deg, #fcfaf7 0%, #f5efe8 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(155, 132, 111, 0.42);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* React Flow animated edge lines */
+.react-flow__edge.animated path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  from { stroke-dashoffset: 10; }
+  to { stroke-dashoffset: 0; }
 }
