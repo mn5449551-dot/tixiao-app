@@ -135,13 +135,6 @@ function processImagesInBackground(input: {
         imageForm: direction.imageForm ?? "single",
       });
 
-      // Save generated description
-      db.update(imageConfigs)
-        .set({ promptZh, updatedAt: Date.now() })
-        .where(eq(imageConfigs.id, config.id))
-        .run();
-
-      // Build English prompt for image generation
       const promptEn = buildImagePrompt({
         directionTitle: direction.title,
         scenarioProblem: direction.scenarioProblem,
@@ -159,15 +152,10 @@ function processImagesInBackground(input: {
         referenceImageUrl: config.referenceImageUrl,
       });
 
-      // Save English prompt
-      db.update(imageConfigs)
-        .set({ promptEn, updatedAt: Date.now() })
-        .where(eq(imageConfigs.id, config.id))
-        .run();
-
       const negativePrompt = buildNegativePrompt({ imageStyle: config.imageStyle });
+
       db.update(imageConfigs)
-        .set({ negativePrompt, updatedAt: Date.now() })
+        .set({ promptZh, promptEn, negativePrompt, updatedAt: Date.now() })
         .where(eq(imageConfigs.id, config.id))
         .run();
 

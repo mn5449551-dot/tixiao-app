@@ -9,11 +9,10 @@ import { Handle, Position } from "@xyflow/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
+import type { CardStatus } from "@/lib/constants";
 import { CHANNELS, getAvailableImageForms } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
-
-export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
 type DirectionItem = {
   id: string;

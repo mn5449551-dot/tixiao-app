@@ -17,11 +17,10 @@ import {
   shouldShowImageStyleField,
   shouldShowIpAssetSelector,
 } from "@/lib/workflow-defaults";
+import type { CardStatus } from "@/lib/constants";
 import { ASPECT_RATIOS, IMAGE_STYLES, LOGO_OPTIONS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
-
-export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
 export type ImageConfigCardData = {
   copyId: string;

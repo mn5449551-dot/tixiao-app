@@ -10,7 +10,8 @@ import { Handle, Position } from "@xyflow/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import type { CardStatus } from "@/lib/constants";
+import { cn, toCssAspectRatio } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 const ImagePreviewModal = dynamic(
@@ -38,8 +39,6 @@ export type CandidateGroup = {
   isConfirmed: boolean;
   images: CandidateImage[];
 };
-
-export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
 export type CandidatePoolCardData = {
   displayMode: "single" | "double" | "triple";
@@ -519,7 +518,3 @@ function GroupImageCard({
   );
 }
 
-function toCssAspectRatio(value?: string) {
-  if (!value) return "1 / 1";
-  return value.replace(":", " / ");
-}

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { deleteFileIfExists } from "@/lib/storage";
 import { getDb } from "@/lib/db";
-import { regenerateCopy } from "@/lib/project-data";
+import { deleteImageConfigCascade, regenerateCopy } from "@/lib/project-data";
 import { copies, generatedImages, imageConfigs, imageGroups } from "@/lib/schema";
 
 export async function PUT(
@@ -77,16 +77,7 @@ export async function DELETE(
     // Delete associated image config and all downstream data
     const config = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, id)).get();
     if (config) {
-      const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all();
-      for (const group of groups) {
-        const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-        for (const image of images) {
-          await deleteFileIfExists(image.filePath);
-        }
-      }
-      db.delete(generatedImages).where(eq(generatedImages.imageConfigId, config.id)).run();
-      db.delete(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).run();
-      db.delete(imageConfigs).where(eq(imageConfigs.copyId, id)).run();
+      await deleteImageConfigCascade(config.id);
     }
 
     db.delete(copies).where(eq(copies.id, id)).run();
