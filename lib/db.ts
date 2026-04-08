@@ -4,10 +4,9 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 
+import { getDbFilePath, getLegacyDbFilePath } from "@/lib/runtime-paths";
 import * as schema from "@/lib/schema";
 
-const dbDirectory = path.join(/* turbopackIgnore: true */ process.cwd(), "db");
-const dbFilePath = path.join(dbDirectory, "onion.db");
 const SQLITE_HEADER = Buffer.from("SQLite format 3\0");
 
 let sqlite: Database.Database | null = null;
@@ -261,8 +260,46 @@ function isNotDatabaseError(error: unknown) {
   return error instanceof Error && /file is not a database/i.test(error.message);
 }
 
-export function initializeSqliteConnection(filePath: string = dbFilePath) {
+function checkpointLegacyDatabase(filePath: string) {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
+  const legacyConnection = new Database(filePath);
+  try {
+    legacyConnection.pragma("journal_mode = WAL");
+    legacyConnection.pragma("wal_checkpoint(TRUNCATE)");
+  } finally {
+    legacyConnection.close();
+  }
+}
+
+function migrateLegacyDatabaseIfNeeded(filePath: string) {
+  if (fs.existsSync(filePath)) {
+    return;
+  }
+
+  const legacyDbPath = getLegacyDbFilePath();
+  if (filePath === legacyDbPath || !fs.existsSync(legacyDbPath) || !isSqliteDatabaseFile(legacyDbPath)) {
+    return;
+  }
+
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  checkpointLegacyDatabase(legacyDbPath);
+
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const sourcePath = `${legacyDbPath}${suffix}`;
+    const destinationPath = `${filePath}${suffix}`;
+    if (!fs.existsSync(sourcePath)) {
+      continue;
+    }
+    fs.copyFileSync(sourcePath, destinationPath);
+  }
+}
+
+export function initializeSqliteConnection(filePath: string = getDbFilePath()) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  migrateLegacyDatabaseIfNeeded(filePath);
 
   if (fs.existsSync(filePath) && !isSqliteDatabaseFile(filePath)) {
     archiveInvalidDatabaseFiles(filePath);
@@ -293,7 +330,7 @@ export function initializeSqliteConnection(filePath: string = dbFilePath) {
 
 export function getSqlite() {
   if (!sqlite) {
-    sqlite = initializeSqliteConnection(dbFilePath);
+    sqlite = initializeSqliteConnection(getDbFilePath());
   }
 
   return sqlite;
@@ -306,5 +343,3 @@ export function getDb() {
 
   return db;
 }
-
-export { dbFilePath };

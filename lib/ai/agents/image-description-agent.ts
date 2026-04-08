@@ -1,3 +1,4 @@
+import { IMAGE_STYLE_DESCRIPTIONS } from "@/lib/constants";
 import { createChatCompletion } from "@/lib/ai/client";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -108,15 +109,7 @@ function buildFallbackDescription(input: {
   ipPromptKeywords?: string | null;
   imageStyle: string;
 }): string {
-  const styleMap: Record<string, string> = {
-    realistic: "写实风格，光影自然，色调偏暖",
-    "3d": "3D立体渲染，卡通感，色彩明快",
-    animation: "日系二次元动画风格，线条柔和，色彩清新",
-    felt: "毛毡手工质感，温暖可爱，适合教育场景",
-    img2img: "参考图生图，保留整体构图",
-  };
-
-  const style = styleMap[input.imageStyle] ?? "清新明亮的广告风格";
+  const style = IMAGE_STYLE_DESCRIPTIONS[input.imageStyle] ?? "清新明亮的广告风格";
   const ipText = input.ipRole
     ? `画面中央出现${input.ipRole}角色，姿态亲切自然，目光看向观众，角色设定为${input.ipDescription ?? input.ipRole}，关键词包含${input.ipPromptKeywords ?? ""}，长相和整体风格必须与参考图一致`
     : `画面主体为一名目标人群代表（${input.targetAudience}）`;

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { resolveReferenceImageUrl } from "@/lib/ip-assets";
 import { copies, generatedImages, imageConfigs, imageGroups } from "@/lib/schema";
-import { deleteFileIfExists } from "@/lib/storage";
+import { deleteImageConfigCascade } from "@/lib/project-data";
 import { resolveImageStyleForMode } from "@/lib/workflow-defaults";
 
 export async function GET(
@@ -99,18 +99,7 @@ export async function DELETE(
       return NextResponse.json({ error: "图片配置不存在" }, { status: 404 });
     }
 
-    // Delete all image files in groups
-    const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all();
-    for (const group of groups) {
-      const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-      for (const image of images) {
-        await deleteFileIfExists(image.filePath);
-      }
-    }
-
-    // Delete image records (cascade via DB)
-    db.delete(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).run();
-    db.delete(imageConfigs).where(eq(imageConfigs.id, config.id)).run();
+    await deleteImageConfigCascade(config.id);
 
     // Unlock the copy
     db.update(copies)

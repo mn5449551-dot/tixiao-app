@@ -16,7 +16,7 @@ import {
   EXPORT_SLOT_SPECS,
   type ExportSlotSpec,
 } from "@/lib/export/utils";
-import { cn } from "@/lib/utils";
+import { cn, toCssAspectRatio } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 const ImagePreviewModal = dynamic(
@@ -24,7 +24,7 @@ const ImagePreviewModal = dynamic(
   { ssr: false },
 );
 
-export const CHANNELS = ["OPPO", "VIVO", "小米", "荣耀"] as const;
+export const EXPORT_CHANNELS = ["OPPO", "VIVO", "小米", "荣耀"] as const;
 
 export type FinalizedImage = {
   id: string;
@@ -51,6 +51,10 @@ export type FinalizedPoolCardData = {
 
 export type FinalizedPoolCardNode = Node<FinalizedPoolCardData, "finalizedPool">;
 
+function isDerivedGroup(group: { groupType?: string }) {
+  return group.groupType?.startsWith("derived|") ?? false;
+}
+
 function getSlotsForChannels(channels: string[]): ExportSlotSpec[] {
   if (channels.length === 0) return [];
   return EXPORT_SLOT_SPECS.filter((spec) => channels.includes(spec.channel));
@@ -61,7 +65,7 @@ export function FinalizedPoolCard({
   selected,
 }: NodeProps<FinalizedPoolCardNode>) {
   const { displayMode, groups, groupLabel, projectId } = data;
-  const [selectedChannels, setSelectedChannels] = useState<string[]>([CHANNELS[0]]);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([EXPORT_CHANNELS[0]]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [fileFormat, setFileFormat] = useState<"jpg" | "png" | "webp">("jpg");
   const [namingRule, setNamingRule] = useState("channel_slot_date_version");
@@ -153,16 +157,16 @@ export function FinalizedPoolCard({
               <div key={group.id} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs font-medium text-[var(--ink-800)]">
-                    {group.groupType?.startsWith("derived|") ? "适配版本" : `第 ${group.variantIndex} 组`}
+                    {isDerivedGroup(group) ? "适配版本" : `第 ${group.variantIndex} 组`}
                   </p>
-                  {group.groupType?.startsWith("derived|") ? <Badge tone="brand">适配版本</Badge> : <Badge tone="success">原始定稿</Badge>}
+                  {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : <Badge tone="success">原始定稿</Badge>}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {group.images.map((image) => (
                     <PreviewCard key={image.id} image={image} onPreview={setPreviewImage} />
                   ))}
                 </div>
-                {group.groupType?.startsWith("derived|") ? (
+                {isDerivedGroup(group) ? (
                   <div className="mt-3 flex justify-end">
                     <Button
                       variant="ghost"
@@ -192,7 +196,7 @@ export function FinalizedPoolCard({
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs font-medium text-[var(--ink-800)]">第 {group.variantIndex} 套</p>
                   <div className="flex items-center gap-2">
-                    {group.groupType?.startsWith("derived|") ? <Badge tone="brand">适配版本</Badge> : null}
+                    {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : null}
                     <Badge tone="success">{group.slotCount} 图</Badge>
                   </div>
                 </div>
@@ -201,7 +205,7 @@ export function FinalizedPoolCard({
                     <PreviewCard key={image.id} image={image} compact onPreview={setPreviewImage} />
                   ))}
                 </div>
-                {group.groupType?.startsWith("derived|") ? (
+                {isDerivedGroup(group) ? (
                   <div className="mt-3 flex justify-end">
                     <Button
                       variant="ghost"
@@ -230,7 +234,7 @@ export function FinalizedPoolCard({
       <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">投放渠道</p>
         <div className="flex flex-wrap gap-2">
-          {CHANNELS.map((channel) => {
+          {EXPORT_CHANNELS.map((channel) => {
             const active = selectedChannels.includes(channel);
             return (
               <button
@@ -430,7 +434,3 @@ function PreviewCard({
   );
 }
 
-function toCssAspectRatio(value?: string) {
-  if (!value) return "1 / 1";
-  return value.replace(":", " / ");
-}

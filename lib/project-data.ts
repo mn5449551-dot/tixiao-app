@@ -32,6 +32,25 @@ import { deleteFileIfExists, saveImageBuffer } from "@/lib/storage";
 import { resolveImageStyleForMode } from "@/lib/workflow-defaults";
 import { buildGraph } from "@/lib/workflow-graph";
 
+/**
+ * Delete an image config and all downstream data (groups, images, files).
+ */
+export async function deleteImageConfigCascade(configId: string) {
+  const db = getDb();
+  const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, configId)).all();
+  const filePaths: string[] = [];
+  for (const group of groups) {
+    const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+    for (const image of images) {
+      if (image.filePath) filePaths.push(image.filePath);
+    }
+  }
+  await Promise.all(filePaths.map((path) => deleteFileIfExists(path)));
+  db.delete(generatedImages).where(eq(generatedImages.imageConfigId, configId)).run();
+  db.delete(imageGroups).where(eq(imageGroups.imageConfigId, configId)).run();
+  db.delete(imageConfigs).where(eq(imageConfigs.id, configId)).run();
+}
+
 type DirectionIdea = {
   title: string;
   targetAudience: string;
@@ -767,24 +786,8 @@ export async function deleteDirection(directionId: string) {
   const direction = db.select().from(directions).where(eq(directions.id, directionId)).get();
   if (!direction) return false;
 
-  // Collect all image file paths before deletion
-  const directionCopyCards = db.select().from(copyCards).where(eq(copyCards.directionId, directionId)).all();
-  for (const card of directionCopyCards) {
-    const copiesList = db.select().from(copies).where(eq(copies.copyCardId, card.id)).all();
-    for (const copy of copiesList) {
-      const config = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copy.id)).get();
-      if (config) {
-        const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all();
-        for (const group of groups) {
-          const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-          for (const image of images) {
-            if (image.filePath) {
-              try { await import("fs/promises").then((fs) => fs.unlink(image.filePath!)); } catch { /* ignore */ }
-            }
-          }
-        }
-      }
-    }
+  for (const configId of listDirectionImageConfigIds(directionId)) {
+    await deleteImageConfigCascade(configId);
   }
 
   return db.delete(directions).where(eq(directions.id, directionId)).run().changes > 0;
@@ -889,16 +892,7 @@ export async function regenerateCopy(copyId: string, useAi = false) {
 
   const currentConfig = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copyId)).get();
   if (currentConfig) {
-    const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, currentConfig.id)).all();
-    for (const group of groups) {
-      const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-      for (const image of images) {
-        await deleteFileIfExists(image.filePath);
-      }
-    }
-    db.delete(generatedImages).where(eq(generatedImages.imageConfigId, currentConfig.id)).run();
-    db.delete(imageGroups).where(eq(imageGroups.imageConfigId, currentConfig.id)).run();
-    db.delete(imageConfigs).where(eq(imageConfigs.copyId, copyId)).run();
+    await deleteImageConfigCascade(currentConfig.id);
   }
 
   db.update(copies)
@@ -1245,6 +1239,32 @@ function listProjectGraphRows(projectId: string) {
   };
 }
 
+function listDirectionImageConfigIds(directionId: string) {
+  const db = getDb();
+  const directionCardRows = db
+    .select({ id: copyCards.id })
+    .from(copyCards)
+    .where(eq(copyCards.directionId, directionId))
+    .all();
+  const cardIds = directionCardRows.map((card) => card.id);
+  if (cardIds.length === 0) return [];
+
+  const copyRowsForDirection = db
+    .select({ id: copies.id })
+    .from(copies)
+    .where(inArray(copies.copyCardId, cardIds))
+    .all();
+  const copyIds = copyRowsForDirection.map((copy) => copy.id);
+  if (copyIds.length === 0) return [];
+
+  return db
+    .select({ id: imageConfigs.id })
+    .from(imageConfigs)
+    .where(inArray(imageConfigs.copyId, copyIds))
+    .all()
+    .map((config) => config.id);
+}
+
 function buildWorkspaceDirections(projectId: string): WorkspaceDirection[] {
   const { directionRows, cardRows, copyRows, configRows, groupRows, imageRows } =
     listProjectGraphRows(projectId);
@@ -1402,5 +1422,23 @@ export function getGenerationStatusData(projectId: string) {
       errorMessage: image.errorMessage,
       updatedAt: image.updatedAt,
     })),
+  };
+}
+
+export function getProjectExportContext(projectId: string) {
+  const project = getProjectById(projectId);
+  if (!project) return null;
+
+  const { configRows, groupRows, imageRows } = listProjectGraphRows(projectId);
+  const confirmedGroupIds = new Set(
+    groupRows.filter((group) => group.isConfirmed === 1).map((group) => group.id),
+  );
+
+  return {
+    project,
+    configMap: new Map(configRows.map((config) => [config.id, config])),
+    images: imageRows.filter(
+      (image) => confirmedGroupIds.has(image.imageGroupId) && Boolean(image.filePath),
+    ),
   };
 }

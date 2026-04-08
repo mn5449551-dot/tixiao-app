@@ -1,12 +1,25 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 import sharp from "sharp";
+import { getLegacyStorageRoot, getStorageRootPath } from "@/lib/runtime-paths";
 
-const storageRoot = path.join(process.cwd(), "storage");
+const storageRoot = getStorageRootPath();
 
 export function getStorageRoot() {
+  migrateLegacyStorageIfNeeded();
   return storageRoot;
+}
+
+function migrateLegacyStorageIfNeeded() {
+  const legacyStorageRoot = getLegacyStorageRoot();
+  if (storageRoot === legacyStorageRoot || fsSync.existsSync(storageRoot) || !fsSync.existsSync(legacyStorageRoot)) {
+    return;
+  }
+
+  fsSync.mkdirSync(path.dirname(storageRoot), { recursive: true });
+  fsSync.cpSync(legacyStorageRoot, storageRoot, { recursive: true });
 }
 
 export function getProjectImageDirectory(projectId: string) {
@@ -14,6 +27,7 @@ export function getProjectImageDirectory(projectId: string) {
 }
 
 export async function ensureProjectImageDirectory(projectId: string) {
+  migrateLegacyStorageIfNeeded();
   const dir = getProjectImageDirectory(projectId);
   await fs.mkdir(dir, { recursive: true });
   return dir;

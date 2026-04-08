@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 
+import { toCssAspectRatio } from "@/lib/utils";
+
 export function ImagePreviewModal({
   imageUrl,
   title,
@@ -53,7 +55,3 @@ export function ImagePreviewModal({
   );
 }
 
-function toCssAspectRatio(value?: string) {
-  if (!value) return "1 / 1";
-  return value.replace(":", " / ");
-}

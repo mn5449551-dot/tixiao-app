@@ -26,3 +26,8 @@ export function fromJson<T>(value: string | null | undefined, fallback: T): T {
     return fallback;
   }
 }
+
+export function toCssAspectRatio(value?: string) {
+  if (!value) return "1 / 1";
+  return value.replace(":", " / ");
+}

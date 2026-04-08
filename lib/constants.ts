@@ -1,3 +1,13 @@
+export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
+
+export const IMAGE_STYLE_DESCRIPTIONS: Record<string, string> = {
+  realistic: "写实风格，光影自然，色调偏暖",
+  "3d": "3D立体渲染，卡通感，色彩明快",
+  animation: "日系二次元动画风格，线条柔和，色彩清新",
+  felt: "毛毡手工质感，温暖可爱，适合教育场景",
+  img2img: "参考图生图，保留整体构图",
+};
+
 export const TARGET_AUDIENCES = [
   { value: "parent", label: "家长" },
   { value: "student", label: "学生" },

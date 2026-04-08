@@ -19,10 +19,9 @@ import {
   getCopyCompactSummary,
   getCopyDisplayRows,
 } from "@/lib/copy-card-presenter";
+import type { CardStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
-
-export type CardStatus = "idle" | "loading" | "done" | "error" | "partial-success";
 
 export type CopyItem = {
   id: string;
