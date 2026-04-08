@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { generateCopyIdeas } from "@/lib/ai/agents/copy-agent";
@@ -45,6 +45,23 @@ type CopyIdea = {
   titleSub?: string | null;
   titleExtra?: string | null;
   copyType?: string | null;
+};
+
+type WorkspaceImageGroup = typeof imageGroups.$inferSelect & {
+  images: Array<typeof generatedImages.$inferSelect>;
+};
+
+type WorkspaceCopy = typeof copies.$inferSelect & {
+  imageConfig: (typeof imageConfigs.$inferSelect) | null;
+  groups: WorkspaceImageGroup[];
+};
+
+type WorkspaceCopyCard = typeof copyCards.$inferSelect & {
+  copies: WorkspaceCopy[];
+};
+
+type WorkspaceDirection = typeof directions.$inferSelect & {
+  copyCards: WorkspaceCopyCard[];
 };
 
 const singleCopyAngles = [
@@ -1146,39 +1163,8 @@ export function getProjectWorkspace(projectId: string) {
   const project = getProjectById(projectId);
   if (!project) return null;
 
-  const db = getDb();
   const requirement = getRequirement(projectId);
-  const directionRows = listDirections(projectId);
-  const directionsWithChildren = directionRows.map((direction) => {
-    const cards = listCopyCards(direction.id).map((card) => ({
-      ...card,
-      copies: card.copies.map((copy) => {
-        const imageConfig = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copy.id)).get() ?? null;
-        const groups = imageConfig
-          ? db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, imageConfig.id)).all().map((group) => ({
-              ...group,
-              images: db
-                .select()
-                .from(generatedImages)
-                .where(eq(generatedImages.imageGroupId, group.id))
-                .orderBy(generatedImages.slotIndex)
-                .all(),
-            }))
-          : [];
-
-        return {
-          ...copy,
-          imageConfig,
-          groups,
-        };
-      }),
-    }));
-
-    return {
-      ...direction,
-      copyCards: cards,
-    };
-  });
+  const directionsWithChildren = buildWorkspaceDirections(projectId);
 
   return {
     project,
@@ -1193,6 +1179,129 @@ export function getProjectWorkspace(projectId: string) {
       availableIpRoles: IP_ROLES,
     },
   };
+}
+
+function listProjectGraphRows(projectId: string) {
+  const db = getDb();
+  const directionRows = listDirections(projectId);
+  const directionIds = directionRows.map((direction) => direction.id);
+
+  const cardRows =
+    directionIds.length === 0
+      ? []
+      : db
+          .select()
+          .from(copyCards)
+          .where(inArray(copyCards.directionId, directionIds))
+          .orderBy(copyCards.version)
+          .all();
+  const cardIds = cardRows.map((card) => card.id);
+
+  const copyRows =
+    cardIds.length === 0
+      ? []
+      : db
+          .select()
+          .from(copies)
+          .where(inArray(copies.copyCardId, cardIds))
+          .orderBy(copies.variantIndex)
+          .all();
+  const copyIds = copyRows.map((copy) => copy.id);
+
+  const configRows =
+    copyIds.length === 0
+      ? []
+      : db.select().from(imageConfigs).where(inArray(imageConfigs.copyId, copyIds)).all();
+  const configIds = configRows.map((config) => config.id);
+
+  const groupRows =
+    configIds.length === 0
+      ? []
+      : db
+          .select()
+          .from(imageGroups)
+          .where(inArray(imageGroups.imageConfigId, configIds))
+          .orderBy(imageGroups.variantIndex)
+          .all();
+  const groupIds = groupRows.map((group) => group.id);
+
+  const imageRows =
+    groupIds.length === 0
+      ? []
+      : db
+          .select()
+          .from(generatedImages)
+          .where(inArray(generatedImages.imageGroupId, groupIds))
+          .orderBy(generatedImages.slotIndex)
+          .all();
+
+  return {
+    directionRows,
+    cardRows,
+    copyRows,
+    configRows,
+    groupRows,
+    imageRows,
+  };
+}
+
+function buildWorkspaceDirections(projectId: string): WorkspaceDirection[] {
+  const { directionRows, cardRows, copyRows, configRows, groupRows, imageRows } =
+    listProjectGraphRows(projectId);
+
+  const imagesByGroupId = new Map(
+    groupRows.map((group) => [group.id, [] as Array<typeof generatedImages.$inferSelect>]),
+  );
+  imageRows.forEach((image) => {
+    imagesByGroupId.get(image.imageGroupId)?.push(image);
+  });
+
+  const groupsByConfigId = new Map(
+    configRows.map((config) => [config.id, [] as WorkspaceImageGroup[]]),
+  );
+  groupRows.forEach((group) => {
+    groupsByConfigId.get(group.imageConfigId)?.push({
+      ...group,
+      images: imagesByGroupId.get(group.id) ?? [],
+    });
+  });
+
+  const configByCopyId = new Map(configRows.map((config) => [config.copyId, config]));
+  const copiesByCardId = new Map(
+    cardRows.map((card) => [
+      card.id,
+      [] as WorkspaceCopy[],
+    ]),
+  );
+
+  copyRows.forEach((copy) => {
+    const imageConfig = configByCopyId.get(copy.id) ?? null;
+    copiesByCardId.get(copy.copyCardId)?.push({
+      ...copy,
+      imageConfig,
+      groups: imageConfig ? (groupsByConfigId.get(imageConfig.id) ?? []) : [],
+    });
+  });
+
+  const cardsByDirectionId = new Map(
+    directionRows.map((direction) => [
+      direction.id,
+      [] as WorkspaceCopyCard[],
+    ]),
+  );
+
+  cardRows.forEach((card) => {
+    const copiesForCard = copiesByCardId.get(card.id) ?? [];
+    cardsByDirectionId.get(card.directionId)?.push({
+      ...card,
+      copies: copiesForCard,
+    });
+  });
+
+  return directionRows.map((direction) => ({
+    ...direction,
+    copyCards: cardsByDirectionId.get(direction.id) ?? [],
+  }));
 }
 
 export function getWorkspaceHeader(projectId: string) {
@@ -1212,28 +1321,19 @@ export function getProjectTreeData(projectId: string) {
   const project = getProjectById(projectId);
   if (!project) return null;
 
-  const db = getDb();
   const requirement = getRequirement(projectId);
-  const directionRows = listDirections(projectId);
-  const directionsWithCards = directionRows.map((direction) => ({
+  const directionsWithCards = buildWorkspaceDirections(projectId).map((direction) => ({
     id: direction.id,
     title: direction.title,
-    copyCards: listCopyCards(direction.id).map((card) => ({
+    copyCards: direction.copyCards.map((card) => ({
       id: card.id,
       version: card.version,
       copies: card.copies.map((copy) => {
-        const imageConfig =
-          db
-            .select({ id: imageConfigs.id })
-            .from(imageConfigs)
-            .where(eq(imageConfigs.copyId, copy.id))
-            .get() ?? null;
-
         return {
           id: copy.id,
           variantIndex: copy.variantIndex,
           titleMain: copy.titleMain,
-          imageConfigId: imageConfig?.id ?? null,
+          imageConfigId: copy.imageConfig?.id ?? null,
         };
       }),
     })),
@@ -1251,15 +1351,29 @@ export function getProjectTreeData(projectId: string) {
 }
 
 export function getCanvasData(projectId: string) {
-  const workspace = getProjectWorkspace(projectId);
-  if (!workspace) return null;
+  const project = getProjectById(projectId);
+  if (!project) return null;
 
-  const graph = buildGraph(workspace);
+  const requirement = getRequirement(projectId);
+  const directionsWithChildren = buildWorkspaceDirections(projectId);
+  const graph = buildGraph({
+    project,
+    requirement,
+    directions: directionsWithChildren,
+    meta: {
+      availableChannels: CHANNELS,
+      availableFeatures: FEATURE_LIBRARY,
+      availableAspectRatios: ASPECT_RATIOS,
+      availableImageStyles: IMAGE_STYLES,
+      availableLogoOptions: LOGO_OPTIONS,
+      availableIpRoles: IP_ROLES,
+    },
+  });
   return {
     projectId,
     nodes: graph.nodes,
     edges: graph.edges,
-    hasPendingImages: workspace.directions.some((direction) =>
+    hasPendingImages: directionsWithChildren.some((direction) =>
       direction.copyCards.some((card) =>
         card.copies.some((copy) =>
           copy.groups.some((group) =>
@@ -1274,26 +1388,19 @@ export function getCanvasData(projectId: string) {
 }
 
 export function getGenerationStatusData(projectId: string) {
-  const workspace = getProjectWorkspace(projectId);
-  if (!workspace) return null;
+  const project = getProjectById(projectId);
+  if (!project) return null;
+  const { imageRows } = listProjectGraphRows(projectId);
 
   return {
     projectId,
-    images: workspace.directions.flatMap((direction) =>
-      direction.copyCards.flatMap((card) =>
-        card.copies.flatMap((copy) =>
-          copy.groups.flatMap((group) =>
-            group.images.map((image) => ({
-              id: image.id,
-              imageConfigId: image.imageConfigId,
-              fileUrl: image.fileUrl,
-              status: image.status,
-              errorMessage: image.errorMessage,
-              updatedAt: image.updatedAt,
-            })),
-          ),
-        ),
-      ),
-    ),
+    images: imageRows.map((image) => ({
+      id: image.id,
+      imageConfigId: image.imageConfigId,
+      fileUrl: image.fileUrl,
+      status: image.status,
+      errorMessage: image.errorMessage,
+      updatedAt: image.updatedAt,
+    })),
   };
 }
