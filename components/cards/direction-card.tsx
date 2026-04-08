@@ -6,9 +6,18 @@ import { useCallback, useMemo, useState } from "react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
 
+import {
+  appendDirectionGeneration,
+  deleteDirectionItem,
+  generateSelectedDirections,
+  regenerateDirectionItem,
+  saveDirectionItem,
+} from "@/components/cards/direction-card/direction-card-actions";
+import { DirectionItemEditor } from "@/components/cards/direction-card/direction-item-editor";
+import { DirectionItemRow } from "@/components/cards/direction-card/direction-item-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, Select, Textarea } from "@/components/ui/field";
+import { Field, Select } from "@/components/ui/field";
 import type { CardStatus } from "@/lib/constants";
 import { CHANNELS, getAvailableImageForms } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -250,207 +259,76 @@ export function DirectionCard({
           const isChecked = selectedIds.has(direction.id);
 
           return (
-            <div
+            <DirectionItemRow
               key={direction.id}
-              className="relative overflow-visible rounded-[22px] border border-[var(--line-soft)] bg-[var(--surface-1)] transition"
-            >
-              {/* Compact row */}
-              <div className="flex items-center gap-2 p-3">
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => toggleSelect(direction.id)}
-                  className="h-4 w-4 shrink-0 accent-[var(--brand-500)]"
-                />
-                <span className="min-w-0 flex-1 text-sm font-medium text-[var(--ink-900)]">
-                  方向 #{index + 1}
-                </span>
-                <span className="truncate text-xs text-[var(--ink-500)]">
-                  {direction.title}
-                </span>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    title="重新生成"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]"
-                    onClick={async () => {
+              item={direction}
+              index={index}
+              expanded={isExpanded}
+              editing={isEditing}
+              selected={isChecked}
+              onToggleExpand={() => toggleExpand(direction.id)}
+              onToggleSelect={() => toggleSelect(direction.id)}
+              onRegenerate={() => {
+                void regenerateDirectionItem(direction.id).then((ok) => {
+                  if (ok) dispatchWorkspaceInvalidated();
+                });
+              }}
+              onEditToggle={() => {
+                if (!isEditing) {
+                  startEdit(direction.id, direction);
+                  if (!isExpanded) toggleExpand(direction.id);
+                } else {
+                  cancelEdit();
+                }
+              }}
+              onDelete={async () => {
+                if (!confirm(`确定删除方向 #${index + 1} 及其所有下游产物？`)) return;
+                try {
+                  const ok = await deleteDirectionItem(direction.id);
+                  if (ok) {
+                    dispatchWorkspaceInvalidated();
+                  }
+                } catch (error) {
+                  console.error("Failed to delete direction:", error);
+                }
+              }}
+              expandedContent={
+                isEditing ? (
+                  <DirectionItemEditor
+                    labels={DIRECTION_FIELD_LABELS}
+                    value={editBuffer}
+                    stageLabel={data.stageLabel}
+                    onChange={(field, value) => setEditBuffer((current) => ({ ...current, [field]: value }))}
+                    onCancel={cancelEdit}
+                    onSave={async () => {
+                      if (!editingId) return;
                       try {
-                        await fetch(`/api/directions/${direction.id}`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ regenerate: true }),
+                        const ok = await saveDirectionItem({
+                          directionId: editingId,
+                          title: editBuffer.title ?? "",
+                          targetAudience: editBuffer.targetAudience ?? "",
+                          scenarioProblem: editBuffer.scenarioProblem ?? "",
+                          differentiation: editBuffer.differentiation ?? "",
+                          effect: editBuffer.effect ?? "",
                         });
-                        dispatchWorkspaceInvalidated();
+                        if (ok) {
+                          cancelEdit();
+                          dispatchWorkspaceInvalidated();
+                        }
                       } catch (error) {
-                        console.error("Failed to regenerate direction:", error);
+                        console.error("Failed to save direction:", error);
                       }
                     }}
-                  >
-                    {"\u21BB"}
-                  </button>
-                  <button
-                    type="button"
-                    title={isEditing ? "保存" : "编辑"}
-                    className={cn(
-                      "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs hover:bg-[var(--surface-2)]",
-                      isEditing
-                        ? "text-[var(--brand-500)]"
-                        : "text-[var(--ink-500)] hover:text-[var(--ink-700)]",
-                    )}
-                    onClick={() => {
-                      if (!isEditing) {
-                        startEdit(direction.id, direction);
-                        if (!isExpanded) toggleExpand(direction.id);
-                      } else {
-                        cancelEdit();
-                      }
-                    }}
-                  >
-                    {"\u270E"}
-                  </button>
-                  <button
-                    type="button"
-                    title="删除"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
-                    onClick={async () => {
-                      if (!confirm(`确定删除方向 #${index + 1} 及其所有下游产物？`)) return;
-                      try {
-                        await fetch(`/api/directions/${direction.id}`, { method: "DELETE" });
-                        dispatchWorkspaceInvalidated();
-                      } catch (error) {
-                        console.error("Failed to delete direction:", error);
-                      }
-                    }}
-                  >
-                    {"\u2716"}
-                  </button>
-                  <button
-                    type="button"
-                    title={isExpanded ? "收起" : "展开"}
-                    className={cn(
-                      "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition",
-                      isExpanded
-                        ? "rotate-180 text-[var(--brand-500)]"
-                        : "text-[var(--ink-500)]",
-                    )}
-                    onClick={() => toggleExpand(direction.id)}
-                  >
-                    {"\u25BC"}
-                  </button>
-                </div>
-                <Handle
-                  id={direction.sourceHandleId}
-                  className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
-                  position={Position.Right}
-                  type="source"
-                  style={{ top: 28, right: -7, transform: "translateY(-50%)" }}
-                />
-              </div>
-
-              {/* Expanded content */}
-              {isExpanded && (
-                <div className="border-t border-[var(--line-soft)] p-3 pt-2">
-                  {isEditing ? (
-                    /* Edit mode */
-                    <div className="space-y-2">
-                      <Field label={DIRECTION_FIELD_LABELS.title}>
-                        <Textarea
-                          minRows={1}
-                          value={editBuffer.title ?? ""}
-                          onChange={(e) =>
-                            setEditBuffer((b) => ({ ...b, title: e.target.value }))
-                          }
-                        />
-                      </Field>
-                      <Field label={DIRECTION_FIELD_LABELS.targetAudience}>
-                        <Textarea
-                          minRows={1}
-                          value={editBuffer.targetAudience ?? ""}
-                          onChange={(e) =>
-                            setEditBuffer((b) => ({
-                              ...b,
-                              targetAudience: e.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      {data.stageLabel ? (
-                        <DetailBlock label={DIRECTION_FIELD_LABELS.stage} value={data.stageLabel} />
-                      ) : null}
-                      <Field label={DIRECTION_FIELD_LABELS.scenarioProblem}>
-                        <Textarea
-                          value={editBuffer.scenarioProblem ?? ""}
-                          onChange={(e) =>
-                            setEditBuffer((b) => ({
-                              ...b,
-                              scenarioProblem: e.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <Field label={DIRECTION_FIELD_LABELS.differentiation}>
-                        <Textarea
-                          value={editBuffer.differentiation ?? ""}
-                          onChange={(e) =>
-                            setEditBuffer((b) => ({
-                              ...b,
-                              differentiation: e.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <Field label={DIRECTION_FIELD_LABELS.effect}>
-                        <Textarea
-                          value={editBuffer.effect ?? ""}
-                          onChange={(e) =>
-                            setEditBuffer((b) => ({ ...b, effect: e.target.value }))
-                          }
-                        />
-                      </Field>
-                      <div className="flex items-center justify-end gap-2 pt-1">
-                        <Button variant="ghost" onClick={cancelEdit}>
-                          取消
-                        </Button>
-                        <Button
-                          variant="primary"
-                          onClick={async () => {
-                            try {
-                              await fetch(`/api/directions/${editingId}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  title: editBuffer.title ?? "",
-                                  target_audience: editBuffer.targetAudience ?? "",
-                                  scenario_problem: editBuffer.scenarioProblem ?? "",
-                                  differentiation: editBuffer.differentiation ?? "",
-                                  effect: editBuffer.effect ?? "",
-                                }),
-                              });
-                              cancelEdit();
-                              dispatchWorkspaceInvalidated();
-                            } catch (error) {
-                              console.error("Failed to save direction:", error);
-                            }
-                          }}
-                        >
-                          保存
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Read-only expanded view */
-                    <div className="space-y-2 text-sm">
-                      <DetailBlock label={DIRECTION_FIELD_LABELS.title} value={direction.title} />
-                      <DetailBlock label={DIRECTION_FIELD_LABELS.targetAudience} value={direction.targetAudience} />
-                      {data.stageLabel ? <DetailBlock label={DIRECTION_FIELD_LABELS.stage} value={data.stageLabel} /> : null}
-                      <DetailBlock label={DIRECTION_FIELD_LABELS.scenarioProblem} value={direction.scenarioProblem} />
-                      <DetailBlock label={DIRECTION_FIELD_LABELS.differentiation} value={direction.differentiation} />
-                      <DetailBlock label={DIRECTION_FIELD_LABELS.effect} value={direction.effect} />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                  />
+                ) : (
+                  <ReadOnlyDirectionDetails
+                    labels={DIRECTION_FIELD_LABELS}
+                    direction={direction}
+                    stageLabel={data.stageLabel}
+                  />
+                )
+              }
+            />
           );
         })}
 
@@ -488,18 +366,15 @@ export function DirectionCard({
             setIsAppending(true);
             try {
               if (!data.projectId) return;
-              await fetch(`/api/projects/${data.projectId}/directions/generate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  append: true,
-                  channel,
-                  image_form: imageForm,
-                  copy_generation_count: Number(copyGenerationCount),
-                  use_ai: true,
-                }),
+              const ok = await appendDirectionGeneration({
+                projectId: data.projectId,
+                channel,
+                imageForm,
+                copyGenerationCount: Number(copyGenerationCount),
               });
-              dispatchWorkspaceInvalidated();
+              if (ok) {
+                dispatchWorkspaceInvalidated();
+              }
             } catch (error) {
               console.error("Error appending direction:", error);
             } finally {
@@ -522,32 +397,45 @@ export function DirectionCard({
             if (selected.length === 0) return;
             const count = Number(copyGenerationCount);
 
-            for (const direction of selected) {
-              try {
-                await fetch(`/api/directions/${direction.id}`, {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    channel,
-                    image_form: imageForm,
-                    copy_generation_count: count,
-                  }),
-                });
-                await fetch(`/api/directions/${direction.id}/copy-cards/generate`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ count, use_ai: true }),
-                });
-              } catch (error) {
-                console.error(`Error generating copy for direction ${direction.id}:`, error);
+            try {
+              const ok = await generateSelectedDirections({
+                directionIds: selected.map((direction) => direction.id),
+                channel,
+                imageForm,
+                copyGenerationCount: count,
+              });
+              if (ok) {
+                dispatchWorkspaceInvalidated();
               }
+            } catch (error) {
+              console.error("Error generating selected directions:", error);
             }
-            dispatchWorkspaceInvalidated();
           }}
         >
           {"\u26A1"} 生成选中方向的文案
         </Button>
       </div>
+    </div>
+  );
+}
+
+function ReadOnlyDirectionDetails({
+  labels,
+  direction,
+  stageLabel,
+}: {
+  labels: typeof DIRECTION_FIELD_LABELS;
+  direction: DirectionItem;
+  stageLabel?: string;
+}) {
+  return (
+    <div className="space-y-2 text-sm">
+      <DetailBlock label={labels.title} value={direction.title} />
+      <DetailBlock label={labels.targetAudience} value={direction.targetAudience} />
+      {stageLabel ? <DetailBlock label={labels.stage} value={stageLabel} /> : null}
+      <DetailBlock label={labels.scenarioProblem} value={direction.scenarioProblem} />
+      <DetailBlock label={labels.differentiation} value={direction.differentiation} />
+      <DetailBlock label={labels.effect} value={direction.effect} />
     </div>
   );
 }
