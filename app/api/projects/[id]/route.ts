@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
 
-import { deleteProject, getProjectWorkspace } from "@/lib/project-data";
+import { deleteProject, getWorkspaceHeader } from "@/lib/project-data";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const workspace = getProjectWorkspace(id);
+  const header = getWorkspaceHeader(id);
 
-  if (!workspace) {
+  if (!header) {
     return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    id: workspace.project.id,
-    title: workspace.project.title,
-    status: workspace.project.status,
-    requirement_card: workspace.requirement,
-    directions: workspace.directions,
-  });
+  return NextResponse.json(header);
 }
 
 export async function DELETE(
