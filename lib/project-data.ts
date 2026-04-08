@@ -30,6 +30,7 @@ import {
 import { fromJson, toJson } from "@/lib/utils";
 import { deleteFileIfExists, saveImageBuffer } from "@/lib/storage";
 import { resolveImageStyleForMode } from "@/lib/workflow-defaults";
+import { buildGraph } from "@/lib/workflow-graph";
 
 type DirectionIdea = {
   title: string;
@@ -1191,5 +1192,97 @@ export function getProjectWorkspace(projectId: string) {
       availableLogoOptions: LOGO_OPTIONS,
       availableIpRoles: IP_ROLES,
     },
+  };
+}
+
+export function getWorkspaceHeader(projectId: string) {
+  const project = getProjectById(projectId);
+  if (!project) return null;
+
+  return {
+    project: {
+      id: project.id,
+      title: project.title,
+      status: project.status,
+    },
+  };
+}
+
+export function getProjectTreeData(projectId: string) {
+  const project = getProjectById(projectId);
+  if (!project) return null;
+
+  const db = getDb();
+  const requirement = getRequirement(projectId);
+  const directionRows = listDirections(projectId);
+  const directionsWithCards = directionRows.map((direction) => ({
+    id: direction.id,
+    title: direction.title,
+    copyCards: listCopyCards(direction.id).map((card) => ({
+      id: card.id,
+      version: card.version,
+      copies: card.copies.map((copy) => {
+        const imageConfig =
+          db
+            .select({ id: imageConfigs.id })
+            .from(imageConfigs)
+            .where(eq(imageConfigs.copyId, copy.id))
+            .get() ?? null;
+
+        return {
+          id: copy.id,
+          variantIndex: copy.variantIndex,
+          titleMain: copy.titleMain,
+          imageConfigId: imageConfig?.id ?? null,
+        };
+      }),
+    })),
+  }));
+
+  return {
+    project: {
+      id: project.id,
+      title: project.title,
+      status: project.status,
+    },
+    requirement,
+    directions: directionsWithCards,
+  };
+}
+
+export function getCanvasData(projectId: string) {
+  const workspace = getProjectWorkspace(projectId);
+  if (!workspace) return null;
+
+  const graph = buildGraph(workspace);
+  return {
+    projectId,
+    nodes: graph.nodes,
+    edges: graph.edges,
+  };
+}
+
+export function getGenerationStatusData(projectId: string) {
+  const workspace = getProjectWorkspace(projectId);
+  if (!workspace) return null;
+
+  return {
+    projectId,
+    images: workspace.directions.flatMap((direction) =>
+      direction.copyCards.flatMap((card) =>
+        card.copies.flatMap((copy) =>
+          copy.groups.flatMap((group) =>
+            group.images.map((image) => ({
+              id: image.id,
+              imageConfigId: image.imageConfigId,
+              fileUrl: image.fileUrl,
+              status: image.status,
+              errorMessage: image.errorMessage,
+              updatedAt: image.updatedAt,
+            })),
+          ),
+        ),
+      ),
+    ),
   };
 }
