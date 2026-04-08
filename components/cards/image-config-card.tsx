@@ -7,11 +7,12 @@ import { useState } from "react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
 
+import { saveImageConfigAndGenerate } from "@/components/cards/image-config/image-config-actions";
+import { ImageConfigBrandSection } from "@/components/cards/image-config/image-config-brand-section";
+import { ImageConfigForm } from "@/components/cards/image-config/image-config-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, Select, Textarea } from "@/components/ui/field";
 import { IP_ASSET_OPTIONS } from "@/lib/ip-asset-metadata";
-import { LOGO_ASSET_OPTIONS } from "@/lib/logo-asset-metadata";
 import {
   resolveImageStyleForMode,
   shouldShowImageStyleField,
@@ -33,14 +34,6 @@ export type ImageConfigCardData = {
   initialLogo?: string;
   initialIpRole?: string | null;
   status?: CardStatus;
-};
-
-const imageStyleLabel: Record<string, string> = {
-  realistic: "写实",
-  "3d": "3D",
-  animation: "动画",
-  felt: "毛毡",
-  img2img: "图生图",
 };
 
 export function ImageConfigCard({
@@ -162,196 +155,47 @@ export function ImageConfigCard({
         <p className="text-xs leading-relaxed text-[var(--ink-700)]">{copyText}</p>
       </div>
 
-      {/* Config fields */}
-      <div className="space-y-2 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <Field label="生成比例">
-          <Select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}>
-            {ASPECT_RATIOS.map((ratio) => (
-              <option key={ratio} value={ratio}>
-                {ratio}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="风格模式">
-          <Select
-            value={styleMode}
-            onChange={(e) => {
-              const nextMode = e.target.value;
-              setStyleMode(nextMode);
-              if (nextMode === "ip") {
-                setUseIp(true);
-              }
-              setImageStyle(resolveImageStyleForMode(nextMode, normalImageStyle));
-            }}
-          >
-            <option value="normal">普通风格</option>
-            <option value="ip">IP 风格</option>
-          </Select>
-        </Field>
-
-        {showImageStyleField && (
-          <Field label="图片风格">
-            <Select
-              value={imageStyle}
-              onChange={(e) => {
-                setImageStyle(e.target.value);
-                setNormalImageStyle(e.target.value);
-              }}
-            >
-              {IMAGE_STYLES.map((style) => (
-                <option key={style} value={style}>
-                  {imageStyleLabel[style] ?? style}
-                </option>
-                ))}
-              </Select>
-          </Field>
-        )}
-
-        <Field label="生成套数" hint="1-5">
-          <input
-            type="number"
-            min={1}
-            max={5}
-            value={count}
-            onChange={handleCountChange}
-            className="h-11 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 text-sm text-[var(--ink-900)] outline-none transition placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)]"
-          />
-        </Field>
-
-        {!isIpMode && imageStyle === "img2img" && (
-          <Field label="参考图 URL">
-            <Textarea
-              minRows={1}
-              value={referenceImageUrl}
-              onChange={(e) => setReferenceImageUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </Field>
-        )}
-
-        {/* Brand elements */}
-        <div className="space-y-2 pt-1">
-          <span className="text-sm font-medium text-[var(--ink-900)]">品牌元素</span>
-
-          {/* Logo */}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={useLogo}
-              onChange={(e) => setUseLogo(e.target.checked)}
-              className="h-4 w-4 accent-[var(--brand-500)]"
-            />
-            <span className="text-[var(--ink-700)]">Logo</span>
-          </label>
-          {useLogo && (
-            <div className="ml-6 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                {LOGO_ASSET_OPTIONS.map((option) => {
-                  const isActive = logoOption === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={cn(
-                        "overflow-hidden rounded-2xl border bg-white text-left transition",
-                        isActive
-                          ? "border-[var(--brand-400)] ring-2 ring-[var(--brand-ring)]"
-                          : "border-[var(--line-soft)] hover:border-[var(--brand-300)]",
-                      )}
-                      onClick={() => setLogoOption(option.value)}
-                    >
-                      <div className="relative aspect-[4/3] w-full bg-[var(--surface-2)]">
-                        <Image
-                          src={option.thumbnailUrl}
-                          alt={option.label}
-                          fill
-                          sizes="140px"
-                          className="object-contain"
-                        />
-                      </div>
-                      <div className="space-y-1 px-2 py-2">
-                        <div className="flex items-center justify-between">
-                          <span className={cn("text-xs font-medium", isActive ? "text-[var(--brand-600)]" : "text-[var(--ink-800)]")}>
-                            {option.label}
-                          </span>
-                          {isActive ? <span className="text-[10px] text-[var(--brand-500)]">已选</span> : null}
-                        </div>
-                        <p className="line-clamp-2 text-[10px] text-[var(--ink-500)]">{option.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-[var(--ink-400)]">（仅导出时叠加）</p>
-            </div>
-          )}
-
-          {/* IP role */}
-          {isIpMode ? (
-            <div className="text-sm font-medium text-[var(--ink-900)]">IP 形象</div>
-          ) : (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={useIp}
-                onChange={(e) => setUseIp(e.target.checked)}
-                className="h-4 w-4 accent-[var(--brand-500)]"
-              />
-              <span className="text-[var(--ink-700)]">IP 形象</span>
-            </label>
-          )}
-
-          {showIpAssetSelector && (
-            <div className="ml-6">
-              <div className="grid grid-cols-2 gap-2">
-                {IP_ASSET_OPTIONS.map((option) => {
-                  const isActive = ipRole === option.role;
-                  return (
-                    <button
-                      key={option.role}
-                      type="button"
-                      className={cn(
-                        "overflow-hidden rounded-2xl border bg-white text-left transition",
-                        isActive
-                          ? "border-[var(--brand-400)] ring-2 ring-[var(--brand-ring)]"
-                          : "border-[var(--line-soft)] hover:border-[var(--brand-300)]",
-                      )}
-                      onClick={() => setIpRole(option.role)}
-                    >
-                      <div className="relative aspect-[4/3] w-full bg-[var(--surface-2)]">
-                        <Image
-                          src={option.thumbnailUrl}
-                          alt={option.role}
-                          fill
-                          sizes="160px"
-                          className="object-contain"
-                        />
-                      </div>
-                      <div className="space-y-1 px-2 py-2">
-                        <div className="flex items-center justify-between">
-                          <span className={cn("text-xs font-medium", isActive ? "text-[var(--brand-600)]" : "text-[var(--ink-800)]")}>
-                            {option.role}
-                          </span>
-                          {isActive ? <span className="text-[10px] text-[var(--brand-500)]">已选</span> : null}
-                        </div>
-                        <p className="line-clamp-2 text-[10px] text-[var(--ink-500)]">{option.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-2 rounded-2xl border border-[var(--line-soft)] bg-white px-3 py-2">
-                <p className="text-[10px] font-medium text-[var(--ink-700)]">角色描述</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink-500)]">
-                  {activeIp?.description}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <ImageConfigForm
+        aspectRatio={aspectRatio}
+        styleMode={styleMode}
+        imageStyle={imageStyle}
+        count={count}
+        referenceImageUrl={referenceImageUrl}
+        isIpMode={isIpMode}
+        showImageStyleField={showImageStyleField}
+        onAspectRatioChange={setAspectRatio}
+        onStyleModeChange={(nextMode) => {
+          setStyleMode(nextMode);
+          if (nextMode === "ip") {
+            setUseIp(true);
+          }
+          setImageStyle(resolveImageStyleForMode(nextMode, normalImageStyle));
+        }}
+        onImageStyleChange={(value) => {
+          setImageStyle(value);
+          setNormalImageStyle(value);
+        }}
+        onCountChange={(value) => {
+          if (!isNaN(value) && value >= 1 && value <= 5) {
+            setCount(value);
+          }
+        }}
+        onReferenceImageUrlChange={setReferenceImageUrl}
+      >
+        <ImageConfigBrandSection
+          useLogo={useLogo}
+          logoOption={logoOption}
+          useIp={useIp}
+          ipRole={ipRole}
+          isIpMode={isIpMode}
+          showIpAssetSelector={showIpAssetSelector}
+          activeIpDescription={activeIp?.description}
+          onUseLogoChange={setUseLogo}
+          onLogoOptionChange={setLogoOption}
+          onUseIpChange={setUseIp}
+          onIpRoleChange={setIpRole}
+        />
+      </ImageConfigForm>
 
       {/* Helper text */}
       <p className="mt-3 text-center text-[11px] text-[var(--ink-400)]">
@@ -374,37 +218,18 @@ export function ImageConfigCard({
           setIsSubmitting(true);
           setSubmitError(null);
           try {
-            const configResponse = await fetch(`/api/copies/${copyId}/image-config`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                aspect_ratio: aspectRatio,
-                style_mode: styleMode,
-                ip_role: showIpAssetSelector ? ipRole : null,
-                logo: useLogo ? logoOption : "none",
-                image_style: resolveImageStyleForMode(styleMode, imageStyle),
-                count,
-                reference_image_url: showIpAssetSelector ? null : referenceImageUrl || null,
-              }),
+            const result = await saveImageConfigAndGenerate({
+              copyId,
+              aspectRatio,
+              styleMode,
+              imageStyle: resolveImageStyleForMode(styleMode, imageStyle),
+              count,
+              logo: useLogo ? logoOption : "none",
+              ipRole: showIpAssetSelector ? ipRole : null,
+              referenceImageUrl: showIpAssetSelector ? null : referenceImageUrl || null,
             });
-            if (!configResponse.ok) {
-              const payload = (await configResponse.json().catch(() => ({}))) as { error?: string };
-              throw new Error(payload.error ?? "图片配置保存失败");
-            }
-
-            const payload = (await configResponse.json()) as { id?: string };
-            if (!payload.id) {
-              throw new Error("图片配置保存失败");
-            }
-
-            const generateResponse = await fetch(`/api/image-configs/${payload.id}/generate`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({}),
-            });
-            if (!generateResponse.ok) {
-              const payload = (await generateResponse.json().catch(() => ({}))) as { error?: string };
-              throw new Error(payload.error ?? "图片生成失败");
+            if (!result.ok) {
+              throw new Error(result.error ?? "图片生成失败");
             }
 
             dispatchWorkspaceInvalidated();

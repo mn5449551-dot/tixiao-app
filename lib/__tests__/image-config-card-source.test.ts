@@ -11,3 +11,11 @@ test("image config card surfaces request failures to the user", async () => {
   assert.match(source, /submitError/);
   assert.match(source, /图片生成失败/);
 });
+
+test("image config card delegates form and action logic", async () => {
+  const source = await readFile(cardPath, "utf8");
+
+  assert.match(source, /ImageConfigForm/);
+  assert.match(source, /ImageConfigBrandSection/);
+  assert.match(source, /image-config-actions/);
+});
