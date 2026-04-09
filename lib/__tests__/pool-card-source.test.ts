@@ -28,10 +28,12 @@ test("candidate and finalized pool cards use contain-fit previews and image prev
 
 test("candidate pool card delegates rendering and action logic", async () => {
   const source = await readFile(candidatePoolCardPath, "utf8");
+  const groupSource = await readFile(candidateGroupCardPath, "utf8");
 
   assert.match(source, /CandidateGroupCard/);
   assert.match(source, /CandidateImageCard/);
   assert.match(source, /candidate-pool-actions/);
+  assert.match(groupSource, /最新/);
   assert.doesNotMatch(source, /isAppending/);
   assert.doesNotMatch(source, /追加生成一张/);
   assert.doesNotMatch(source, /追加生成一套/);

@@ -445,6 +445,9 @@ export function CopyCard({
           {"\u26A1"} 生成图片配置
         </Button>
       </div>
+      <p className="mt-2 text-[11px] text-[var(--ink-400)]">
+        为选中文案创建图片配置卡
+      </p>
     </div>
   );
 }

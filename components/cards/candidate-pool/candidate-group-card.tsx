@@ -10,6 +10,7 @@ import { CandidateImageCard } from "@/components/cards/candidate-pool/candidate-
 export function CandidateGroupCard({
   group,
   displayMode,
+  isLatest = false,
   loadingKey,
   onPreview,
   onInpaint,
@@ -19,6 +20,7 @@ export function CandidateGroupCard({
 }: {
   group: CandidateGroup;
   displayMode: "double" | "triple";
+  isLatest?: boolean;
   loadingKey: string | null;
   onPreview: (id: string) => void;
   onInpaint: (id: string) => void;
@@ -32,7 +34,10 @@ export function CandidateGroupCard({
     <div className="overflow-hidden rounded-[24px] border border-[var(--line-soft)] bg-white p-4 shadow-[var(--shadow-inset)]">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套</p>
+            {isLatest ? <Badge tone="neutral">最新</Badge> : null}
+          </div>
           <p className="mt-1 text-[11px] text-[var(--ink-400)]">
             {displayMode === "double" ? "双图" : "三图"} · {group.aspectRatio} · {group.imageStyle}
           </p>

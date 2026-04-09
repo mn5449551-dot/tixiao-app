@@ -67,6 +67,7 @@ export function CandidatePoolCard({
   selected,
 }: NodeProps<CandidatePoolCardNode>) {
   const { displayMode, groups, groupLabel, status = "idle" } = data;
+  const latestVariantIndex = Math.max(...groups.map((group) => group.variantIndex), 0);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () =>
@@ -258,6 +259,7 @@ export function CandidatePoolCard({
                 key={group.id}
                 group={group}
                 displayMode={displayMode}
+                isLatest={group.variantIndex === latestVariantIndex}
                 loadingKey={actionLoading}
                 onPreview={setPreviewImageId}
                 onInpaint={setInpaintImageId}
