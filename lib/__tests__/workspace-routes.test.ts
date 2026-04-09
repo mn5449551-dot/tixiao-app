@@ -147,6 +147,41 @@ test("direction generate route returns JSON instead of SSE", async () => {
   assert.equal(run?.status, "done");
 });
 
+test("direction append route returns exactly one appended direction", async () => {
+  const project = createProject(`direction-append-json-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 2,
+  });
+
+  const initial = generateDirections(project!.id, "应用商店", "double", 2);
+  assert.equal(initial.length, 2);
+
+  const response = await POST_DIRECTION_GENERATE(
+    new Request("http://localhost", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channel: "应用商店",
+        image_form: "double",
+        copy_generation_count: 2,
+        use_ai: false,
+        append: true,
+      }),
+    }),
+    { params: Promise.resolve({ id: project!.id }) },
+  );
+
+  assert.equal(response.status, 200);
+  const payload = await response.json() as { directions: Array<{ id: string }> };
+  assert.equal(payload.directions.length, 1);
+});
+
 test("copy generate route returns JSON instead of SSE", async () => {
   const project = createProject(`copy-json-${Date.now()}`);
   assert.ok(project);

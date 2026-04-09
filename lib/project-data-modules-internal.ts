@@ -776,6 +776,13 @@ export async function appendDirectionSmart(
         sellingPoints: requirement.sellingPoints ?? DEFAULT_REQUIREMENT.sellingPoints,
         timeNode: requirement.timeNode ?? DEFAULT_REQUIREMENT.timeNode,
         count: 1,
+        existingDirections: currentDirections.map((direction) => ({
+          title: direction.title,
+          targetAudience: direction.targetAudience ?? "",
+          scenarioProblem: direction.scenarioProblem ?? "",
+          differentiation: direction.differentiation ?? "",
+          effect: direction.effect ?? "",
+        })),
       });
       const parsed = parseJsonBlock<unknown>(raw);
       const ideas = normalizeDirectionIdeas(parsed, 1);
