@@ -13,7 +13,6 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   let runId: string | null = null;
-  let runFinished = false;
 
   try {
     const { id } = await context.params;
@@ -64,7 +63,7 @@ export async function POST(
       direction_ids: created.map((item) => item.id),
     });
   } catch (error) {
-    if (runId && !runFinished) {
+    if (runId) {
       finishGenerationRun(runId, {
         status: "failed",
         errorMessage: error instanceof Error ? error.message : "方向生成失败",

@@ -49,10 +49,9 @@ export async function appendCopyGenerationAction(input: {
   directionId: string;
   copyCardId: string;
 }) {
-  const response = await fetch(`/api/directions/${input.directionId}/copy-cards/generate`, {
+  await apiFetch(`/api/directions/${input.directionId}/copy-cards/generate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ append: true, use_ai: true, copy_card_id: input.copyCardId }),
+    body: { append: true, use_ai: true, copy_card_id: input.copyCardId },
   });
   return true;
 }
