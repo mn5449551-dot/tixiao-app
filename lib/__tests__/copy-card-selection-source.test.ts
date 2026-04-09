@@ -13,3 +13,9 @@ test("copy card source supports checkbox selection and bottom batch generation",
   assert.match(source, /toggleSelectAll/);
   assert.match(source, /生成图片配置/);
 });
+
+test("copy card defaults to manual selection instead of auto-selecting copy items", async () => {
+  const source = await readFile(copyCardPath, "utf8");
+
+  assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<Set<string>>\(\s*\(\) => new Set\(\),/);
+});

@@ -119,6 +119,11 @@ function bootstrap(connection: Database.Database) {
       aspect_ratio TEXT NOT NULL DEFAULT '1:1',
       style_mode TEXT NOT NULL DEFAULT 'normal',
       image_style TEXT NOT NULL DEFAULT 'realistic',
+      prompt_zh TEXT,
+      prompt_en TEXT,
+      negative_prompt TEXT,
+      reference_image_url TEXT,
+      logo TEXT,
       is_confirmed INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -246,6 +251,26 @@ function bootstrap(connection: Database.Database) {
     connection.exec(
       "ALTER TABLE image_groups ADD COLUMN image_style TEXT NOT NULL DEFAULT 'realistic';",
     );
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "prompt_zh")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN prompt_zh TEXT;");
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "prompt_en")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN prompt_en TEXT;");
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "negative_prompt")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN negative_prompt TEXT;");
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "reference_image_url")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN reference_image_url TEXT;");
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "logo")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN logo TEXT;");
   }
 
   const exportRecordColumns = connection

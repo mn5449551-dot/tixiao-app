@@ -29,31 +29,14 @@ export async function saveImageConfigAndGenerate(input: {
         cta_enabled: input.ctaEnabled,
         cta_text: input.ctaText ?? null,
         append: !!input.imageConfigId,
+        generate: true,
       },
     });
 
     if (!payload.id) {
       return { ok: false, configSaved: false, error: "图片配置保存失败" };
     }
-
-    try {
-      await apiFetch(`/api/image-configs/${payload.id}/generate`, {
-        method: "POST",
-        body: {
-          group_ids:
-            payload.created_group_ids && payload.created_group_ids.length > 0
-              ? payload.created_group_ids
-              : undefined,
-        },
-      });
-      return { ok: true, configSaved: true, error: null as string | null };
-    } catch (error) {
-      return {
-        ok: false,
-        configSaved: true,
-        error: error instanceof ApiError ? error.message : "图片生成失败",
-      };
-    }
+    return { ok: true, configSaved: true, error: null as string | null };
   } catch (error) {
     return {
       ok: false,

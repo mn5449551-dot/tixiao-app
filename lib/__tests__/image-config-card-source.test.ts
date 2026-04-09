@@ -29,7 +29,6 @@ test("image config card delegates form and action logic", async () => {
   assert.match(source, /className="w-full py-3 text-sm font-semibold"/);
   assert.match(actionsSource, /@\/lib\/api-fetch/);
   assert.match(actionsSource, /created_group_ids/);
-  assert.match(actionsSource, /group_ids:\s*payload\.created_group_ids/);
 });
 
 test("image config card supports CTA only for information-flow single-image cases", async () => {
@@ -45,4 +44,11 @@ test("image config card supports CTA only for information-flow single-image case
   assert.match(formSource, /立即下载/);
   assert.match(actionsSource, /cta_enabled/);
   assert.match(actionsSource, /cta_text/);
+});
+
+test("image config actions save and start generation in one request", async () => {
+  const actionsSource = await readFile(actionsPath, "utf8");
+
+  assert.match(actionsSource, /generate:\s*true/);
+  assert.doesNotMatch(actionsSource, /\/api\/image-configs\/\$\{payload\.id\}\/generate/);
 });

@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { projectGenerationRuns } from "@/lib/schema";
 
-const PROJECT_GENERATION_LIMIT = 3;
+const PROJECT_GENERATION_LIMIT = 5;
 const STALE_RUNNING_MS = 30 * 60_000;
 
 type GenerationKind = "direction" | "copy" | "image" | "inpaint";
@@ -41,6 +41,10 @@ function now() {
 
 function createRunId() {
   return `run_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+}
+
+export function buildImageGroupBatchResourceId(groupIds: string[]) {
+  return [...new Set(groupIds)].sort().join(",");
 }
 
 export function startGenerationRun(input: {

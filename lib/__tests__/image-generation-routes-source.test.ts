@@ -18,10 +18,10 @@ test("image generation routes pass aspect ratio through the shared OpenAI-compat
   assert.match(regenerateSource, /generateImageFromReference/);
   assert.match(regenerateSource, /generateImageFromPrompt/);
   assert.match(referenceSource, /generateImageFromReference/);
-  assert.match(generateSource, /generateImageFromReference\([\s\S]{0,200}aspectRatio:\s*config\.aspectRatio/);
-  assert.match(generateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,120}aspectRatio:\s*config\.aspectRatio/);
-  assert.match(regenerateSource, /generateImageFromReference\([\s\S]{0,200}aspectRatio:\s*config\.aspectRatio/);
-  assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,120}aspectRatio:\s*config\.aspectRatio/);
+  assert.match(generateSource, /generateImageFromReference\([\s\S]{0,240}aspectRatio:\s*config\.aspectRatio/);
+  assert.match(generateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,180}aspectRatio:\s*config\.aspectRatio/);
+  assert.match(regenerateSource, /generateImageFromReference\([\s\S]{0,280}aspectRatio:\s*group\?\.aspectRatio \?\? config\.aspectRatio/);
+  assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,200}aspectRatio:\s*group\?\.aspectRatio \?\? config\.aspectRatio/);
   assert.match(referenceSource, /aspect_ratio\?:/);
   assert.match(referenceSource, /aspectRatio:\s*body\.aspect_ratio/);
 });
@@ -41,7 +41,7 @@ test("logo remains part of the reference image inputs for both initial generatio
 
   assert.match(generateSource, /config\.logo && config\.logo !== "none"/);
   assert.match(generateSource, /readLogoAssetAsDataUrl/);
-  assert.match(regenerateSource, /config\.logo && config\.logo !== "none"/);
+  assert.match(regenerateSource, /group\?\.logo \?\? config\.logo/);
   assert.match(regenerateSource, /readLogoAssetAsDataUrl/);
 });
 
@@ -67,4 +67,20 @@ test("image append route uses the shared image generation service instead of cal
   assert.doesNotMatch(appendSource, /generateRouteModule/);
   assert.doesNotMatch(appendSource, /@\/app\/api\/image-configs\/\[id\]\/generate\/route/);
   assert.match(appendSource, /@\/lib\/image-generation-service/);
+});
+
+test("image generation service snapshots prompt payloads onto image groups and regenerate prefers group snapshots", async () => {
+  const [generateSource, regenerateSource] = await Promise.all([
+    readFile(generationServicePath, "utf8"),
+    readFile(regenerateRoutePath, "utf8"),
+  ]);
+
+  assert.match(generateSource, /db\.update\(imageGroups\)/);
+  assert.match(generateSource, /promptZh,/);
+  assert.match(generateSource, /promptEn,/);
+  assert.match(generateSource, /negativePrompt,/);
+  assert.match(generateSource, /referenceImageUrl:/);
+  assert.match(generateSource, /logo:/);
+  assert.match(regenerateSource, /group\?\.promptEn \|\| config\.promptEn/);
+  assert.match(regenerateSource, /group\?\.promptZh \?\? config\.promptZh/);
 });

@@ -42,3 +42,10 @@ test("direction card prevents directions with downstream copy cards from being s
   assert.match(source, /已生成文案，请在文案卡中追加/);
   assert.match(source, /selectDisabled=\{Boolean\(direction\.hasDownstream\)\}/);
 });
+
+test("direction card defaults to manual selection instead of auto-selecting new directions", async () => {
+  const source = await readFile(directionCardPath, "utf8");
+
+  assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<Set<string>>\([\s\S]{0,40}\(\) => new Set\(\)/);
+  assert.doesNotMatch(source, /if \(prev\.size === 0\) \{\s*return selectableIds;/);
+});

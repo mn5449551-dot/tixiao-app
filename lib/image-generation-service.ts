@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
 
 import { generateImageDescription } from "@/lib/ai/agents/image-description-agent";
@@ -58,43 +58,77 @@ export function prepareImageConfigGeneration(input: {
     throw new Error("无候选组，无法生成");
   }
 
-  const timestamp = Date.now();
-  const imageGroupsPayload = [] as PreparedImageGeneration["imageGroupsPayload"];
-
-  for (const group of groups) {
-    const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-    const imagePayload = [] as PreparedImageGeneration["imageGroupsPayload"][number]["images"];
-
-    for (const image of images) {
-      db.update(generatedImages)
-        .set({ status: "generating", errorMessage: null, updatedAt: timestamp })
-        .where(eq(generatedImages.id, image.id))
-        .run();
-
-      imagePayload.push({
-        id: image.id,
-        slot_index: image.slotIndex,
-        status: "generating",
-        file_url: null,
-      });
-    }
-
-    imageGroupsPayload.push({
-      id: group.id,
-      group_type: group.groupType,
-      slot_count: group.slotCount,
-      images: imagePayload,
-    });
-  }
-
   return {
     config,
     direction,
     copy,
     groups,
     projectId: direction.projectId,
-    imageGroupsPayload,
+    imageGroupsPayload: groups.map((group) => ({
+      id: group.id,
+      group_type: group.groupType,
+      slot_count: group.slotCount,
+      images: db
+        .select()
+        .from(generatedImages)
+        .where(eq(generatedImages.imageGroupId, group.id))
+        .all()
+        .map((image) => ({
+          id: image.id,
+          slot_index: image.slotIndex,
+          status: image.status,
+          file_url: image.fileUrl,
+        })),
+    })),
   } satisfies PreparedImageGeneration;
+}
+
+export function markPreparedImageGenerationRunning(prepared: PreparedImageGeneration) {
+  const db = getDb();
+  const timestamp = Date.now();
+
+  return prepared.groups.map((group) => {
+    const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+
+    const imagePayload = images.map((image) => {
+      db.update(generatedImages)
+        .set({ status: "generating", errorMessage: null, updatedAt: timestamp })
+        .where(eq(generatedImages.id, image.id))
+        .run();
+
+      return {
+        id: image.id,
+        slot_index: image.slotIndex,
+        status: "generating",
+        file_url: null,
+      };
+    });
+
+    return {
+      id: group.id,
+      group_type: group.groupType,
+      slot_count: group.slotCount,
+      images: imagePayload,
+    };
+  });
+}
+
+export function cleanupImageGroups(groupIds: string[]) {
+  if (groupIds.length === 0) return;
+
+  const db = getDb();
+  db.delete(generatedImages).where(inArray(generatedImages.imageGroupId, groupIds)).run();
+  db.delete(imageGroups).where(inArray(imageGroups.id, groupIds)).run();
+}
+
+export function resetImageGroupsToPending(groupIds: string[]) {
+  if (groupIds.length === 0) return;
+
+  const db = getDb();
+  db.update(generatedImages)
+    .set({ status: "pending", errorMessage: null, updatedAt: Date.now() })
+    .where(inArray(generatedImages.imageGroupId, groupIds))
+    .run();
 }
 
 export async function processPreparedImageGeneration(input: {
@@ -161,6 +195,21 @@ export async function processPreparedImageGeneration(input: {
       .where(eq(imageConfigs.id, config.id))
       .run();
 
+    const snapshotTimestamp = Date.now();
+    for (const group of groups) {
+      db.update(imageGroups)
+        .set({
+          promptZh,
+          promptEn,
+          negativePrompt,
+          referenceImageUrl: config.referenceImageUrl ?? null,
+          logo: config.logo ?? "none",
+          updatedAt: snapshotTimestamp,
+        })
+        .where(eq(imageGroups.id, group.id))
+        .run();
+    }
+
     const referenceImageUrls = [
       config.referenceImageUrl ?? null,
       config.logo && config.logo !== "none"
@@ -170,6 +219,16 @@ export async function processPreparedImageGeneration(input: {
 
     for (const group of groups) {
       const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+      const groupPromptEn = group.promptEn ?? promptEn;
+      const groupReferenceImageUrl = group.referenceImageUrl ?? config.referenceImageUrl ?? null;
+      const groupLogo = group.logo ?? config.logo ?? "none";
+
+      const groupReferenceImageUrls = [
+        groupReferenceImageUrl,
+        groupLogo && groupLogo !== "none"
+          ? await readLogoAssetAsDataUrl(groupLogo as "onion" | "onion_app")
+          : null,
+      ].filter(Boolean) as string[];
 
       for (const image of images) {
         try {
@@ -182,12 +241,12 @@ export async function processPreparedImageGeneration(input: {
             copyTitleSub: copy.titleSub,
             copyTitleExtra: copy.titleExtra,
           });
-          const fullPrompt = mergeImagePromptWithSlot(promptEn, slotDescription);
+          const fullPrompt = mergeImagePromptWithSlot(groupPromptEn, slotDescription);
 
-          const binaries = referenceImageUrls.length > 0
+          const binaries = groupReferenceImageUrls.length > 0
             ? await generateImageFromReference({
               instruction: fullPrompt,
-                imageUrls: referenceImageUrls,
+                imageUrls: groupReferenceImageUrls,
                 aspectRatio: config.aspectRatio,
               })
             : await generateImageFromPrompt(fullPrompt, {

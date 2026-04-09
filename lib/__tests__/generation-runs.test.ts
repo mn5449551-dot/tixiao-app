@@ -13,7 +13,7 @@ import {
 import { getDb } from "../db";
 import { projectGenerationRuns } from "../schema";
 
-test("generation runs allow up to three concurrent runs per project and reject the fourth", () => {
+test("generation runs allow up to five concurrent runs per project and reject the sixth", () => {
   const project = createProject(`generation-runs-${Date.now()}`);
   assert.ok(project);
 
@@ -40,18 +40,34 @@ test("generation runs allow up to three concurrent runs per project and reject t
   assert.ok(run2.id);
   assert.ok(run3.id);
 
+  const run4 = startGenerationRun({
+    projectId: project.id,
+    kind: "image",
+    resourceType: "image-batch",
+    resourceId: `${project.id}:4`,
+  });
+  const run5 = startGenerationRun({
+    projectId: project.id,
+    kind: "image",
+    resourceType: "image-batch",
+    resourceId: `${project.id}:5`,
+  });
+
+  assert.ok(run4.id);
+  assert.ok(run5.id);
+
   assert.throws(
     () =>
       startGenerationRun({
         projectId: project.id,
         kind: "image",
         resourceType: "image-batch",
-        resourceId: `${project.id}:4`,
+        resourceId: `${project.id}:6`,
       }),
     (error: unknown) => {
       assert.equal(error instanceof GenerationLimitError, true);
-      assert.equal((error as GenerationLimitError).limit, 3);
-      assert.equal((error as GenerationLimitError).activeCount, 3);
+      assert.equal((error as GenerationLimitError).limit, 5);
+      assert.equal((error as GenerationLimitError).activeCount, 5);
       return true;
     },
   );
@@ -59,6 +75,8 @@ test("generation runs allow up to three concurrent runs per project and reject t
   finishGenerationRun(run1.id, { status: "done" });
   finishGenerationRun(run2.id, { status: "failed", errorMessage: "boom" });
   finishGenerationRun(run3.id, { status: "done" });
+  finishGenerationRun(run4.id, { status: "done" });
+  finishGenerationRun(run5.id, { status: "done" });
 });
 
 test("generation runs reject duplicate active work on the same resource", () => {

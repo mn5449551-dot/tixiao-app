@@ -70,12 +70,7 @@ export function CandidatePoolCard({
   const latestVariantIndex = Math.max(...groups.map((group) => group.variantIndex), 0);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () =>
-      new Set(
-        groups.flatMap((group) =>
-          group.images.filter((img) => img.status === "done").map((img) => img.id),
-        ),
-      ),
+    () => new Set(),
   );
   const [inpaintImageId, setInpaintImageId] = useState<string | null>(null);
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
@@ -105,9 +100,10 @@ export function CandidatePoolCard({
   }, []);
 
   const toggleSelectAll = useCallback(() => {
+    const selectableIds = images.filter((img) => img.status === "done").map((img) => img.id);
     setSelectedIds((prev) => {
-      if (prev.size === images.length) return new Set();
-      return new Set(images.filter((img) => img.status === "done").map((img) => img.id));
+      if (prev.size === selectableIds.length) return new Set();
+      return new Set(selectableIds);
     });
   }, [images]);
 
@@ -170,7 +166,7 @@ export function CandidatePoolCard({
         "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
         borderColorClass,
       )}
-      style={{ width: 440 } satisfies CSSProperties}
+      style={{ width: 440, maxWidth: '100%' } satisfies CSSProperties}
     >
       <div className={cn(
         "absolute inset-x-0 top-0 h-[4px]",
@@ -274,10 +270,10 @@ export function CandidatePoolCard({
       {displayMode === "single" ? (
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={toggleSelectAll} className="shrink-0 text-xs">
-            {selectedIds.size === images.length ? "全不选" : "全选"}
+            {selectedIds.size === doneCount ? "全不选" : "全选"}
           </Button>
           <span className="flex-1 text-center text-xs text-[var(--ink-500)]">
-            已选 {selectedIds.size}/{images.length}
+            已选 {selectedIds.size}/{doneCount}
           </span>
         </div>
       ) : null}

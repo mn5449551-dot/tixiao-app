@@ -28,3 +28,23 @@ test("image config save route accepts CTA fields", async () => {
   assert.match(source, /cta_enabled/);
   assert.match(source, /cta_text/);
 });
+
+test("image config save route can save and start generation in one request", async () => {
+  const source = await readFile(saveRoutePath, "utf8");
+
+  assert.match(source, /generate\?: boolean/);
+  assert.match(source, /body\.generate/);
+  assert.match(source, /startGenerationRun/);
+  assert.match(source, /prepareImageConfigGeneration/);
+  assert.match(source, /processPreparedImageGeneration/);
+});
+
+test("image generation routes use image-group-batch resource locking instead of image-config locking", async () => {
+  const [generateSource, saveSource] = await Promise.all([
+    readFile(routePath, "utf8"),
+    readFile(saveRoutePath, "utf8"),
+  ]);
+
+  assert.match(generateSource, /resourceType:\s*"image-group-batch"/);
+  assert.match(saveSource, /resourceType:\s*"image-group-batch"/);
+});

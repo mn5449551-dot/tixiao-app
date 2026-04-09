@@ -71,7 +71,7 @@ export function FinalizedPoolCard({
   selected,
 }: NodeProps<FinalizedPoolCardNode>) {
   const { displayMode, groups, groupLabel, projectId } = data;
-  const [selectedChannels, setSelectedChannels] = useState<string[]>([EXPORT_CHANNELS[0]]);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [fileFormat, setFileFormat] = useState<"jpg" | "png" | "webp">("jpg");
   const [namingRule, setNamingRule] = useState("channel_slot_date_version");
@@ -84,7 +84,7 @@ export function FinalizedPoolCard({
   const confirmedImages = useMemo(() => groups.flatMap((group) => group.images), [groups]);
   const availableSlots = useMemo(() => getSlotsForChannels(selectedChannels), [selectedChannels]);
   const selectedSlotSpecs = useMemo(
-    () => (selectedSlots.length > 0 ? availableSlots.filter((slot) => selectedSlots.includes(slot.slotName)) : availableSlots),
+    () => availableSlots.filter((slot) => selectedSlots.includes(slot.slotName)),
     [availableSlots, selectedSlots],
   );
   const adaptationSummary = useMemo(() => {
@@ -127,7 +127,7 @@ export function FinalizedPoolCard({
           ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
           : "border-[var(--line-soft)]",
       )}
-      style={{ width: 480 } satisfies CSSProperties}
+      style={{ width: 480, maxWidth: '100%' } satisfies CSSProperties}
     >
       <div className="absolute inset-x-0 top-0 h-[4px] bg-[var(--brand-500)]" />
       <Handle
@@ -268,9 +268,9 @@ export function FinalizedPoolCard({
       {availableSlots.length > 0 && (
         <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
           <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">投放版位</p>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {availableSlots.map((slot) => {
-              const active = selectedSlots.length === 0 || selectedSlots.includes(slot.slotName);
+              const active = selectedSlots.includes(slot.slotName);
               const slotModes = confirmedImages.map((image) => classifyExportAdaptation(image.aspectRatio, slot.ratio));
               const hasPostprocess = slotModes.includes("postprocess");
               const hasTransform = slotModes.includes("transform");
@@ -280,7 +280,7 @@ export function FinalizedPoolCard({
                   key={`${slot.channel}-${slot.slotName}`}
                   type="button"
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition",
+                    "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs transition",
                     active
                       ? "bg-[var(--brand-50)] text-[var(--brand-700)]"
                       : "bg-white text-[var(--ink-600)]",

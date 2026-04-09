@@ -49,9 +49,9 @@ const DIRECTION_FIELD_LABELS = {
   title: "素材方向",
   targetAudience: "目标人群",
   stage: "适配阶段",
-  scenarioProblem: "1 能解决用户在“具体哪个场景里的哪个问题”",
-  differentiation: "2 能带来什么不一样的“一听很惊艳”的解法？",
-  effect: "3 因此带来了哪个场景下的什么“奇效”？",
+  scenarioProblem: "1 能解决用户在具体哪个场景里的哪个问题",
+  differentiation: "2 能带来什么不一样的一听很惊艳的解法？",
+  effect: "3 因此带来了哪个场景下的什么奇效？",
 } as const;
 
 export function DirectionCard({
@@ -87,7 +87,7 @@ export function DirectionCard({
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(directions.filter((direction) => !direction.hasDownstream).map((direction) => direction.id)),
+    () => new Set(),
   );
   const [editBuffer, setEditBuffer] = useState<Record<string, string>>({});
 
@@ -125,10 +125,6 @@ export function DirectionCard({
         directions.filter((direction) => !direction.hasDownstream).map((direction) => direction.id),
       );
 
-      if (prev.size === 0) {
-        return selectableIds;
-      }
-
       const next = new Set<string>();
       for (const id of prev) {
         if (selectableIds.has(id)) next.add(id);
@@ -161,7 +157,7 @@ export function DirectionCard({
   const totalCount = directions.length;
 
   const borderColorClass = isError
-    ? "border-[#c0392b]"
+    ? "border-[var(--danger-500)]"
     : selected
       ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
       : "border-[var(--line-soft)]";
@@ -169,64 +165,68 @@ export function DirectionCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
+        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 620 } satisfies CSSProperties}
+      style={{ width: 620, maxWidth: '100%' } satisfies CSSProperties}
     >
       {isLoading && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[28px] bg-white/60">
-          <div className="flex flex-col items-center gap-2">
-            <svg className="h-8 w-8 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-30" />
-              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[var(--brand-200)] border-t-[var(--brand-500)]" />
             <span className="text-xs font-medium text-[var(--brand-600)]">生成中...</span>
           </div>
         </div>
       )}
 
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
         position={Position.Left}
         type="target"
       />
 
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-center justify-between gap-2 border-b border-[#f5f0eb] pb-3 active:cursor-grabbing">
+      {/* Top color bar */}
+      <div className={cn(
+        "absolute inset-x-0 top-0 h-1",
+        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]",
+      )} />
+
+      {/* Header */}
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
         <div>
-          <h3 className="text-base font-semibold text-[var(--ink-950)]">方向卡</h3>
-          <p className="mt-0.5 text-[10px] text-[var(--ink-500)]">
+          <h3 className="text-lg font-semibold text-[var(--ink-950)]">方向卡</h3>
+          <p className="mt-0.5 text-[11px] text-[var(--ink-500)]">
             {totalCount}条方向 {selectedCount > 0 && <span className="font-medium text-[var(--brand-600)]">· 已选{selectedCount}</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Badge tone="brand" size="sm">方向</Badge>
           {isDone && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-700)] text-[10px] text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-500)] text-[9px] text-white">
               ✓
             </span>
           )}
           {isError && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-700)] text-[10px] text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-500)] text-[9px] text-white">
               ✕
             </span>
           )}
-          <Badge tone="brand" size="sm">方向</Badge>
         </div>
       </div>
 
       {isError ? (
-        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
           方向生成失败，请重试
         </div>
       ) : null}
       {actionError ? (
-        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
           {actionError}
         </div>
       ) : null}
 
-      <div className="mb-3 grid gap-3 rounded-[22px] bg-[var(--surface-1)] p-3 md:grid-cols-2">
+      <div className="mb-4 grid gap-3 rounded-2xl bg-[var(--surface-1)] p-4 md:grid-cols-2">
         <Field label="渠道">
           <Select value={channel} onChange={handleChannelChange}>
             {CHANNELS.map((item) => (
@@ -335,16 +335,17 @@ export function DirectionCard({
         })}
 
         {directions.length === 0 ? (
-          <div className="rounded-[22px] bg-[var(--surface-1)] p-6 text-center text-sm text-[var(--ink-400)]">
-            暂无方向，请先从需求卡生成方向
+          <div className="rounded-2xl bg-[var(--surface-1)] p-6 text-center">
+            <p className="text-sm font-medium text-[var(--ink-700)]">暂无方向</p>
+            <p className="mt-2 text-xs text-[var(--ink-500)]">请先从需求卡生成方向</p>
           </div>
         ) : null}
       </div>
 
-      <div className="my-3 h-px bg-[var(--line-soft)]" />
+      <div className="my-4 h-px bg-[var(--line-soft)]" />
 
       {/* Copy generation settings */}
-      <div className="mb-3">
+      <div className="mb-4">
         <Field label="文案生成数量" hint="1-5">
           <Select
             value={copyGenerationCount}
@@ -359,7 +360,7 @@ export function DirectionCard({
         </Field>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <Button
           variant="ghost"
           onClick={async () => {
@@ -422,9 +423,9 @@ export function DirectionCard({
           }}
         >
           {isGeneratingSelected ? (
-            <><span className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
+            <><span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
           ) : (
-            <><span className="mr-1.5">{"\u26A1"}</span> 生成选中方向的文案</>
+            <><span className="mr-2">⚡</span> 生成选中文案</>
           )}
         </Button>
       </div>
@@ -442,7 +443,7 @@ function ReadOnlyDirectionDetails({
   stageLabel?: string;
 }) {
   return (
-    <div className="grid gap-2 md:grid-cols-3">
+    <div className="grid gap-2.5 md:grid-cols-3">
       <DetailBlock label={labels.title} value={direction.title} />
       <DetailBlock label={labels.targetAudience} value={direction.targetAudience} />
       {stageLabel ? <DetailBlock label={labels.stage} value={stageLabel} /> : null}
@@ -455,9 +456,9 @@ function ReadOnlyDirectionDetails({
 
 function DetailBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white/70 px-3 py-2.5">
-      <div className="text-[10px] font-medium leading-4 text-[var(--ink-500)]">{label}</div>
-      <div className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-5 text-[var(--ink-900)]">{value}</div>
+    <div className="rounded-2xl bg-[var(--surface-1)] px-4 py-3">
+      <div className="text-[11px] font-medium leading-4 text-[var(--ink-500)]">{label}</div>
+      <div className="mt-2 whitespace-pre-wrap break-words text-xs leading-7 text-[var(--ink-800)]">{value}</div>
     </div>
   );
 }

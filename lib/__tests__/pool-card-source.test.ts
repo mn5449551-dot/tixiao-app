@@ -52,3 +52,23 @@ test("finalized pool card delegates preview and export actions", async () => {
   assert.match(source, /FinalizedPreviewCard/);
   assert.match(source, /finalized-pool-actions/);
 });
+
+test("candidate pool defaults to manual selection instead of auto-selecting done images", async () => {
+  const source = await readFile(candidatePoolCardPath, "utf8");
+
+  assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<Set<string>>\([\s\S]{0,40}\(\) => new Set\(\)/);
+});
+
+test("finalized pool defaults to manual channel selection", async () => {
+  const source = await readFile(finalizedPoolCardPath, "utf8");
+
+  assert.match(source, /const \[selectedChannels, setSelectedChannels\] = useState<string\[]>\(\[\]\)/);
+});
+
+test("finalized pool defaults to manual slot selection instead of selecting all available slots", async () => {
+  const source = await readFile(finalizedPoolCardPath, "utf8");
+
+  assert.match(source, /const \[selectedSlots, setSelectedSlots\] = useState<string\[]>\(\[\]\)/);
+  assert.match(source, /availableSlots\.filter/);
+  assert.doesNotMatch(source, /selectedSlots\.length > 0 \? availableSlots\.filter\([^)]+\) : availableSlots/);
+});

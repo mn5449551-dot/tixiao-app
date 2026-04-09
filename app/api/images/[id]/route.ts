@@ -11,7 +11,7 @@ import {
 } from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
 import { readLogoAssetAsDataUrl } from "@/lib/logo-assets";
-import { generatedImages, imageConfigs, directions, copies } from "@/lib/schema";
+import { generatedImages, imageConfigs, directions, copies, imageGroups } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
 import { buildImagePrompt, buildImageSlotPrompt, mergeImagePromptWithSlot } from "@/lib/ai/services/prompt-template";
 import sharp from "sharp";
@@ -212,6 +212,7 @@ async function regenerateSingleImage(input: {
 
   try {
     const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
+    const group = db.select().from(imageGroups).where(eq(imageGroups.id, image.imageGroupId)).get();
     // Get copy for prompt building
     const copy = db.select().from(copies).where(eq(copies.id, config.copyId)).get();
 
@@ -220,31 +221,31 @@ async function regenerateSingleImage(input: {
     }
 
     // Use existing prompt if available, otherwise build new one
-    const promptEn = config.promptEn || buildImagePrompt({
+    const promptEn = group?.promptEn || config.promptEn || buildImagePrompt({
       directionTitle: direction.title,
       scenarioProblem: direction.scenarioProblem,
       copyTitleMain: copy.titleMain,
       copyTitleSub: copy.titleSub,
       copyTitleExtra: copy.titleExtra,
-      aspectRatio: config.aspectRatio,
-      styleMode: config.styleMode,
-      imageStyle: config.imageStyle,
+      aspectRatio: group?.aspectRatio ?? config.aspectRatio,
+      styleMode: group?.styleMode ?? config.styleMode,
+      imageStyle: group?.imageStyle ?? config.imageStyle,
       ipRole: config.ipRole,
       ipDescription: ipMetadata?.description ?? null,
       ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-      logo: config.logo ?? "none",
+      logo: group?.logo ?? config.logo ?? "none",
       imageForm: direction.imageForm ?? "single",
-      referenceImageUrl: config.referenceImageUrl,
+      referenceImageUrl: group?.referenceImageUrl ?? config.referenceImageUrl,
       channel: direction.channel,
       ctaEnabled: config.ctaEnabled === 1,
       ctaText: config.ctaText,
-      descriptionPayload: config.promptZh ?? undefined,
+      descriptionPayload: group?.promptZh ?? config.promptZh ?? undefined,
     });
 
     const referenceImageUrls = [
-      config.referenceImageUrl ?? null,
-      config.logo && config.logo !== "none"
-        ? await readLogoAssetAsDataUrl(config.logo as "onion" | "onion_app")
+      group?.referenceImageUrl ?? config.referenceImageUrl ?? null,
+      (group?.logo ?? config.logo) && (group?.logo ?? config.logo) !== "none"
+        ? await readLogoAssetAsDataUrl((group?.logo ?? config.logo) as "onion" | "onion_app")
         : null,
     ].filter(Boolean) as string[];
 
@@ -263,10 +264,10 @@ async function regenerateSingleImage(input: {
       ? await generateImageFromReference({
           instruction: fullPrompt,
           imageUrls: referenceImageUrls,
-          aspectRatio: config.aspectRatio,
+          aspectRatio: group?.aspectRatio ?? config.aspectRatio,
         })
       : await generateImageFromPrompt(fullPrompt, {
-          aspectRatio: config.aspectRatio,
+          aspectRatio: group?.aspectRatio ?? config.aspectRatio,
         });
 
     const binary = binaries[0];

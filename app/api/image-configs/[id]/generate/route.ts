@@ -1,11 +1,17 @@
 import { NextResponse, after } from "next/server";
 import {
+  buildImageGroupBatchResourceId,
   finishGenerationRun,
   GenerationConflictError,
   GenerationLimitError,
   startGenerationRun,
 } from "@/lib/generation-runs";
-import { prepareImageConfigGeneration, processPreparedImageGeneration } from "@/lib/image-generation-service";
+import {
+  markPreparedImageGenerationRunning,
+  prepareImageConfigGeneration,
+  processPreparedImageGeneration,
+  resetImageGroupsToPending,
+} from "@/lib/image-generation-service";
 
 export async function POST(
   request: Request,
@@ -13,6 +19,7 @@ export async function POST(
 ) {
   let runId: string | null = null;
   let runFinished = false;
+  let groupIds: string[] = [];
 
   try {
     if (!process.env.NEW_API_KEY) {
@@ -28,15 +35,17 @@ export async function POST(
       imageConfigId: id,
       groupIds: body.group_ids,
     });
+    groupIds = prepared.groups.map((group) => group.id);
 
     runId = startGenerationRun({
       projectId: prepared.projectId,
       kind: "image",
-      resourceType: "image-config",
-      resourceId: prepared.config.id,
+      resourceType: "image-group-batch",
+      resourceId: buildImageGroupBatchResourceId(groupIds),
     }).id;
 
     const activeRunId = runId;
+    const imageGroupsPayload = markPreparedImageGenerationRunning(prepared);
 
     after(async () => {
       await processPreparedImageGeneration({
@@ -45,7 +54,7 @@ export async function POST(
       });
     });
 
-    return NextResponse.json({ image_groups: prepared.imageGroupsPayload }, { status: 202 });
+    return NextResponse.json({ image_groups: imageGroupsPayload }, { status: 202 });
   } catch (error) {
     if (runId && !runFinished) {
       finishGenerationRun(runId, {
@@ -53,6 +62,10 @@ export async function POST(
         errorMessage: error instanceof Error ? error.message : "候选图生成失败",
       });
       runFinished = true;
+    }
+
+    if ((error instanceof GenerationConflictError || error instanceof GenerationLimitError) && groupIds.length) {
+      resetImageGroupsToPending(groupIds);
     }
 
     if (error instanceof GenerationConflictError) {

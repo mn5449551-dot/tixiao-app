@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { after } from "next/server";
 
-import { getDb } from "@/lib/db";
 import {
+  buildImageGroupBatchResourceId,
   finishGenerationRun,
   GenerationConflictError,
   GenerationLimitError,
   startGenerationRun,
 } from "@/lib/generation-runs";
 import {
+  cleanupImageGroups,
+  markPreparedImageGenerationRunning,
   prepareImageConfigGeneration,
   processPreparedImageGeneration,
 } from "@/lib/image-generation-service";
 import { appendImageConfigGroup } from "@/lib/project-data";
-import { generatedImages, imageGroups } from "@/lib/schema";
 
 export async function POST(
   request: Request,
@@ -42,11 +42,12 @@ export async function POST(
         runId = startGenerationRun({
           projectId: prepared.projectId,
           kind: "image",
-          resourceType: "image-config",
-          resourceId: prepared.config.id,
+          resourceType: "image-group-batch",
+          resourceId: buildImageGroupBatchResourceId(prepared.groups.map((group) => group.id)),
         }).id;
 
         const activeRunId = runId;
+        const imageGroupsPayload = markPreparedImageGenerationRunning(prepared);
         after(async () => {
           await processPreparedImageGeneration({
             runId: activeRunId,
@@ -54,11 +55,9 @@ export async function POST(
           });
         });
 
-        return NextResponse.json({ image_groups: prepared.imageGroupsPayload }, { status: 202 });
+        return NextResponse.json({ image_groups: imageGroupsPayload }, { status: 202 });
       } catch (error) {
-        const db = getDb();
-        db.delete(generatedImages).where(eq(generatedImages.imageGroupId, appended.group.id)).run();
-        db.delete(imageGroups).where(eq(imageGroups.id, appended.group.id)).run();
+        cleanupImageGroups([appended.group.id]);
 
         if (error instanceof GenerationConflictError) {
           return NextResponse.json(
