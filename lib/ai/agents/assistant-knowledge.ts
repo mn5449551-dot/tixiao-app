@@ -12,11 +12,12 @@ export type AssistantKnowledgeContext = {
 
 export function inferDefaultTimeNode(now = new Date()) {
   const month = now.getMonth() + 1;
+  if (month <= 2) return "期末冲刺";
   if (month >= 3 && month <= 5) return "期中考试";
   if (month >= 6 && month <= 7) return "暑假提升";
   if (month >= 8 && month <= 9) return "开学季";
   if (month >= 10 && month <= 12) return "期末冲刺";
-  return "寒假预习";
+  return "期末冲刺";
 }
 
 export function getAudienceButtons() {

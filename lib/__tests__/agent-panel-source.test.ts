@@ -23,3 +23,20 @@ test("agent panel optimistically clears input and appends the user message befor
   assert.match(source, /setAssistantState\(\(current\) =>/);
   assert.match(source, /role:\s*"user"/);
 });
+
+test("agent panel groups recommendations by field and exposes failed message feedback", async () => {
+  const source = await readFile(agentPanelPath, "utf8");
+
+  assert.match(source, /推荐功能/);
+  assert.match(source, /推荐卖点/);
+  assert.match(source, /推荐时间节点/);
+  assert.match(source, /发送失败/);
+  assert.match(source, /重试/);
+});
+
+test("agent panel shows existing requirement summary when editing an already-filled requirement", async () => {
+  const source = await readFile(agentPanelPath, "utf8");
+
+  assert.match(source, /当前需求摘要/);
+  assert.match(source, /继续补充或修改/);
+});

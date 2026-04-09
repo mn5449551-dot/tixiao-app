@@ -21,6 +21,7 @@ function isAssistantState(value: unknown): value is AssistantState {
 
 export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPanelProps) {
   const [error, setError] = useState<string | null>(null);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
 
   // --- Conversation state ---
   const [assistantState, setAssistantState] = useState<AssistantState | null>(null);
@@ -74,6 +75,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     };
 
     setConversationInput("");
+    setFailedMessage(null);
     setAssistantState((current) => {
       if (!current) return current;
       return {
@@ -94,6 +96,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
       setAssistantState(payload);
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "发送消息失败");
+      setFailedMessage(trimmedMessage);
     } finally {
       setAssistantLoading(false);
     }
@@ -170,11 +173,15 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3">
           <p className="text-[11px] font-medium text-[var(--ink-600)]">当前仅支持 APP + 图文</p>
+          {(() => {
+            const audienceActions = (assistantState?.ui ?? []).filter(
+              (item): item is Extract<NonNullable<AssistantState["ui"]>[number], { type: "audience_buttons" }> =>
+                item.type === "audience_buttons",
+            );
+            const audienceOptions = audienceActions.flatMap((item) => item.options);
+            return (
           <div className="mt-2 flex flex-wrap gap-2">
-            {(assistantState?.ui ?? [])
-              .filter((item) => item.type === "audience_buttons")
-              .flatMap((item) => item.options)
-              .map((option) => (
+            {audienceOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -185,10 +192,26 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
                 </button>
               ))}
           </div>
+            );
+          })()}
         </div>
 
         {/* Chat messages - 美化消息气泡 */}
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+          {assistantState?.stage === "done" && assistantState.confirmation ? (
+            <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
+              <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">当前需求摘要</p>
+              <div className="space-y-1 text-xs text-[var(--ink-700)]">
+                <p>目标人群：{assistantState.confirmation.targetAudience === "parent" ? "家长" : assistantState.confirmation.targetAudience === "student" ? "学生" : assistantState.confirmation.targetAudience}</p>
+                <p>功能：{assistantState.confirmation.feature || "待补充"}</p>
+                <p>卖点：{assistantState.confirmation.sellingPoints.join("、") || "待补充"}</p>
+                <p>时间节点：{assistantState.confirmation.timeNode || "待补充"}</p>
+                <p>方向数量：{assistantState.confirmation.directionCount ?? "待补充"}</p>
+              </div>
+              <p className="mt-2 text-[11px] text-[var(--ink-500)]">你可以继续补充或修改，我会重新整理，确认后再一次性回填。</p>
+            </div>
+          ) : null}
+
           {(assistantState?.messages ?? []).map((msg) => (
             <div 
               key={msg.id} 
@@ -217,16 +240,26 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               </div>
             </div>
           ))}
-          {(assistantState?.ui ?? []).some((item) => item.type === "feature_suggestions" || item.type === "selling_point_suggestions" || item.type === "time_node_suggestions") ? (
-            <div className="rounded-2xl border border-[var(--line-soft)] bg-white px-4 py-3 shadow-sm">
-              <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">推荐项</p>
-              <div className="flex flex-wrap gap-2">
-                {(assistantState?.ui ?? [])
-                  .filter((item) => item.type === "feature_suggestions" || item.type === "selling_point_suggestions" || item.type === "time_node_suggestions")
-                  .flatMap((item) => item.options)
-                  .map((option) => (
+          {(["feature_suggestions", "selling_point_suggestions", "time_node_suggestions"] as const).map((type) => {
+            const title =
+              type === "feature_suggestions" ? "推荐功能" : type === "selling_point_suggestions" ? "推荐卖点" : "推荐时间节点";
+            const suggestionActions = (assistantState?.ui ?? []).filter(
+              (
+                item,
+              ): item is Extract<
+                NonNullable<AssistantState["ui"]>[number],
+                { type: "feature_suggestions" | "selling_point_suggestions" | "time_node_suggestions" }
+              > => item.type === type,
+            );
+            const options = suggestionActions.flatMap((item) => item.options);
+            if (options.length === 0) return null;
+            return (
+              <div key={type} className="rounded-2xl border border-[var(--line-soft)] bg-white px-4 py-3 shadow-sm">
+                <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">{title}</p>
+                <div className="flex flex-wrap gap-2">
+                  {options.map((option) => (
                     <button
-                      key={`${option.value}-${option.label}`}
+                      key={`${type}-${option.value}-${option.label}`}
                       type="button"
                       className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs text-[var(--brand-700)] transition hover:bg-[var(--brand-100)]"
                       onClick={() => void sendAssistantMessage(option.label)}
@@ -234,9 +267,10 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
                       {option.label}
                     </button>
                   ))}
+                </div>
               </div>
-            </div>
-          ) : null}
+            );
+          })}
 
           {assistantState?.confirmation ? (
             <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
@@ -250,6 +284,19 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
                 <p>时间节点：{assistantState.confirmation.timeNode || "待补充"}</p>
                 <p>方向数量：{assistantState.confirmation.directionCount ?? "待补充"}</p>
               </div>
+            </div>
+          ) : null}
+          {failedMessage ? (
+            <div className="rounded-2xl border border-[#f1b5b5] bg-[#fff5f5] px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium text-[#b42318]">发送失败</p>
+              <p className="mt-1 text-xs text-[#7a271a]">刚刚这条消息没有成功送达：{failedMessage}</p>
+              <button
+                type="button"
+                className="mt-2 rounded-full bg-[#b42318] px-3 py-1 text-xs text-white transition hover:bg-[#912018]"
+                onClick={() => void sendAssistantMessage(failedMessage)}
+              >
+                重试
+              </button>
             </div>
           ) : null}
           <div ref={chatEndRef} />

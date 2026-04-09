@@ -8,6 +8,11 @@ test("inferDefaultTimeNode defaults April to 期中考试", () => {
   assert.equal(result, "期中考试");
 });
 
+test("inferDefaultTimeNode aligns January with requirement-card default", () => {
+  const result = inferDefaultTimeNode(new Date("2026-01-10T08:00:00.000Z"));
+  assert.equal(result, "期末冲刺");
+});
+
 test("buildAssistantKnowledgeContext returns prompt block with original snippets", () => {
   const context = buildAssistantKnowledgeContext({
     now: new Date("2026-04-09T08:00:00.000Z"),

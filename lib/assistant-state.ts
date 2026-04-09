@@ -126,7 +126,15 @@ export function getAssistantState(projectId: string) {
       stage: "done",
       ui: [{ type: "reminder", text: "当前仅支持 APP + 图文" }],
       missingFields: [],
-      confirmation: null,
+      confirmation: {
+        businessGoal: "app",
+        formatType: "image_text",
+        targetAudience: requirement.targetAudience ?? "",
+        feature: requirement.feature ?? "",
+        sellingPoints: requirement.sellingPoints ?? [],
+        timeNode: requirement.timeNode ?? "",
+        directionCount: requirement.directionCount ?? null,
+      },
       createdAt: timestamp,
       updatedAt: timestamp,
     } satisfies AssistantState;
