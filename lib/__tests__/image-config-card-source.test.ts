@@ -26,7 +26,7 @@ test("image config card delegates form and action logic", async () => {
   assert.match(source, /ImageConfigForm/);
   assert.match(source, /ImageConfigBrandSection/);
   assert.match(source, /image-config-actions/);
-  assert.match(source, /className="w-full text-sm"/);
+  assert.match(source, /className="w-full py-3 text-sm font-semibold"/);
   assert.match(actionsSource, /@\/lib\/api-fetch/);
   assert.match(actionsSource, /created_group_ids/);
   assert.match(actionsSource, /group_ids:\s*payload\.created_group_ids/);

@@ -44,10 +44,22 @@ export function buildImagePrompt(input: {
     parsedDescription && typeof parsedDescription.brandConstraints === "object" && parsedDescription.brandConstraints
       ? parsedDescription.brandConstraints as Record<string, unknown>
       : null;
+  const descriptionUserState =
+    parsedDescription && typeof parsedDescription.userState === "object" && parsedDescription.userState
+      ? parsedDescription.userState as Record<string, unknown>
+      : null;
+  const descriptionCharacters =
+    parsedDescription && typeof parsedDescription.charactersAndProps === "object" && parsedDescription.charactersAndProps
+      ? parsedDescription.charactersAndProps as Record<string, unknown>
+      : null;
   const style = IMAGE_STYLE_DESCRIPTIONS[input.imageStyle] ?? "清新明亮的广告风格";
+  const audienceType = descriptionUserState?.audienceType === "parent" ? "parent" : "student";
+  const defaultHumanSubject = audienceType === "parent"
+    ? "中国家长代表，东亚面孔特征，家庭教育场景气质自然可信"
+    : "中国学生代表，东亚面孔特征，符合中国校园与家庭学习场景";
   const ipText = input.ipRole
-    ? `画面中央出现${input.ipRole}角色，姿态亲切自然。角色设定：${input.ipDescription ?? input.ipRole}。人物关键词：${input.ipPromptKeywords ?? ""}。长相和整体风格必须与参考图一致，姿势可变化但身份设定不能漂移`
-    : `画面主体为目标人群代表`;
+    ? `画面中央出现${input.ipRole}角色，姿态亲切自然。角色设定：${input.ipDescription ?? input.ipRole}。人物关键词：${input.ipPromptKeywords ?? ""}。长相和整体风格必须与参考图一致，姿势可变化但身份设定不能漂移，整体气质贴近中国校园或家庭教育场景。`
+    : `${String(descriptionCharacters?.characterSummary ?? defaultHumanSubject)}，默认使用中国/东亚人物特征。`;
   const logoText =
     input.logo && input.logo !== "none"
       ? "品牌 Logo 必须真实出现在画面左上角，尺寸清晰可见，不可缺失，不可只留空白。Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形，不得改变颜色，不得改变比例，不得改变布局，不得改变圆角或边框，不得增删任何元素，不得艺术化、卡通化、重绘，不得重新设计。"
@@ -78,7 +90,6 @@ export function buildImagePrompt(input: {
 
   return JSON.stringify({
     prompt_version: "v1",
-    channel: input.channel ?? "",
     direction_title: input.directionTitle,
     scenario_problem: input.scenarioProblem ?? "",
     aspect_ratio: input.aspectRatio,

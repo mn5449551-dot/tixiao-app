@@ -24,7 +24,7 @@ test("buildImagePrompt injects selected IP description and consistency guardrail
   });
 
   const parsed = JSON.parse(prompt) as Record<string, unknown>;
-  assert.equal(parsed.channel, "信息流（广点通）");
+  assert.equal(parsed.direction_title, "方向1");
   assert.match(prompt, /豆包/);
   assert.match(prompt, /篮球少年·阳光活力型/);
   assert.match(prompt, /dark spiky hair/);
@@ -182,16 +182,90 @@ test("buildImagePrompt returns JSON-formatted prompt content", () => {
 
   const parsed = JSON.parse(prompt) as {
     prompt_version: string;
-    channel: string;
     aspect_ratio: string;
     text_overlay: { main_title: string; sub_title: string | null };
   };
 
   assert.equal(parsed.prompt_version, "v1");
-  assert.equal(parsed.channel, "信息流（广点通）");
   assert.equal(parsed.aspect_ratio, "16:9");
   assert.equal(parsed.text_overlay.main_title, "拍一下就会");
   assert.equal(parsed.text_overlay.sub_title, "10秒出解析");
+});
+
+test("buildImagePrompt does not leak channel label into visible prompt fields when logo is disabled", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "考前几何压轴题，盯着图干着急？",
+    copyTitleSub: "让动画一步步长出来，告诉你辅助线该添哪里",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "none",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "学习机",
+    ctaEnabled: false,
+    ctaText: null,
+  });
+
+  assert.doesNotMatch(prompt, /学习机/);
+  assert.match(prompt, /不需要品牌 Logo/);
+});
+
+test("buildImagePrompt anchors default人物为中国教育场景人物", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    aspectRatio: "1:1",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "none",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: false,
+    ctaText: null,
+    descriptionPayload: {
+      schemaVersion: "v1",
+      channelPositioning: { channel: "应用商店", imageForm: "single", aspectRatio: "1:1" },
+      adGoal: { primaryGoal: "解释功能" },
+      userState: {
+        audienceType: "student",
+        audienceSegment: "初中生",
+        scenarioSummary: "孩子做题卡住",
+      },
+      coreSellingPoint: { primaryPoint: "拍一下就能出解析" },
+      visualConcept: { mainEvent: "学生拍题", creativeAxis: "学习突破", productAnchor: "拍题界面" },
+      sceneAtmosphere: { location: "家庭书桌", lighting: "明亮", moodColor: "清新明亮的广告风格" },
+      charactersAndProps: {
+        characterMode: "single",
+        characterSummary: "中国初中生代表",
+        expression: "专注",
+        action: "举起手机拍题",
+        props: ["手机", "练习册"],
+        ip: { enabled: false, role: "", placement: "", action: "", consistencyRule: "" },
+      },
+      composition: {
+        layoutType: "square",
+        subjectPlacement: "right",
+        textSafeArea: "left",
+        logoSafeArea: "top-left",
+        multiImageConsistency: "单图完整表达",
+      },
+      textOverlay: { currentText: "拍一下就会", textRole: "main", ctaText: null },
+      brandConstraints: {
+        brandTone: "教育可信、积极、明亮、成长导向",
+        logoPolicy: "不使用Logo",
+      },
+      variationHints: { noveltyFocus: "通过构图避免重复" },
+      summaryText: "围绕中国家庭书桌场景构建学习广告图。",
+    },
+  });
+
+  assert.match(prompt, /中国|东亚/);
 });
 
 test("mergeImagePromptWithSlot appends slot information while keeping JSON format", () => {
