@@ -9,11 +9,20 @@ type CopyAgentInput = {
   channel: string;
   imageForm: string;
   count: number;
+  existingCopies?: Array<{
+    titleMain: string;
+    titleSub?: string | null;
+    titleExtra?: string | null;
+    copyType?: string | null;
+  }>;
+  knowledgeContext?: string;
 };
 
 export function buildCopyAgentMessages(input: CopyAgentInput) {
+  const isAppend = Boolean(input.existingCopies && input.existingCopies.length > 0);
   const systemPrompt = `你是教培行业效果广告文案专家，负责把“方向表”压缩成可直接投放的图文文案。
 
+当前请求只服务一个方向。
 你的输入不是只有方向标题。你必须综合使用以下完整方向上下文：
 - 方向名称
 - 目标人群
@@ -26,6 +35,7 @@ export function buildCopyAgentMessages(input: CopyAgentInput) {
 - 每套文案都要把“场景痛点 / 解法亮点 / 结果收益”压缩成适合对应渠道与图片形式的表达。
 - 同一批文案要有明显区分，可以从不同钩子、不同收益点、不同表达重心切入，但都必须围绕同一个方向。
 - 内容必须真实可投放，优先具体、直接、可感知，避免空洞口号。
+${isAppend ? "\n- 当前是追加生成，只新增 1 条文案，不能只是机械改写已有文案。" : ""}
 
 格式要求：
 - 若 imageForm=single：
@@ -66,11 +76,19 @@ export function buildCopyAgentMessages(input: CopyAgentInput) {
 - 场景问题：${input.scenarioProblem}
 - 差异化解法：${input.differentiation}
 - 奇效：${input.effect}
+${input.knowledgeContext ? `
+
+知识补充上下文：
+${input.knowledgeContext}` : ""}
 
 投放约束：
 - 渠道：${input.channel}
 - 图片形式：${input.imageForm}
 - 需要生成文案数：${input.count}
+${isAppend ? `
+
+当前已生成文案：
+${input.existingCopies?.map((item, index) => `${index + 1}. ${item.titleMain}${item.titleSub ? `｜${item.titleSub}` : ""}${item.titleExtra ? `｜${item.titleExtra}` : ""}${item.copyType ? `｜${item.copyType}` : ""}`).join("\n")}` : ""}
 
 请输出 ${input.count} 套真正可用于投放的图文文案，确保文案与方向逻辑强绑定，而不是只复述功能。`;
 

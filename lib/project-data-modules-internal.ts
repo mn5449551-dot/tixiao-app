@@ -2,6 +2,7 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { generateCopyIdeas } from "@/lib/ai/agents/copy-agent";
+import { buildCopyKnowledgeContext } from "@/lib/ai/agents/copy-knowledge";
 import { generateDirectionIdeas } from "@/lib/ai/agents/direction-agent";
 import {
   ASPECT_RATIOS,
@@ -906,6 +907,12 @@ export async function generateCopyCardSmart(directionId: string, count: number, 
 
   if (useAi) {
     try {
+      const knowledge = buildCopyKnowledgeContext({
+        channel: direction.channel,
+        imageForm: direction.imageForm ?? "single",
+        targetAudience: direction.targetAudience ?? "",
+        directionTitle: direction.title,
+      });
       const raw = await generateCopyIdeas({
         directionTitle: direction.title,
         targetAudience: direction.targetAudience ?? "",
@@ -915,6 +922,7 @@ export async function generateCopyCardSmart(directionId: string, count: number, 
         channel: direction.channel,
         imageForm: direction.imageForm ?? "single",
         count: actualCount,
+        knowledgeContext: knowledge.promptBlock,
       });
       const parsed = parseJsonBlock<unknown>(raw);
       const ideas = normalizeCopyIdeas(parsed, actualCount, direction.imageForm ?? "single");
@@ -950,6 +958,12 @@ export async function appendCopyToCardSmart(copyCardId: string, useAi = false) {
   let nextIdea: CopyIdea | null = null;
   if (useAi) {
     try {
+      const knowledge = buildCopyKnowledgeContext({
+        channel: direction.channel,
+        imageForm: direction.imageForm ?? "single",
+        targetAudience: direction.targetAudience ?? "",
+        directionTitle: direction.title,
+      });
       const raw = await generateCopyIdeas({
         directionTitle: direction.title,
         targetAudience: direction.targetAudience ?? "",
@@ -959,6 +973,13 @@ export async function appendCopyToCardSmart(copyCardId: string, useAi = false) {
         channel: direction.channel,
         imageForm: direction.imageForm ?? "single",
         count: 1,
+        existingCopies: existingCopies.map((copy) => ({
+          titleMain: copy.titleMain,
+          titleSub: copy.titleSub,
+          titleExtra: copy.titleExtra,
+          copyType: copy.copyType,
+        })),
+        knowledgeContext: knowledge.promptBlock,
       });
       const parsed = parseJsonBlock<unknown>(raw);
       nextIdea = normalizeCopyIdeas(parsed, 1, direction.imageForm ?? "single")?.[0] ?? null;

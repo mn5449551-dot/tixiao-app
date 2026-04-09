@@ -16,10 +16,38 @@ test("buildCopyAgentMessages uses full direction context and channel format cons
   });
 
   assert.equal(messages[0]?.role, "system");
+  assert.match(messages[0]?.content ?? "", /顶层键名为 copies/);
+  assert.match(messages[0]?.content ?? "", /当前请求只服务一个方向/);
   assert.match(messages[0]?.content ?? "", /不能只看方向标题/);
   assert.match(messages[0]?.content ?? "", /双图/);
   assert.match(messages[0]?.content ?? "", /图间关系/);
   assert.match(messages[1]?.content ?? "", /场景问题/);
   assert.match(messages[1]?.content ?? "", /差异化解法/);
   assert.match(messages[1]?.content ?? "", /奇效/);
+});
+
+test("buildCopyAgentMessages encodes append mode as a single differentiated copy", () => {
+  const messages = buildCopyAgentMessages({
+    directionTitle: "作业卡壳秒解决",
+    targetAudience: "初中生，晚间做作业经常卡题",
+    scenarioProblem: "晚间做作业时，遇到一道数学题卡了半小时",
+    differentiation: "拍完题的瞬间就开始出解析，像老师边写边讲",
+    effect: "从不会写到能继续写下去",
+    channel: "应用商店",
+    imageForm: "single",
+    count: 1,
+    existingCopies: [
+      {
+        titleMain: "作业写不动了？",
+        titleSub: "来洋葱拍一下！秒解难题",
+      },
+    ],
+  });
+
+  assert.match(messages[0]?.content ?? "", /当前请求只服务一个方向/);
+  assert.match(messages[0]?.content ?? "", /当前是追加生成/);
+  assert.match(messages[0]?.content ?? "", /只新增 1 条文案/);
+  assert.match(messages[0]?.content ?? "", /不能只是机械改写已有文案/);
+  assert.match(messages[1]?.content ?? "", /当前已生成文案/);
+  assert.match(messages[1]?.content ?? "", /作业写不动了/);
 });

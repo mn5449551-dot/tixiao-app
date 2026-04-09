@@ -15,6 +15,7 @@ import {
   deleteDirection,
   generateFinalizedVariants,
   generateCopyCard,
+  generateCopyCardSmart,
   generateDirections,
   getCanvasData,
   getProjectById,
@@ -262,6 +263,26 @@ test("appendCopyToCardSmart appends a new copy into the existing copy card", asy
   assert.ok(appended);
   assert.equal(appended?.id, card!.id);
   assert.equal(appended?.copies.length, 3);
+});
+
+test("generateCopyCardSmart returns the full requested number of copies for one direction card", async () => {
+  const project = createProject(`generate-copy-card-smart-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "double", 3);
+  assert.ok(direction);
+
+  const card = await generateCopyCardSmart(direction.id, 3, false);
+  assert.ok(card);
+  assert.equal(card.copies.length, 3);
 });
 
 test("deleteProject removes project-scoped image and export directories under .local-data storage", async () => {
