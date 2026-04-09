@@ -10,6 +10,8 @@ export function DirectionItemRow({
   editing,
   selected,
   content,
+  selectDisabled = false,
+  selectHint,
   deleteDisabled = false,
   deleteHint,
   onToggleSelect,
@@ -20,11 +22,14 @@ export function DirectionItemRow({
     id: string;
     title: string;
     sourceHandleId: string;
+    hasDownstream?: boolean;
   };
   index: number;
   editing: boolean;
   selected: boolean;
   content?: React.ReactNode;
+  selectDisabled?: boolean;
+  selectHint?: string;
   deleteDisabled?: boolean;
   deleteHint?: string;
   onToggleSelect: () => void;
@@ -44,7 +49,9 @@ export function DirectionItemRow({
           type="checkbox"
           checked={selected}
           onChange={onToggleSelect}
-          className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--brand-500)]"
+          disabled={Boolean(item.hasDownstream) || selectDisabled}
+          title={selectHint}
+          className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--brand-500)] disabled:cursor-not-allowed disabled:opacity-50"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

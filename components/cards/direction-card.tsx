@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -87,7 +87,7 @@ export function DirectionCard({
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(directions.map((direction) => direction.id)),
+    () => new Set(directions.filter((direction) => !direction.hasDownstream).map((direction) => direction.id)),
   );
   const [editBuffer, setEditBuffer] = useState<Record<string, string>>({});
 
@@ -119,6 +119,25 @@ export function DirectionCard({
     setEditBuffer({});
   }, []);
 
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const selectableIds = new Set(
+        directions.filter((direction) => !direction.hasDownstream).map((direction) => direction.id),
+      );
+
+      if (prev.size === 0) {
+        return selectableIds;
+      }
+
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (selectableIds.has(id)) next.add(id);
+      }
+
+      return next;
+    });
+  }, [directions]);
+
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -129,13 +148,15 @@ export function DirectionCard({
   }, []);
 
   const toggleSelectAll = useCallback(() => {
+    const selectableDirections = directions.filter((direction) => !direction.hasDownstream);
     setSelectedIds((prev) => {
-      if (prev.size === directions.length) return new Set();
-      return new Set(directions.map((direction) => direction.id));
+      if (prev.size === selectableDirections.length) return new Set();
+      return new Set(selectableDirections.map((direction) => direction.id));
     });
   }, [directions]);
 
-  const isAllSelected = directions.length > 0 && selectedIds.size === directions.length;
+  const selectableCount = directions.filter((direction) => !direction.hasDownstream).length;
+  const isAllSelected = selectableCount > 0 && selectedIds.size === selectableCount;
   const selectedCount = selectedIds.size;
   const totalCount = directions.length;
 
@@ -243,6 +264,8 @@ export function DirectionCard({
               editing={isEditing}
               selected={isChecked}
               onToggleSelect={() => toggleSelect(direction.id)}
+              selectDisabled={Boolean(direction.hasDownstream)}
+              selectHint={direction.hasDownstream ? "已生成文案，请在文案卡中追加" : "选择方向生成文案"}
               onEditToggle={() => {
                 if (!isEditing) {
                   startEdit(direction.id, direction);
@@ -373,7 +396,9 @@ export function DirectionCard({
           className="flex-1"
           disabled={selectedCount === 0 || isGeneratingSelected}
           onClick={async () => {
-            const selectedDirections = directions.filter((direction) => selectedIds.has(direction.id));
+            const selectedDirections = directions.filter(
+              (direction) => selectedIds.has(direction.id) && !direction.hasDownstream,
+            );
             if (selectedDirections.length === 0) return;
 
             setIsGeneratingSelected(true);

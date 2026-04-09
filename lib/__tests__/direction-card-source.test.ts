@@ -34,3 +34,11 @@ test("direction card keeps the original field labels while using a denser horizo
   assert.match(source, /3 因此带来了哪个场景下的什么“奇效”？/);
   assert.match(source, /md:grid-cols-3/);
 });
+
+test("direction card prevents directions with downstream copy cards from being selected for copy generation again", async () => {
+  const source = await readFile(directionCardPath, "utf8");
+
+  assert.match(source, /direction\.hasDownstream/);
+  assert.match(source, /已生成文案，请在文案卡中追加/);
+  assert.match(source, /selectDisabled=\{Boolean\(direction\.hasDownstream\)\}/);
+});
