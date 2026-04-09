@@ -16,6 +16,11 @@ test("buildCopyAgentMessages uses full direction context and channel format cons
   });
 
   assert.equal(messages[0]?.role, "system");
+  assert.match(messages[0]?.content ?? "", /角色定位/);
+  assert.match(messages[0]?.content ?? "", /业务背景/);
+  assert.match(messages[0]?.content ?? "", /核心任务/);
+  assert.match(messages[0]?.content ?? "", /硬性边界/);
+  assert.match(messages[0]?.content ?? "", /输出契约/);
   assert.match(messages[0]?.content ?? "", /顶层键名为 copies/);
   assert.match(messages[0]?.content ?? "", /当前请求只服务一个方向/);
   assert.match(messages[0]?.content ?? "", /不能只看方向标题/);
@@ -45,6 +50,7 @@ test("buildCopyAgentMessages encodes append mode as a single differentiated copy
   });
 
   assert.match(messages[0]?.content ?? "", /当前请求只服务一个方向/);
+  assert.match(messages[0]?.content ?? "", /决策规则/);
   assert.match(messages[0]?.content ?? "", /当前是追加生成/);
   assert.match(messages[0]?.content ?? "", /只新增 1 条文案/);
   assert.match(messages[0]?.content ?? "", /不能只是机械改写已有文案/);

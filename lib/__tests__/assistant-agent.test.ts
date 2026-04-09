@@ -20,6 +20,11 @@ test("buildRequirementAssistantMessages encodes PRD collection rules and structu
   });
 
   assert.equal(messages[0]?.role, "system");
+  assert.match(messages[0]?.content ?? "", /角色定位/);
+  assert.match(messages[0]?.content ?? "", /业务背景/);
+  assert.match(messages[0]?.content ?? "", /核心任务/);
+  assert.match(messages[0]?.content ?? "", /硬性边界/);
+  assert.match(messages[0]?.content ?? "", /输出契约/);
   assert.match(messages[0]?.content ?? "", /确认前不回填需求卡/);
   assert.match(messages[0]?.content ?? "", /一次只追问一个最关键缺口/);
   assert.match(messages[0]?.content ?? "", /当前仅支持 APP \+ 图文/);

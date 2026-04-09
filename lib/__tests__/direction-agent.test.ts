@@ -13,6 +13,11 @@ test("buildDirectionAgentMessages encodes business-table logic and concrete fiel
   });
 
   assert.equal(messages[0]?.role, "system");
+  assert.match(messages[0]?.content ?? "", /角色定位/);
+  assert.match(messages[0]?.content ?? "", /业务背景/);
+  assert.match(messages[0]?.content ?? "", /核心任务/);
+  assert.match(messages[0]?.content ?? "", /硬性边界/);
+  assert.match(messages[0]?.content ?? "", /输出契约/);
   assert.match(messages[0]?.content ?? "", /前六列/);
   assert.match(messages[0]?.content ?? "", /场景问题/);
   assert.match(messages[0]?.content ?? "", /惊艳/);
@@ -43,6 +48,7 @@ test("buildDirectionAgentMessages encodes append mode as one additional differen
   });
 
   assert.match(messages[0]?.content ?? "", /追加生成时固定只新增 1 条方向/);
+  assert.match(messages[0]?.content ?? "", /决策规则/);
   assert.match(messages[0]?.content ?? "", /已有方向/);
   assert.match(messages[0]?.content ?? "", /不能只换措辞重复已有方向/);
   assert.match(messages[1]?.content ?? "", /当前已生成方向/);

@@ -18,17 +18,24 @@ type DirectionAgentInput = {
 export function buildDirectionAgentMessages(input: DirectionAgentInput) {
   const sellingPoints = input.sellingPoints?.filter(Boolean).join("、") || "未额外指定";
   const isAppend = Boolean(input.existingDirections && input.existingDirections.length > 0);
-  const systemPrompt = `你是教培行业效果广告方向策划，负责把需求卡内容推导成业务人员可以直接使用的“方向表前六列”。
+  const systemPrompt = `角色定位：
+你是教培行业效果广告方向策划，负责把需求卡内容推导成业务人员可以直接使用的“方向表前六列”。
 
-你的任务不是泛泛想创意，而是输出真实可投放、可继续生成文案的方向条目。每条方向都必须完整覆盖并严格对齐以下业务字段：
+业务背景：
+你处在需求卡之后、文案生成之前。你的任务不是泛泛想创意，而是输出真实可投放、可继续生成文案的方向条目。
+
+核心任务：
+每条方向都必须完整覆盖并严格对齐以下业务字段：
 1. 素材方向（title）
 2. 目标人群（targetAudience）
 3. 场景问题：能解决用户在“具体哪个场景里的哪个问题”（scenarioProblem）
 4. 惊艳解法：能带来什么不一样的“一听很惊艳”的解法（differentiation）
 5. 奇效：因此带来了哪个场景下的什么“奇效”（effect）
 
-生成原则：
+可信输入：
 - 输入只来自需求卡字段；不要自行引入渠道、形式、聊天原文。
+
+决策规则：
 - 首次生成数量严格等于需求卡要求的数量。
 - 追加生成时固定只新增 1 条方向。
 - 先理解需求卡，再从真实学习场景里找投放切口。
@@ -40,13 +47,13 @@ export function buildDirectionAgentMessages(input: DirectionAgentInput) {
 - 各方向之间必须有明显差异，差异优先体现在：场景、诉求、动机、阶段、卡点类型、收益类型。
 ${isAppend ? "- 当前是追加生成，必须参考当前已生成方向，新增方向不能只换措辞重复已有方向。新增方向至少要在场景、痛点、解法切口、奇效中的 1-2 项形成明显差异。" : ""}
 
-禁止：
-- 空洞大词、假大空表达、纯品牌口号
-- 只换同义词的重复方向
-- 把文案表内容提前写进方向字段
-- 输出解释、Markdown、编号、注释
+硬性边界：
+- 禁止空洞大词、假大空表达、纯品牌口号。
+- 禁止只换同义词的重复方向。
+- 禁止把文案表内容提前写进方向字段。
+- 不输出解释、Markdown、编号、注释。
 
-输出格式：
+输出契约：
 - 只输出一个 JSON 对象
 - 顶层键名为 directions
 - directions 是长度为 ${input.count} 的数组
