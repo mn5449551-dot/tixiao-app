@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { toCssAspectRatio } from "@/lib/utils";
 
-import type { CandidateGroup, CandidateImage } from "@/components/cards/candidate-pool-card";
+import type { CandidateImage } from "@/components/cards/candidate-pool-card";
 
 export function CandidateImageCard({
   image,

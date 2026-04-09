@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 
@@ -96,13 +95,6 @@ export function ImageConfigCard({
     data.initialStyleMode,
     isSubmitting,
   ]);
-
-  const handleCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value, 10);
-    if (!isNaN(val) && val >= 1 && val <= 5) {
-      setCount(val);
-    }
-  };
 
   const borderColorClass = isError
     ? "border-[#c0392b]"
@@ -219,14 +211,12 @@ export function ImageConfigCard({
         <ImageConfigBrandSection
           useLogo={useLogo}
           logoOption={logoOption}
-          useIp={useIp}
           ipRole={ipRole}
           isIpMode={isIpMode}
           showIpAssetSelector={showIpAssetSelector}
           activeIpDescription={activeIp?.description}
           onUseLogoChange={setUseLogo}
           onLogoOptionChange={setLogoOption}
-          onUseIpChange={setUseIp}
           onIpRoleChange={setIpRole}
         />
       </ImageConfigForm>

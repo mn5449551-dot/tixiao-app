@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -17,7 +17,6 @@ import { DirectionItemRow } from "@/components/cards/direction-card/direction-it
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
-import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
 import { CHANNELS, getAvailableImageForms } from "@/lib/constants";
 import { cn } from "@/lib/utils";

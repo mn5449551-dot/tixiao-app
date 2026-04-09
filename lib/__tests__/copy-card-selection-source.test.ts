@@ -7,7 +7,7 @@ const copyCardActionsPath = new URL("../../components/cards/copy-card/copy-card-
 
 test("copy card source supports checkbox selection and bottom batch generation", async () => {
   const source = await readFile(copyCardPath, "utf8");
-  const actionsSource = await readFile(copyCardActionsPath, "utf8");
+  await readFile(copyCardActionsPath, "utf8");
 
   assert.match(source, /const \[selectedIds, setSelectedIds\]/);
   assert.match(source, /toggleSelectAll/);

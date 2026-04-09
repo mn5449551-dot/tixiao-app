@@ -41,7 +41,17 @@ export async function POST(
       );
 
       if (!direction) {
+        if (runId) {
+          finishGenerationRun(runId, {
+            status: "failed",
+            errorMessage: "方向追加失败",
+          });
+        }
         return NextResponse.json({ error: "方向追加失败" }, { status: 500 });
+      }
+
+      if (runId) {
+        finishGenerationRun(runId, { status: "done" });
       }
 
       return NextResponse.json({
@@ -57,6 +67,10 @@ export async function POST(
       body.copy_generation_count ?? 3,
       body.use_ai ?? false,
     );
+
+    if (runId) {
+      finishGenerationRun(runId, { status: "done" });
+    }
 
     return NextResponse.json({
       directions: created,

@@ -25,6 +25,7 @@ import {
   imageConfigs,
   imageGroups,
   projects,
+  projectGenerationRuns,
   requirementCards,
 } from "@/lib/schema";
 import { fromJson, toJson } from "@/lib/utils";
@@ -1522,9 +1523,71 @@ export function getCanvasData(projectId: string) {
       availableIpRoles: IP_ROLES,
     },
   });
+
+  const generationRuns = getDb()
+    .select()
+    .from(projectGenerationRuns)
+    .where(eq(projectGenerationRuns.projectId, projectId))
+    .orderBy(desc(projectGenerationRuns.updatedAt))
+    .all();
+
+  const directionRun = generationRuns.find((run) => run.resourceType === "project-directions");
+  const copyRunsByDirectionId = new Map<string, "loading" | "error">();
+
+  generationRuns
+    .filter((run) => run.resourceType === "direction-copy-cards")
+    .forEach((run) => {
+      if (copyRunsByDirectionId.has(run.resourceId)) return;
+
+      if (run.status === "running") {
+        copyRunsByDirectionId.set(run.resourceId, "loading");
+        return;
+      }
+
+      if (run.status === "failed") {
+        copyRunsByDirectionId.set(run.resourceId, "error");
+      }
+    });
+
+  const nodes = graph.nodes.map((node) => {
+    if (node.type === "directionCard" && directionRun) {
+      const nextStatus =
+        directionRun.status === "running"
+          ? "loading"
+          : directionRun.status === "failed"
+            ? "error"
+            : undefined;
+
+      if (nextStatus) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            status: nextStatus,
+          },
+        };
+      }
+    }
+
+    if (node.type === "copyCard" && "directionId" in node.data && node.data.directionId) {
+      const nextStatus = copyRunsByDirectionId.get(node.data.directionId);
+      if (nextStatus) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            status: nextStatus,
+          },
+        };
+      }
+    }
+
+    return node;
+  });
+
   return {
     projectId,
-    nodes: graph.nodes,
+    nodes,
     edges: graph.edges,
     hasPendingImages: directionsWithChildren.some((direction) =>
       direction.copyCards.some((card) =>

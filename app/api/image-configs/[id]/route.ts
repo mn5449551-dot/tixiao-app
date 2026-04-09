@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import { resolveReferenceImageUrl } from "@/lib/ip-assets";
-import { copies, generatedImages, imageConfigs, imageGroups } from "@/lib/schema";
+import { copies, imageConfigs } from "@/lib/schema";
 import { deleteImageConfigCascade } from "@/lib/project-data";
 import { resolveImageStyleForMode } from "@/lib/workflow-defaults";
 

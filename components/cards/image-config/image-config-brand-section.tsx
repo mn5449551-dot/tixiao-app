@@ -9,26 +9,22 @@ import { cn } from "@/lib/utils";
 export function ImageConfigBrandSection({
   useLogo,
   logoOption,
-  useIp,
   ipRole,
   isIpMode,
   showIpAssetSelector,
   activeIpDescription,
   onUseLogoChange,
   onLogoOptionChange,
-  onUseIpChange,
   onIpRoleChange,
 }: {
   useLogo: boolean;
   logoOption: string;
-  useIp: boolean;
   ipRole: string;
   isIpMode: boolean;
   showIpAssetSelector: boolean;
   activeIpDescription?: string;
   onUseLogoChange: (checked: boolean) => void;
   onLogoOptionChange: (value: string) => void;
-  onUseIpChange: (checked: boolean) => void;
   onIpRoleChange: (value: string) => void;
 }) {
   return (

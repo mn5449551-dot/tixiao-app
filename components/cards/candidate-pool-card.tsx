@@ -204,11 +204,6 @@ export function CandidatePoolCard({
         {groupLabel ? <Badge tone="neutral">{groupLabel}</Badge> : null}
       </div>
 
-      {isError && (
-        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
-          部分图片生成失败，请重试
-        </div>
-      )}
       {actionError ? (
         <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
           {actionError}

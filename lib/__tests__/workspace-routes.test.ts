@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { eq } from "drizzle-orm";
 
-import * as projectsRouteModule from "../../app/api/projects/route";
 import * as projectRouteModule from "../../app/api/projects/[id]/route";
 import * as requirementRouteModule from "../../app/api/projects/[id]/requirement/route";
 import * as treeRouteModule from "../../app/api/projects/[id]/tree/route";
@@ -11,6 +10,7 @@ import * as generationStatusRouteModule from "../../app/api/projects/[id]/genera
 import * as directionGenerateRouteModule from "../../app/api/projects/[id]/directions/generate/route";
 import * as copyGenerateRouteModule from "../../app/api/directions/[id]/copy-cards/generate/route";
 import * as copyCardRouteModule from "../../app/api/copy-cards/[id]/route";
+import * as copyRouteModule from "../../app/api/copies/[id]/route";
 import {
   createProject,
   generateCopyCard,
@@ -18,16 +18,17 @@ import {
   saveImageConfig,
   upsertRequirement,
 } from "../project-data";
+import { getDb } from "../db";
+import { copies, projectGenerationRuns } from "../schema";
 
-const { GET: GET_PROJECTS } = projectsRouteModule;
 const { GET: GET_PROJECT } = projectRouteModule;
-const { GET: GET_REQUIREMENT } = requirementRouteModule;
 const { GET: GET_TREE } = treeRouteModule;
 const { GET: GET_GRAPH } = graphRouteModule;
 const { GET: GET_GENERATION_STATUS } = generationStatusRouteModule;
 const { POST: POST_DIRECTION_GENERATE } = directionGenerateRouteModule;
 const { POST: POST_COPY_GENERATE } = copyGenerateRouteModule;
 const { DELETE: DELETE_COPY_CARD } = copyCardRouteModule;
+const { DELETE: DELETE_COPY } = copyRouteModule;
 
 test("project tree route returns 404 for a missing project", async () => {
   const response = await GET_TREE(new Request("http://localhost"), {
@@ -135,6 +136,15 @@ test("direction generate route returns JSON instead of SSE", async () => {
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+
+  const db = getDb();
+  const run = db
+    .select()
+    .from(projectGenerationRuns)
+    .where(eq(projectGenerationRuns.resourceId, project!.id))
+    .get();
+
+  assert.equal(run?.status, "done");
 });
 
 test("copy generate route returns JSON instead of SSE", async () => {
@@ -163,4 +173,74 @@ test("copy generate route returns JSON instead of SSE", async () => {
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+
+  const db = getDb();
+  const run = db
+    .select()
+    .from(projectGenerationRuns)
+    .where(eq(projectGenerationRuns.resourceId, direction.id))
+    .get();
+
+  assert.equal(run?.status, "done");
+});
+
+test("requirement route returns JSON even when saving raw input recommendations", async () => {
+  const project = createProject(`requirement-json-${Date.now()}`);
+  assert.ok(project);
+
+  const response = await requirementRouteModule.POST(
+    new Request("http://localhost", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw_input: "家长，拍题精学，卖点是10秒出解析，期中考试，生成3个方向" }),
+    }),
+    { params: Promise.resolve({ id: project!.id }) },
+  );
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+});
+
+test("copy delete route uses the unified downstream-delete guard message", async () => {
+  const project = createProject(`copy-delete-guard-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "single", 1);
+  assert.ok(direction);
+
+  const card = generateCopyCard(direction.id, 1);
+  assert.ok(card);
+
+  await saveImageConfig(card!.copies[0]!.id, {
+    aspectRatio: "1:1",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+  });
+
+  const copy = getDb()
+    .select()
+    .from(copies)
+    .where(eq(copies.id, card!.copies[0]!.id))
+    .get();
+
+  assert.equal(copy?.isLocked, 1);
+
+  const response = await DELETE_COPY(new Request("http://localhost"), {
+    params: Promise.resolve({ id: card!.copies[0]!.id }),
+  });
+
+  assert.equal(response.status, 422);
+  const payload = (await response.json()) as { error?: string };
+  assert.equal(payload.error, "已有下游内容，不能删除");
 });

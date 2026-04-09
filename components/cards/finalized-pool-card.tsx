@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import dynamic from "next/dynamic";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -22,7 +21,7 @@ import {
   EXPORT_SLOT_SPECS,
   type ExportSlotSpec,
 } from "@/lib/export/utils";
-import { cn, toCssAspectRatio } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 const ImagePreviewModal = dynamic(

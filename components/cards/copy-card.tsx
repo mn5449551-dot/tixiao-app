@@ -1,12 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   appendCopyGenerationAction,
@@ -27,7 +26,6 @@ import {
   getCopyCompactSummary,
   getCopyDisplayRows,
 } from "@/lib/copy-card-presenter";
-import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";

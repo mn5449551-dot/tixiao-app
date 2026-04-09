@@ -3,7 +3,6 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import { getProjectExportContext } from "@/lib/project-data";

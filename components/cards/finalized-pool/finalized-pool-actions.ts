@@ -1,4 +1,3 @@
-import type { FinalizedImage } from "@/components/cards/finalized-pool-card";
 import { ApiError, apiFetch, apiFetchBlob, apiFetchOk } from "@/lib/api-fetch";
 
 export async function deleteDerivedGroup(groupId: string) {

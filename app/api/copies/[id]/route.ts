@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
-import { deleteFileIfExists } from "@/lib/storage";
 import { getDb } from "@/lib/db";
 import { deleteImageConfigCascade, regenerateCopy } from "@/lib/project-data";
-import { copies, generatedImages, imageConfigs, imageGroups } from "@/lib/schema";
+import { copies, imageConfigs } from "@/lib/schema";
 
 export async function PUT(
   request: Request,
@@ -69,7 +68,7 @@ export async function DELETE(
     // Check if locked — must delete image config first
     if (copy.isLocked) {
       return NextResponse.json(
-        { error: "该文案已锁定，需先删除对应图片配置才能删除" },
+        { error: "已有下游内容，不能删除" },
         { status: 422 },
       );
     }

@@ -14,13 +14,15 @@ import {
   generateFinalizedVariants,
   generateCopyCard,
   generateDirections,
+  getCanvasData,
   getProjectById,
   regenerateCopy,
   saveImageConfig,
   upsertRequirement,
 } from "../project-data";
 import { getDb } from "../db";
-import { copies, copyCards, directions, generatedImages, imageConfigs, imageGroups } from "../schema";
+import { finishGenerationRun, startGenerationRun } from "../generation-runs";
+import { copies, directions, generatedImages, imageConfigs, imageGroups } from "../schema";
 
 test("regenerateCopy replaces copy text and clears downstream generated assets", async () => {
   const project = createProject(`regenerate-copy-${Date.now()}`);
@@ -257,6 +259,71 @@ test("appendCopyToCardSmart appends a new copy into the existing copy card", asy
   assert.ok(appended);
   assert.equal(appended?.id, card!.id);
   assert.equal(appended?.copies.length, 3);
+});
+
+test("getCanvasData marks the direction card loading while a direction generation run is active", () => {
+  const project = createProject(`canvas-direction-loading-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  generateDirections(project!.id, "应用商店", "single", 1);
+
+  const run = startGenerationRun({
+    projectId: project!.id,
+    kind: "direction",
+    resourceType: "project-directions",
+    resourceId: project!.id,
+  });
+
+  const canvas = getCanvasData(project!.id);
+  const directionNode = canvas?.nodes.find((node) => node.id === "direction-board");
+
+  assert.ok(directionNode);
+  assert.equal(directionNode?.type, "directionCard");
+  assert.equal(("status" in directionNode.data ? directionNode.data.status : undefined), "loading");
+
+  finishGenerationRun(run.id, { status: "done" });
+});
+
+test("getCanvasData marks copy cards loading while copy generation is active for a direction", () => {
+  const project = createProject(`canvas-copy-loading-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "single", 1);
+  assert.ok(direction);
+  const card = generateCopyCard(direction.id, 1);
+  assert.ok(card);
+
+  const run = startGenerationRun({
+    projectId: project!.id,
+    kind: "copy",
+    resourceType: "direction-copy-cards",
+    resourceId: direction.id,
+  });
+
+  const canvas = getCanvasData(project!.id);
+  const copyNode = canvas?.nodes.find((node) => node.id === `copy-card-${card!.id}`);
+
+  assert.ok(copyNode);
+  assert.equal(copyNode?.type, "copyCard");
+  assert.equal(("status" in copyNode.data ? copyNode.data.status : undefined), "loading");
+
+  finishGenerationRun(run.id, { status: "done" });
 });
 
 test("generateFinalizedVariants creates derived finalized groups for mismatched export ratios", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, FormEvent } from "react";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { startTransition, useState, useMemo, useCallback, useEffect } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -9,7 +9,7 @@ import { Handle, Position } from "@xyflow/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
-import { apiFetch } from "@/lib/api-fetch";
+import { ApiError, apiFetch } from "@/lib/api-fetch";
 import { getDefaultDirectionGenerationInput } from "@/lib/workflow-defaults";
 import { cn } from "@/lib/utils";
 import { FEATURE_LIBRARY } from "@/lib/constants";
@@ -99,6 +99,7 @@ export function RequirementCard({
   );
 
   const [status, setStatus] = useState<GenerationStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const sellingPoints = useMemo(
     () => parseSellingPoints(sellingPointsText),
@@ -106,11 +107,13 @@ export function RequirementCard({
   );
 
   useEffect(() => {
-    setTargetAudience(initial.targetAudience ?? "");
-    setFeature(initial.feature ? getFeatureLabel(initial.feature) : "");
-    setSellingPointsText(initial.sellingPoints ? formatSellingPoints(initial.sellingPoints) : "");
-    setTimeNode(initial.timeNode ?? getDefaultTimeNode());
-    setDirectionCount(initial.directionCount ? String(initial.directionCount) : "3");
+    startTransition(() => {
+      setTargetAudience(initial.targetAudience ?? "");
+      setFeature(initial.feature ? getFeatureLabel(initial.feature) : "");
+      setSellingPointsText(initial.sellingPoints ? formatSellingPoints(initial.sellingPoints) : "");
+      setTimeNode(initial.timeNode ?? getDefaultTimeNode());
+      setDirectionCount(initial.directionCount ? String(initial.directionCount) : "3");
+    });
   }, [
     initial.targetAudience,
     initial.feature,
@@ -139,11 +142,14 @@ export function RequirementCard({
       if (!isFormValid) return;
 
       setStatus("loading");
-      try {
-        if (!data.projectId) {
-          throw new Error("项目信息缺失");
-        }
+      setErrorMessage(null);
+      if (!data.projectId) {
+        setStatus("error");
+        setErrorMessage("项目信息缺失");
+        return;
+      }
 
+      try {
         await apiFetch(`/api/projects/${data.projectId}/requirement`, {
           method: "POST",
           body: {
@@ -156,7 +162,15 @@ export function RequirementCard({
             direction_count: Number(directionCount),
           },
         });
+      } catch (error) {
+        setStatus("error");
+        setErrorMessage(
+          error instanceof ApiError ? error.message : "需求保存失败，请重试",
+        );
+        return;
+      }
 
+      try {
         const defaults = getDefaultDirectionGenerationInput(targetAudience);
         await apiFetch(`/api/projects/${data.projectId}/directions/generate`, {
           method: "POST",
@@ -170,8 +184,13 @@ export function RequirementCard({
 
         dispatchWorkspaceInvalidated();
         setStatus("done");
-      } catch {
+      } catch (error) {
         setStatus("error");
+        setErrorMessage(
+          error instanceof ApiError
+            ? error.message
+            : "需求已保存，但方向生成失败，请重试",
+        );
       }
     },
     [
@@ -238,6 +257,11 @@ export function RequirementCard({
 
       {/* Form - 美化表单布局 */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        {errorMessage ? (
+          <div className="rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+            {errorMessage}
+          </div>
+        ) : null}
         <div className="space-y-3">
           {/* 业务目标 (disabled) */}
           <div className="rounded-xl bg-[var(--surface-1)] p-3">

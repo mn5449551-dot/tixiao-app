@@ -7,7 +7,7 @@ import * as exportRouteModule from "../../app/api/projects/[id]/export/route";
 import { createProject, generateDirections, generateCopyCard, saveImageConfig, upsertRequirement } from "../project-data";
 import { getDb } from "../db";
 import { createSolidPlaceholder, saveImageBuffer } from "../storage";
-import { directions, imageConfigs, imageGroups, generatedImages, exportRecords } from "../schema";
+import { imageGroups, generatedImages, exportRecords } from "../schema";
 
 const { POST } = exportRouteModule;
 

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 
 import { recommendRequirementFields } from "@/lib/ai/agents/requirement-agent";
-import { createSseResponse } from "@/lib/sse";
 import { getRequirement, upsertRequirement } from "@/lib/project-data";
 
 export const dynamic = "force-dynamic";
@@ -58,14 +57,6 @@ export async function POST(
       timeNode: body.time_node ?? recommendation?.timeNode,
       directionCount: body.direction_count ?? recommendation?.directionCount,
     });
-
-    if (body.raw_input && !body.feature) {
-      return createSseResponse([
-        { event: "agent_start" },
-        { event: "agent_done", result: requirement },
-        { event: "done", requirement_card_id: requirement?.id },
-      ]);
-    }
 
     return NextResponse.json({
       id: requirement?.id,

@@ -25,3 +25,10 @@ test("requirement card submit copy matches the approved workflow language", asyn
 
   assert.match(source, /保存并生成方向/);
 });
+
+test("requirement card distinguishes save and direction-generation failures", async () => {
+  const source = await readFile(requirementCardPath, "utf8");
+
+  assert.match(source, /需求保存失败，请重试/);
+  assert.match(source, /需求已保存，但方向生成失败，请重试/);
+});
