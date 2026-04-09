@@ -10,4 +10,7 @@ test("agent panel source uses assistant API routes instead of local keyword pars
   assert.match(source, /\/api\/projects\/\$\{projectId\}\/assistant/);
   assert.doesNotMatch(source, /Simple keyword-based field filling/);
   assert.doesNotMatch(source, /featureMap/);
+  assert.match(source, /当前仅支持 APP \+ 图文/);
+  assert.match(source, /audience_buttons/);
+  assert.match(source, /confirmation/);
 });

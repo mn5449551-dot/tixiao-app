@@ -1,6 +1,13 @@
 import { createChatCompletion } from "@/lib/ai/client";
-import { FEATURE_LIBRARY, TIME_NODES } from "@/lib/constants";
-import type { AssistantDraft } from "@/lib/assistant-state";
+import {
+  buildAssistantKnowledgeContext,
+  getAudienceButtons,
+  getFeatureSuggestions,
+  getSellingPointSuggestions,
+  getTimeNodeSuggestions,
+  inferDefaultTimeNode,
+} from "@/lib/ai/agents/assistant-knowledge";
+import type { AssistantConfirmation, AssistantDraft, AssistantUiAction } from "@/lib/assistant-state";
 
 type AssistantConversationMessage = {
   role: "ai" | "user";
@@ -17,22 +24,38 @@ type AssistantAgentResult = {
   reply: string;
   fields: Partial<AssistantDraft>;
   stage: "collecting" | "confirming" | "done";
+  nextField: "targetAudience" | "feature" | "sellingPoints" | "timeNode" | "directionCount" | null;
+  missingFields: Array<"targetAudience" | "feature" | "sellingPoints" | "timeNode" | "directionCount">;
+  ui: AssistantUiAction[];
+  confirmation: AssistantConfirmation | null;
 };
 
 export function buildRequirementAssistantMessages(input: AssistantAgentInput) {
+  const latestUserMessage = [...input.conversation].reverse().find((item) => item.role === "user")?.content ?? "";
+  const userMentionedTimeNode = /开学季|期中|期末|寒假|暑假/.test(latestUserMessage);
+  const knowledge = buildAssistantKnowledgeContext({
+    now: new Date(),
+    targetAudience: input.draft.targetAudience || null,
+    feature: input.draft.feature || null,
+    userMentionedTimeNode,
+  });
   const systemPrompt = `你是洋葱学园素材生产系统里的真实 AI 对话助手，负责通过多轮对话帮助用户整理需求卡信息。
 
 必须遵守以下交互规则：
 - 确认前不回填需求卡，需求卡必须保持空白/占位，直到用户点击“确认并填充需求卡”后才一次性写入。
 - 你当前只负责收集和整理以下需求字段：targetAudience、feature、sellingPoints、timeNode、directionCount。
-- 业务目标固定为 app，形式固定为 image_text，不需要再追问。
+- 当前仅支持 APP + 图文。
+- businessGoal 固定为 app，formatType 固定为 image_text，不需要再追问。
 - 一次只追问一个最关键缺口，不要同时抛多个问题。
 - 如果用户表达了“你帮我补全 / 帮我生成剩余字段 / 全部帮忙生成”之类意图，你可以基于已有上下文补全 feature、sellingPoints、timeNode、directionCount。
 - targetAudience 优先使用枚举值：parent 或 student。
 - directionCount 必须是 1-5 的整数。
+- 如果用户没提 timeNode，可以使用系统时间推断的默认时间节点。
+- 如果用户没提 directionCount，默认使用 3。
 - 当需求信息足够形成可检查草稿时，stage 设为 confirming，并在 reply 中简明总结要填充的内容。
 - 如果用户还在补充信息，stage 设为 collecting。
 - 只有当需求卡已经填充完成且用户只是闲聊时，才允许 stage 为 done。
+- 确认后只回填左侧需求卡，不自动生成方向卡。
 
 字段判断标准：
 - targetAudience：谁是核心投放对象，家长或学生。
@@ -43,7 +66,7 @@ export function buildRequirementAssistantMessages(input: AssistantAgentInput) {
 
 输出要求：
 - 只输出 JSON
-- 必须包含 reply、fields、stage
+- 必须包含 reply、fields、stage、nextField、missingFields、ui、confirmation
 - fields 里只能出现上述 5 个字段
 - 不要输出 Markdown、解释、额外注释`;
 
@@ -54,6 +77,9 @@ ${JSON.stringify(input.draft, null, 2)}
 
 最近对话：
 ${input.conversation.map((item) => `${item.role === "user" ? "用户" : "助手"}：${item.content}`).join("\n")}
+
+知识补充上下文：
+${knowledge.promptBlock}
 
 请基于以上上下文，输出下一轮助手回复和更新后的字段草稿。`;
 
@@ -75,12 +101,20 @@ export async function runRequirementAssistant(input: AssistantAgentInput): Promi
       reply?: string;
       stage?: string;
       fields?: Partial<AssistantDraft>;
+      nextField?: AssistantAgentResult["nextField"];
+      missingFields?: AssistantAgentResult["missingFields"];
+      ui?: AssistantUiAction[];
+      confirmation?: AssistantConfirmation | null;
     };
 
     return normalizeAssistantResult(input.draft, {
       reply: parsed.reply ?? "好的，我继续帮你整理。",
       fields: parsed.fields ?? {},
       stage: (parsed.stage as AssistantAgentResult["stage"]) ?? "collecting",
+      nextField: parsed.nextField ?? null,
+      missingFields: parsed.missingFields ?? [],
+      ui: parsed.ui ?? [],
+      confirmation: parsed.confirmation ?? null,
     });
   } catch {
     return fallbackRequirementAssistant(input);
@@ -106,10 +140,33 @@ function normalizeAssistantResult(current: AssistantDraft, input: AssistantAgent
     Boolean(nextFields.timeNode) &&
     Boolean(nextFields.directionCount);
 
+  const missingFields = getMissingFields({
+    ...current,
+    ...nextFields,
+  }) as AssistantAgentResult["missingFields"];
+
+  const ui = input.ui.length > 0 ? input.ui : buildUiActions(nextFields, missingFields);
+  const stage = complete && input.stage !== "done" ? "confirming" : input.stage;
+
   return {
     reply: input.reply,
     fields: nextFields,
-    stage: complete && input.stage !== "done" ? "confirming" : input.stage,
+    stage,
+    nextField: missingFields[0] ?? null,
+    missingFields,
+    ui,
+    confirmation:
+      stage === "confirming"
+        ? {
+            businessGoal: "app",
+            formatType: "image_text",
+            targetAudience: nextFields.targetAudience ?? "",
+            feature: nextFields.feature ?? "",
+            sellingPoints: nextFields.sellingPoints ?? [],
+            timeNode: nextFields.timeNode ?? "",
+            directionCount: nextFields.directionCount ?? null,
+          }
+        : null,
   };
 }
 
@@ -121,10 +178,10 @@ function fallbackRequirementAssistant(input: AssistantAgentInput): AssistantAgen
   if (lower.includes("家长")) nextDraft.targetAudience = "parent";
   if (lower.includes("学生")) nextDraft.targetAudience = "student";
 
-  const feature = FEATURE_LIBRARY.find((item) => lower.includes(item.name.replace(/精学/g, "")));
-  if (feature) {
-    nextDraft.feature = feature.name;
-  }
+  const featureSuggestion = getFeatureSuggestions(input.draft.targetAudience || null).find((item) =>
+    lower.includes(item.label.replace(/精学/g, "")),
+  );
+  if (featureSuggestion) nextDraft.feature = featureSuggestion.value;
 
   if (lower.includes("卖点") || lower.includes("亮点") || lower.includes("重点")) {
     const tail = latestUserMessage.split(/卖点|亮点|重点/)[1]?.trim();
@@ -133,7 +190,7 @@ function fallbackRequirementAssistant(input: AssistantAgentInput): AssistantAgen
     }
   }
 
-  for (const node of TIME_NODES) {
+  for (const node of getTimeNodeSuggestions().map((item) => item.value)) {
     if (latestUserMessage.includes(node)) {
       nextDraft.timeNode = node;
       break;
@@ -148,37 +205,47 @@ function fallbackRequirementAssistant(input: AssistantAgentInput): AssistantAgen
   const wantsAutofill = /帮我.*补全|帮我.*生成|全部帮忙生成|自动补全|你来填|你来补/.test(latestUserMessage);
   if (wantsAutofill) {
     if (!nextDraft.feature && !input.draft.feature) {
-      nextDraft.feature = FEATURE_LIBRARY[0].name;
+      nextDraft.feature = getFeatureSuggestions(input.draft.targetAudience || null)[0]?.value ?? "";
     }
     if ((!nextDraft.sellingPoints || nextDraft.sellingPoints.length === 0) && input.draft.sellingPoints.length === 0) {
-      nextDraft.sellingPoints = FEATURE_LIBRARY[0].sellingPoints.slice(0, 2).map((item) => item.label);
+      nextDraft.sellingPoints = getSellingPointSuggestions(nextDraft.feature ?? input.draft.feature ?? null)
+        .slice(0, 2)
+        .map((item) => item.value);
     }
     if (!nextDraft.timeNode && !input.draft.timeNode) {
-      nextDraft.timeNode = TIME_NODES[1];
+      nextDraft.timeNode = inferDefaultTimeNode(new Date());
     }
     if (!nextDraft.directionCount && !input.draft.directionCount) {
       nextDraft.directionCount = 3;
     }
   }
 
+  if (!nextDraft.timeNode && !input.draft.timeNode) {
+    nextDraft.timeNode = inferDefaultTimeNode(new Date());
+  }
+
+  if (!nextDraft.directionCount && !input.draft.directionCount) {
+    nextDraft.directionCount = 3;
+  }
+
   const merged = normalizeAssistantResult(input.draft, {
     reply: "好的，我继续帮你整理。",
     fields: nextDraft,
     stage: "collecting",
+    nextField: null,
+    missingFields: [],
+    ui: [],
+    confirmation: null,
   });
 
   if (merged.stage === "confirming") {
     return {
       ...merged,
-      reply: `我先帮你整理成一版需求，请确认：目标人群=${merged.fields.targetAudience === "parent" ? "家长" : "学生"}；功能=${merged.fields.feature}；卖点=${(merged.fields.sellingPoints ?? []).join("、")}；时间节点=${merged.fields.timeNode}；方向数量=${merged.fields.directionCount}。确认后我再一次性填充到需求卡。`,
+      reply: `我先帮你整理成一版需求，请确认：业务目标=APP；形式=图文；目标人群=${merged.fields.targetAudience === "parent" ? "家长" : "学生"}；功能=${merged.fields.feature}；卖点=${(merged.fields.sellingPoints ?? []).join("、")}；时间节点=${merged.fields.timeNode}；方向数量=${merged.fields.directionCount}。确认后我再一次性填充到需求卡。`,
     };
   }
 
-  const missing = getMissingFields({
-    ...input.draft,
-    ...merged.fields,
-  });
-  const nextQuestion = getQuestionForField(missing[0]);
+  const nextQuestion = getQuestionForField(merged.missingFields[0]);
 
   return {
     ...merged,
@@ -224,4 +291,24 @@ function getQuestionForField(field?: string) {
     default:
       return null;
   }
+}
+
+function buildUiActions(
+  fields: Partial<AssistantDraft>,
+  missingFields: AssistantAgentResult["missingFields"],
+): AssistantUiAction[] {
+  const ui: AssistantUiAction[] = [{ type: "reminder", text: "当前仅支持 APP + 图文" }];
+  if (missingFields.includes("targetAudience")) {
+    ui.push({ type: "audience_buttons", options: getAudienceButtons() });
+  }
+  if (missingFields.includes("feature")) {
+    ui.push({ type: "feature_suggestions", options: getFeatureSuggestions(fields.targetAudience ?? null) });
+  }
+  if (missingFields.includes("sellingPoints") && fields.feature) {
+    ui.push({ type: "selling_point_suggestions", options: getSellingPointSuggestions(fields.feature) });
+  }
+  if (fields.timeNode) {
+    ui.push({ type: "time_node_suggestions", options: getTimeNodeSuggestions() });
+  }
+  return ui;
 }

@@ -23,28 +23,79 @@ export type AssistantDraft = {
   directionCount: number | null;
 };
 
+export type AssistantUiAction =
+  | { type: "audience_buttons"; options: Array<{ value: "parent" | "student"; label: string }> }
+  | { type: "feature_suggestions"; options: Array<{ value: string; label: string }> }
+  | { type: "selling_point_suggestions"; options: Array<{ value: string; label: string }> }
+  | { type: "time_node_suggestions"; options: Array<{ value: string; label: string }> }
+  | { type: "reminder"; text: string };
+
+export type AssistantConfirmation = {
+  businessGoal: "app";
+  formatType: "image_text";
+  targetAudience: string;
+  feature: string;
+  sellingPoints: string[];
+  timeNode: string;
+  directionCount: number | null;
+};
+
 export type AssistantState = {
   id: string;
   projectId: string;
   messages: AssistantMessage[];
   draft: AssistantDraft;
   stage: AssistantStage;
+  ui: AssistantUiAction[];
+  missingFields: Array<keyof AssistantDraft>;
+  confirmation: AssistantConfirmation | null;
   createdAt: number;
   updatedAt: number;
 };
 
+type PersistedAssistantDraft = AssistantDraft & {
+  __ui?: AssistantUiAction[];
+  __missingFields?: Array<keyof AssistantDraft>;
+  __confirmation?: AssistantConfirmation | null;
+};
+
 const INITIAL_AI_MESSAGE = "今天想做什么素材？你可以直接描述需求，我会逐项帮你整理，确认后再一次性填充到需求卡。";
+
+function stripPersistedDraft(input: PersistedAssistantDraft | AssistantDraft): AssistantDraft {
+  return {
+    targetAudience: input.targetAudience ?? "",
+    feature: input.feature ?? "",
+    sellingPoints: input.sellingPoints ?? [],
+    timeNode: input.timeNode ?? "",
+    directionCount: input.directionCount ?? null,
+  };
+}
+
+function getDraftMeta(input: PersistedAssistantDraft | AssistantDraft) {
+  return {
+    ui: "__ui" in input && Array.isArray(input.__ui) ? input.__ui : [],
+    missingFields:
+      "__missingFields" in input && Array.isArray(input.__missingFields) ? input.__missingFields : [],
+    confirmation:
+      "__confirmation" in input && input.__confirmation ? input.__confirmation : null,
+  };
+}
 
 export function getAssistantState(projectId: string) {
   const db = getDb();
   const record = db.select().from(assistantStates).where(eq(assistantStates.projectId, projectId)).get();
   if (record) {
+    const persistedDraft = fromJson<PersistedAssistantDraft>(record.draft, emptyDraft() as PersistedAssistantDraft);
+    const meta = getDraftMeta(persistedDraft);
     return {
       id: record.id,
       projectId: record.projectId,
       messages: fromJson<AssistantMessage[]>(record.messages, []),
-      draft: fromJson<AssistantDraft>(record.draft, emptyDraft()),
+      draft: stripPersistedDraft(persistedDraft),
       stage: record.stage as AssistantStage,
+      ui: meta.ui,
+      missingFields: meta.missingFields,
+      confirmation: meta.confirmation,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     } satisfies AssistantState;
@@ -73,6 +124,9 @@ export function getAssistantState(projectId: string) {
         directionCount: requirement.directionCount ?? null,
       },
       stage: "done",
+      ui: [{ type: "reminder", text: "当前仅支持 APP + 图文" }],
+      missingFields: [],
+      confirmation: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     } satisfies AssistantState;
@@ -91,15 +145,27 @@ export function getAssistantState(projectId: string) {
     ],
     draft: emptyDraft(),
     stage: "collecting",
+    ui: [{ type: "reminder", text: "当前仅支持 APP + 图文" }],
+    missingFields: ["targetAudience", "feature", "sellingPoints", "timeNode", "directionCount"],
+    confirmation: null,
     createdAt: timestamp,
     updatedAt: timestamp,
   } satisfies AssistantState;
 }
 
-export function saveAssistantState(projectId: string, input: Pick<AssistantState, "messages" | "draft" | "stage">) {
+export function saveAssistantState(
+  projectId: string,
+  input: Pick<AssistantState, "messages" | "draft" | "stage" | "ui" | "missingFields" | "confirmation">,
+) {
   const db = getDb();
   const current = db.select().from(assistantStates).where(eq(assistantStates.projectId, projectId)).get();
   const timestamp = Date.now();
+  const persistedDraft: PersistedAssistantDraft = {
+    ...input.draft,
+    __ui: input.ui,
+    __missingFields: input.missingFields,
+    __confirmation: input.confirmation,
+  };
 
   if (!current) {
     const id = createId("asst");
@@ -108,7 +174,7 @@ export function saveAssistantState(projectId: string, input: Pick<AssistantState
         id,
         projectId,
         messages: toJson(input.messages),
-        draft: toJson(input.draft),
+        draft: toJson(persistedDraft),
         stage: input.stage,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -118,7 +184,7 @@ export function saveAssistantState(projectId: string, input: Pick<AssistantState
     db.update(assistantStates)
       .set({
         messages: toJson(input.messages),
-        draft: toJson(input.draft),
+        draft: toJson(persistedDraft),
         stage: input.stage,
         updatedAt: timestamp,
       })
@@ -159,6 +225,9 @@ export function confirmAssistantDraft(projectId: string, state: AssistantState) 
     messages: nextMessages,
     draft,
     stage: "done",
+    ui: [{ type: "reminder", text: "当前仅支持 APP + 图文" }],
+    missingFields: [],
+    confirmation: null,
   });
 }
 

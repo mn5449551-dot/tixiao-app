@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Field, Select, Textarea } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/field";
 import { apiFetch } from "@/lib/api-fetch";
-import { LOGO_OPTIONS } from "@/lib/constants";
 import type { AssistantState } from "@/lib/assistant-state";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
@@ -17,11 +16,10 @@ interface AgentPanelProps {
 }
 
 function isAssistantState(value: unknown): value is AssistantState {
-  return typeof value === "object" && value !== null && "messages" in value && "draft" in value && "stage" in value;
+  return typeof value === "object" && value !== null && "messages" in value && "draft" in value && "stage" in value && "ui" in value;
 }
 
 export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPanelProps) {
-  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   // --- Conversation state ---
@@ -64,15 +62,14 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     };
   }, [projectId]);
 
-  const handleConversationSend = useCallback(async () => {
-    if (!conversationInput.trim()) return;
-
+  const sendAssistantMessage = useCallback(async (message: string) => {
+    if (!message.trim()) return;
     setAssistantLoading(true);
     setError(null);
     try {
       const payload = await apiFetch<AssistantState>(`/api/projects/${projectId}/assistant/messages`, {
         method: "POST",
-        body: { message: conversationInput.trim() },
+        body: { message: message.trim() },
       });
       if (!isAssistantState(payload)) {
         throw new Error("发送消息失败");
@@ -84,7 +81,12 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     } finally {
       setAssistantLoading(false);
     }
-  }, [conversationInput, projectId]);
+  }, [projectId]);
+
+  const handleConversationSend = useCallback(async () => {
+    if (!conversationInput.trim()) return;
+    await sendAssistantMessage(conversationInput);
+  }, [conversationInput, sendAssistantMessage]);
 
   const confirmAndFill = useCallback(async () => {
     setAssistantLoading(true);
@@ -104,28 +106,6 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
       setAssistantLoading(false);
     }
   }, [projectId]);
-
-  // --- Reference mode state ---
-  const [referenceModeOpen, setReferenceModeOpen] = useState(false);
-  const [referenceForm, setReferenceForm] = useState({
-    imageUrl: "",
-    instruction: "",
-    aspectRatio: "1:1",
-    logo: "onion",
-    useIp: "0",
-  });
-
-  const runAction = (callback: () => Promise<void>) => {
-    startTransition(async () => {
-      setError(null);
-      try {
-        await callback();
-        dispatchWorkspaceInvalidated();
-      } catch (actionError) {
-        setError(actionError instanceof Error ? actionError.message : "操作失败");
-      }
-    });
-  };
 
   // --- Computed ---
 
@@ -172,6 +152,25 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
 
       {/* Scrollable content — chat-first layout */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3">
+          <p className="text-[11px] font-medium text-[var(--ink-600)]">当前仅支持 APP + 图文</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(assistantState?.ui ?? [])
+              .filter((item) => item.type === "audience_buttons")
+              .flatMap((item) => item.options)
+              .map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="rounded-full border border-[var(--line-strong)] bg-white px-3 py-1 text-xs text-[var(--ink-700)] transition hover:border-[var(--brand-400)] hover:text-[var(--brand-700)]"
+                  onClick={() => void sendAssistantMessage(`目标人群选为${option.label}`)}
+                >
+                  {option.label}
+                </button>
+              ))}
+          </div>
+        </div>
+
         {/* Chat messages - 美化消息气泡 */}
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
           {(assistantState?.messages ?? []).map((msg) => (
@@ -202,6 +201,41 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               </div>
             </div>
           ))}
+          {(assistantState?.ui ?? []).some((item) => item.type === "feature_suggestions" || item.type === "selling_point_suggestions" || item.type === "time_node_suggestions") ? (
+            <div className="rounded-2xl border border-[var(--line-soft)] bg-white px-4 py-3 shadow-sm">
+              <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">推荐项</p>
+              <div className="flex flex-wrap gap-2">
+                {(assistantState?.ui ?? [])
+                  .filter((item) => item.type === "feature_suggestions" || item.type === "selling_point_suggestions" || item.type === "time_node_suggestions")
+                  .flatMap((item) => item.options)
+                  .map((option) => (
+                    <button
+                      key={`${option.value}-${option.label}`}
+                      type="button"
+                      className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs text-[var(--brand-700)] transition hover:bg-[var(--brand-100)]"
+                      onClick={() => void sendAssistantMessage(option.label)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          ) : null}
+
+          {assistantState?.confirmation ? (
+            <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
+              <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">结构化确认</p>
+              <div className="space-y-1 text-xs text-[var(--ink-700)]">
+                <p>业务目标：APP</p>
+                <p>形式：图文</p>
+                <p>目标人群：{assistantState.confirmation.targetAudience === "parent" ? "家长" : assistantState.confirmation.targetAudience === "student" ? "学生" : assistantState.confirmation.targetAudience}</p>
+                <p>功能：{assistantState.confirmation.feature || "待补充"}</p>
+                <p>卖点：{assistantState.confirmation.sellingPoints.join("、") || "待补充"}</p>
+                <p>时间节点：{assistantState.confirmation.timeNode || "待补充"}</p>
+                <p>方向数量：{assistantState.confirmation.directionCount ?? "待补充"}</p>
+              </div>
+            </div>
+          ) : null}
           <div ref={chatEndRef} />
         </div>
 
@@ -211,7 +245,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             <Button
               className="w-full bg-gradient-to-r from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-md hover:shadow-lg"
               onClick={confirmAndFill}
-              disabled={isPending || assistantLoading}
+              disabled={assistantLoading}
               variant="primary"
             >
               {assistantLoading ? (
@@ -266,102 +300,6 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
           </div>
         </div>
 
-        {/* Reference mode toggle button - 美化 */}
-        <div className="shrink-0 border-t border-[var(--line-soft)] bg-white/40">
-          <button
-            type="button"
-            onClick={() => setReferenceModeOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-left transition-all duration-150 hover:bg-white/80"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-sm">
-                <span className="text-lg">🎨</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-[var(--ink-900)]">参考图模式（旁路）</p>
-                <p className="mt-0.5 text-xs text-[var(--ink-500)]">上传参考图 URL 和新指令，结果不走主链路。</p>
-              </div>
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--ink-500)] transition-transform duration-200" style={{ transform: referenceModeOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-              <span className="text-sm">&#9660;</span>
-            </div>
-          </button>
-
-          {/* Reference mode expanded form */}
-          {referenceModeOpen && (
-            <div className="space-y-3 px-4 pb-4">
-              <Field label="参考图 URL">
-                <Textarea
-                  minRows={1}
-                  placeholder="https://..."
-                  value={referenceForm.imageUrl}
-                  onChange={(event) =>
-                    setReferenceForm((current) => ({ ...current, imageUrl: event.target.value }))
-                  }
-                />
-              </Field>
-              <Field label="新文案/指令">
-                <Textarea
-                  minRows={2}
-                  placeholder="例如：保留整体结构，把图片改成更适合教培投放的中文海报风格。"
-                  value={referenceForm.instruction}
-                  onChange={(event) =>
-                    setReferenceForm((current) => ({ ...current, instruction: event.target.value }))
-                  }
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="生成比例">
-                  <Select
-                    value={referenceForm.aspectRatio}
-                    onChange={(event) =>
-                      setReferenceForm((current) => ({ ...current, aspectRatio: event.target.value }))
-                    }
-                  >
-                    <option value="1:1">1:1</option>
-                    <option value="3:2">3:2</option>
-                    <option value="16:9">16:9</option>
-                    <option value="9:16">9:16</option>
-                  </Select>
-                </Field>
-                <Field label="品牌 Logo">
-                  <Select
-                    value={referenceForm.logo}
-                    onChange={(event) =>
-                      setReferenceForm((current) => ({ ...current, logo: event.target.value }))
-                    }
-                  >
-                    {LOGO_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option === "onion" ? "洋葱学园" : option === "onion_app" ? "洋葱学园+APP" : "不使用"}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
-              <Button
-                className="w-full"
-                disabled={isPending || !referenceForm.imageUrl.trim() || !referenceForm.instruction.trim()}
-                variant="secondary"
-                onClick={() =>
-                  runAction(async () => {
-                    await apiFetch("/api/reference-mode", {
-                      method: "POST",
-                      body: {
-                        project_id: projectId,
-                        reference_image_url: referenceForm.imageUrl,
-                        aspect_ratio: referenceForm.aspectRatio,
-                        instruction: `${referenceForm.instruction}\n目标比例：${referenceForm.aspectRatio}\nLogo：${referenceForm.logo}`,
-                      },
-                    });
-                  })
-                }
-              >
-                生成参考图结果
-              </Button>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Footer */}

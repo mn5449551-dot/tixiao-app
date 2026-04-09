@@ -55,6 +55,9 @@ export async function POST(
         directionCount: result.fields.directionCount ?? state.draft.directionCount,
       },
       stage: result.stage,
+      ui: result.ui,
+      missingFields: result.missingFields,
+      confirmation: result.confirmation,
     });
 
     return NextResponse.json(saved);
