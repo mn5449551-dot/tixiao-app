@@ -60,6 +60,21 @@ export function buildImagePrompt(input: {
     input.channel === "信息流（广点通）" && input.imageForm === "single" && input.ctaEnabled
       ? `画面中需要在合适广告位加入一个清晰的 CTA 按钮，按钮文案为“${input.ctaText ?? "立即下载"}”，按钮样式应像广告行动号召按钮。`
       : "";
+  const textOverlay = isMultiImage
+    ? {
+        main_title: null,
+        sub_title: null,
+        extra_title: null,
+      }
+    : {
+        main_title: input.copyTitleMain,
+        sub_title: input.copyTitleSub ?? null,
+        extra_title: input.copyTitleExtra ?? null,
+      };
+  const textInstructionWithStructuredContext =
+    !isMultiImage && descriptionTextOverlay?.currentText
+      ? `${textInstruction} 当前图重点文案：${String(descriptionTextOverlay.currentText)}。`
+      : textInstruction;
 
   return JSON.stringify({
     prompt_version: "v1",
@@ -80,12 +95,8 @@ export function buildImagePrompt(input: {
     brand_constraints: descriptionBrandConstraints?.brandTone
       ? `${String(descriptionBrandConstraints.brandTone)}。${logoText}`
       : logoText,
-    text_instruction: descriptionTextOverlay?.currentText ? `${textInstruction} 当前图重点文案：${String(descriptionTextOverlay.currentText)}。` : textInstruction,
-    text_overlay: {
-      main_title: input.copyTitleMain,
-      sub_title: input.copyTitleSub ?? null,
-      extra_title: input.copyTitleExtra ?? null,
-    },
+    text_instruction: textInstructionWithStructuredContext,
+    text_overlay: textOverlay,
     cta: {
       enabled: Boolean(ctaInstruction),
       text: ctaInstruction ? (input.ctaText ?? "立即下载") : null,

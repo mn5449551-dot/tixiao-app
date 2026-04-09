@@ -52,10 +52,20 @@ test("buildImagePrompt avoids stuffing all copy text into a multi-image frame", 
     referenceImageUrl: null,
   });
 
-  const parsed = JSON.parse(prompt) as { text_instruction: string };
+  const parsed = JSON.parse(prompt) as {
+    text_instruction: string;
+    text_overlay: {
+      main_title: string | null;
+      sub_title: string | null;
+      extra_title: string | null;
+    };
+  };
   assert.match(prompt, /多图素材/);
   assert.match(prompt, /不要把整套文案同时放进同一张图/);
   assert.match(parsed.text_instruction, /不要把整套文案同时放进同一张图/);
+  assert.equal(parsed.text_overlay.main_title, null);
+  assert.equal(parsed.text_overlay.sub_title, null);
+  assert.equal(parsed.text_overlay.extra_title, null);
 });
 
 test("buildImageSlotPrompt for double-image only binds the current slot title", () => {
@@ -236,6 +246,78 @@ test("buildImagePrompt can consume structured description payload", () => {
   const parsed = JSON.parse(prompt) as { visual_concept?: string; scene?: string };
   assert.match(parsed.visual_concept ?? "", /学生举起手机拍题/);
   assert.match(parsed.scene ?? "", /家庭书桌/);
+});
+
+test("buildImagePrompt ignores multi-image aggregated text from structured payload", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "图一文案",
+    copyTitleSub: "图二文案",
+    copyTitleExtra: "图三文案",
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "double",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: false,
+    ctaText: null,
+    descriptionPayload: {
+      schemaVersion: "v1",
+      channelPositioning: { channel: "应用商店", imageForm: "double", aspectRatio: "3:2" },
+      adGoal: { primaryGoal: "解释功能" },
+      userState: {
+        audienceType: "student",
+        audienceSegment: "理科薄弱学生",
+        scenarioSummary: "看答案还是看不懂关键步骤",
+      },
+      coreSellingPoint: { primaryPoint: "拆解步骤并逐步讲清" },
+      visualConcept: { mainEvent: "学生在书桌前看题", creativeAxis: "学习突破", productAnchor: "学习产品界面" },
+      sceneAtmosphere: { location: "家庭书桌", lighting: "明亮", moodColor: "清新明亮的广告风格" },
+      charactersAndProps: {
+        characterMode: "single",
+        characterSummary: "学生代表",
+        expression: "专注",
+        action: "低头看题",
+        props: ["练习册"],
+        ip: { enabled: false, role: "", placement: "", action: "", consistencyRule: "" },
+      },
+      composition: {
+        layoutType: "wide",
+        subjectPlacement: "right",
+        textSafeArea: "left",
+        logoSafeArea: "top-left",
+        multiImageConsistency: "多图时人物、风格、品牌元素保持一致，当前图承担自身角色",
+      },
+      textOverlay: {
+        currentText: "图一文案 / 图二文案 / 图三文案",
+        textRole: "slot",
+        ctaText: null,
+      },
+      brandConstraints: {
+        brandTone: "教育可信、积极、明亮、成长导向",
+        logoPolicy: "Logo 保持左上角统一规则",
+      },
+      variationHints: { noveltyFocus: "通过构图避免重复" },
+      summaryText: "多图场景摘要",
+    },
+  });
+
+  const parsed = JSON.parse(prompt) as {
+    text_instruction: string;
+    text_overlay: {
+      main_title: string | null;
+      sub_title: string | null;
+      extra_title: string | null;
+    };
+  };
+
+  assert.doesNotMatch(parsed.text_instruction, /图一文案 \/ 图二文案 \/ 图三文案/);
+  assert.equal(parsed.text_overlay.main_title, null);
+  assert.equal(parsed.text_overlay.sub_title, null);
+  assert.equal(parsed.text_overlay.extra_title, null);
 });
 
 test("buildImagePrompt can consume structured description payload as an object", () => {
