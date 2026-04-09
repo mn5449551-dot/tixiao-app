@@ -14,3 +14,12 @@ test("agent panel source uses assistant API routes instead of local keyword pars
   assert.match(source, /audience_buttons/);
   assert.match(source, /confirmation/);
 });
+
+test("agent panel optimistically clears input and appends the user message before awaiting assistant reply", async () => {
+  const source = await readFile(agentPanelPath, "utf8");
+
+  assert.match(source, /const trimmedMessage = message\.trim\(\)/);
+  assert.match(source, /setConversationInput\(""\)/);
+  assert.match(source, /setAssistantState\(\(current\) =>/);
+  assert.match(source, /role:\s*"user"/);
+});

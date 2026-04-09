@@ -63,19 +63,35 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
   }, [projectId]);
 
   const sendAssistantMessage = useCallback(async (message: string) => {
-    if (!message.trim()) return;
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) return;
+
+    const optimisticUserMessage = {
+      id: `local-${Date.now()}`,
+      role: "user" as const,
+      content: trimmedMessage,
+      timestamp: Date.now(),
+    };
+
+    setConversationInput("");
+    setAssistantState((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        messages: [...current.messages, optimisticUserMessage],
+      };
+    });
     setAssistantLoading(true);
     setError(null);
     try {
       const payload = await apiFetch<AssistantState>(`/api/projects/${projectId}/assistant/messages`, {
         method: "POST",
-        body: { message: message.trim() },
+        body: { message: trimmedMessage },
       });
       if (!isAssistantState(payload)) {
         throw new Error("发送消息失败");
       }
       setAssistantState(payload);
-      setConversationInput("");
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "发送消息失败");
     } finally {
