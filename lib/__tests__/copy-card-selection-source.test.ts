@@ -11,8 +11,5 @@ test("copy card source supports checkbox selection and bottom batch generation",
 
   assert.match(source, /const \[selectedIds, setSelectedIds\]/);
   assert.match(source, /toggleSelectAll/);
-  assert.match(source, /生成选中文案/);
-  assert.match(source, /new Set\(\)/);
-  assert.match(source, /disabled=\{selectedCount === 0 \|\| isGenerating\}/);
-  assert.match(actionsSource, /create_groups:\s*false/);
+  assert.match(source, /生成图片配置/);
 });

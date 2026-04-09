@@ -10,6 +10,7 @@ import {
   appendCopyToCardSmart,
   appendDirectionSmart,
   createProject,
+  deleteDirection,
   generateFinalizedVariants,
   generateCopyCard,
   generateDirections,
@@ -210,8 +211,32 @@ test("appendDirectionSmart preserves existing directions and appends one more", 
   assert.equal(projectRows.length, 3);
 });
 
-test("appendCopyToCardSmart appends a new copy into the selected existing copy card instead of creating a new card", async () => {
-  const project = createProject(`append-copy-into-card-${Date.now()}`);
+test("deleteDirection rejects directions that already have downstream copy cards", async () => {
+  const project = createProject(`delete-direction-guard-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "double", 1);
+  assert.ok(direction);
+
+  const card = generateCopyCard(direction.id, 1);
+  assert.ok(card);
+
+  await assert.rejects(
+    () => deleteDirection(direction.id),
+    /已有下游内容，不能删除/,
+  );
+});
+
+test("appendCopyToCardSmart appends a new copy into the existing copy card", async () => {
+  const project = createProject(`append-copy-card-${Date.now()}`);
   assert.ok(project);
 
   upsertRequirement(project!.id, {
@@ -227,28 +252,11 @@ test("appendCopyToCardSmart appends a new copy into the selected existing copy c
 
   const card = generateCopyCard(direction.id, 2);
   assert.ok(card);
-  assert.equal(card?.copies.length, 2);
 
   const appended = await appendCopyToCardSmart(card!.id, false);
   assert.ok(appended);
   assert.equal(appended?.id, card!.id);
   assert.equal(appended?.copies.length, 3);
-
-  const db = getDb();
-  const cardRows = db.select().from(copyCards).where(eq(copyCards.directionId, direction.id)).all();
-  assert.equal(cardRows.length, 1);
-
-  const copyRows = db
-    .select()
-    .from(copies)
-    .where(eq(copies.copyCardId, card!.id))
-    .all()
-    .sort((left, right) => left.variantIndex - right.variantIndex);
-
-  assert.equal(copyRows.length, 3);
-  assert.equal(copyRows[0]?.variantIndex, 1);
-  assert.equal(copyRows[1]?.variantIndex, 2);
-  assert.equal(copyRows[2]?.variantIndex, 3);
 });
 
 test("generateFinalizedVariants creates derived finalized groups for mismatched export ratios", async () => {

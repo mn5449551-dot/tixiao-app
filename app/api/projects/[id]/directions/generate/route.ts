@@ -7,7 +7,6 @@ import {
   startGenerationRun,
 } from "@/lib/generation-runs";
 import { appendDirectionSmart, generateDirectionsSmart } from "@/lib/project-data";
-import { createSseResponse } from "@/lib/sse";
 
 export async function POST(
   request: Request,
@@ -46,12 +45,10 @@ export async function POST(
         return NextResponse.json({ error: "方向追加失败" }, { status: 500 });
       }
 
-      finishGenerationRun(runId, { status: "done" });
-      runFinished = true;
-      return createSseResponse([
-        { event: "direction_created", direction },
-        { event: "done", direction_ids: [direction.id] },
-      ]);
+      return NextResponse.json({
+        directions: [direction],
+        direction_ids: [direction.id],
+      });
     }
 
     const created = await generateDirectionsSmart(
@@ -62,12 +59,10 @@ export async function POST(
       body.use_ai ?? false,
     );
 
-    finishGenerationRun(runId, { status: "done" });
-    runFinished = true;
-    return createSseResponse([
-      ...created.map((direction) => ({ event: "direction_created", direction })),
-      { event: "done", direction_ids: created.map((item) => item.id) },
-    ]);
+    return NextResponse.json({
+      directions: created,
+      direction_ids: created.map((item) => item.id),
+    });
   } catch (error) {
     if (runId && !runFinished) {
       finishGenerationRun(runId, {

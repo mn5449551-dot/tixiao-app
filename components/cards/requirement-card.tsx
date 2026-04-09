@@ -343,7 +343,7 @@ export function RequirementCard({
               生成中...
             </span>
           ) : (
-            "⚡ 生成方向"
+            "\u26A1 保存并生成方向"
           )}
         </Button>
       </form>

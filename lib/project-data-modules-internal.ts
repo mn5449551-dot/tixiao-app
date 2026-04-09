@@ -836,38 +836,20 @@ export function updateDirection(
   return db.select().from(directions).where(eq(directions.id, directionId)).get() ?? null;
 }
 
-export function regenerateDirection(directionId: string) {
-  const db = getDb();
-  const current = db.select().from(directions).where(eq(directions.id, directionId)).get();
-  if (!current) return null;
-
-  const requirement = getRequirement(current.projectId);
-  if (!requirement) {
-    throw new Error("请先填写需求卡");
-  }
-
-  const idea = buildDirectionBlueprint(current.sortOrder ?? 0, requirement);
-  const timestamp = now();
-
-  db.update(directions)
-    .set({
-      title: idea.title,
-      targetAudience: idea.targetAudience,
-      scenarioProblem: idea.scenarioProblem,
-      differentiation: idea.differentiation,
-      effect: idea.effect,
-      updatedAt: timestamp,
-    })
-    .where(eq(directions.id, directionId))
-    .run();
-
-  return db.select().from(directions).where(eq(directions.id, directionId)).get() ?? null;
-}
-
 export async function deleteDirection(directionId: string) {
   const db = getDb();
   const direction = db.select().from(directions).where(eq(directions.id, directionId)).get();
   if (!direction) return false;
+
+  const downstreamCards = db
+    .select({ id: copyCards.id })
+    .from(copyCards)
+    .where(eq(copyCards.directionId, directionId))
+    .all();
+
+  if (downstreamCards.length > 0) {
+    throw new Error("已有下游内容，不能删除");
+  }
 
   for (const configId of listDirectionImageConfigIds(directionId)) {
     await deleteImageConfigCascade(configId);

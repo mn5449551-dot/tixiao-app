@@ -112,6 +112,7 @@ export function buildGraph(workspace: WorkspaceData) {
         imageForm: toStr(d.imageForm),
         copyGenerationCount: d.copyGenerationCount ?? 3,
         sourceHandleId: createSourceHandleId("direction", d.id),
+        hasDownstream: d.copyCards.length > 0,
       })),
       initialChannel: firstDirection.channel,
       initialImageForm: firstDirection.imageForm ?? undefined,
@@ -163,7 +164,6 @@ export function buildGraph(workspace: WorkspaceData) {
       card.copies.forEach((copy, copyIndex) => {
         if (!copy.imageConfig) return;
 
-        const config = copy.imageConfig;
         const configY = cardBaseY + copyIndex * CONFIG_CARD_VERTICAL_GAP;
         const imageConfigNode = buildImageConfigNode({ copy, configY });
         nodes.push(imageConfigNode);

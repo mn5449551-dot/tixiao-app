@@ -41,12 +41,14 @@ test("getCopyActionState matches PRD lock behavior", () => {
     statusLabel: null,
     canGenerate: true,
     canDelete: true,
+    deleteHint: null,
   });
 
   assert.deepEqual(getCopyActionState(true), {
     statusLabel: "已生成",
     canGenerate: false,
     canDelete: false,
+    deleteHint: "已有下游内容，不能删除",
   });
 });
 

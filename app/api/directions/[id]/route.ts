@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { deleteDirection, regenerateDirection, updateDirection } from "@/lib/project-data";
+import { deleteDirection, updateDirection } from "@/lib/project-data";
 
 export async function PUT(
   request: Request,
@@ -16,17 +16,7 @@ export async function PUT(
     channel?: string;
     image_form?: string;
     copy_generation_count?: number;
-    regenerate?: boolean;
   };
-
-  if (body.regenerate) {
-    const regenerated = regenerateDirection(id);
-    if (!regenerated) {
-      return NextResponse.json({ error: "方向不存在" }, { status: 404 });
-    }
-
-    return NextResponse.json(regenerated);
-  }
 
   const direction = updateDirection(id, {
     title: body.title,
@@ -51,7 +41,14 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const deleted = await deleteDirection(id);
+  try {
+    const deleted = await deleteDirection(id);
 
-  return NextResponse.json({ deleted }, { status: deleted ? 200 : 404 });
+    return NextResponse.json({ deleted }, { status: deleted ? 200 : 404 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "删除方向失败" },
+      { status: 422 },
+    );
+  }
 }

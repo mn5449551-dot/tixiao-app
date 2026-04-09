@@ -29,3 +29,10 @@ test("copy card delegates item rendering and action logic", async () => {
   assert.match(source, /copy-card-actions/);
   assert.match(source, /copyCardId/);
 });
+
+test("copy card primary action copy reflects image-config generation", async () => {
+  const source = await readFile(copyCardPath, "utf8");
+
+  assert.match(source, /生成图片配置/);
+  assert.doesNotMatch(source, /生成选中文案/);
+});

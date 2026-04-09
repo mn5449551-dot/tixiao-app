@@ -19,3 +19,9 @@ test("requirement card syncs local form state when initial props change", async 
   assert.match(source, /setSellingPointsText/);
   assert.match(source, /setTimeNode\(initial\.timeNode/);
 });
+
+test("requirement card submit copy matches the approved workflow language", async () => {
+  const source = await readFile(requirementCardPath, "utf8");
+
+  assert.match(source, /保存并生成方向/);
+});

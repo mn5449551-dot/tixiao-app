@@ -18,11 +18,10 @@ test("direction card delegates item rendering and action logic", async () => {
   assert.match(source, /direction-card-actions/);
 });
 
-test("direction card shows a loading state while generating selected directions", async () => {
+test("direction card source removes regenerate and collapse affordances for direction items", async () => {
   const source = await readFile(directionCardPath, "utf8");
 
-  assert.match(source, /const \[isGeneratingSelected, setIsGeneratingSelected\]/);
-  assert.match(source, /disabled=\{selectedCount === 0 \|\| isGeneratingSelected\}/);
-  assert.match(source, /animate-spin/);
-  assert.match(source, /生成中\.\.\./);
+  assert.doesNotMatch(source, /regenerateDirectionItem/);
+  assert.doesNotMatch(source, /expandedIds/);
+  assert.doesNotMatch(source, /toggleExpand/);
 });

@@ -1,13 +1,3 @@
-import { apiFetch } from "@/lib/api-fetch";
-
-export async function regenerateDirectionItem(directionId: string) {
-  await apiFetch(`/api/directions/${directionId}`, {
-    method: "PUT",
-    body: { regenerate: true },
-  });
-  return true;
-}
-
 export async function saveDirectionItem(input: {
   directionId: string;
   title: string;

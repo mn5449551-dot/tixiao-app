@@ -61,6 +61,7 @@ export function getCopyActionState(isLocked: boolean) {
       statusLabel: "已生成",
       canGenerate: false,
       canDelete: false,
+      deleteHint: "已有下游内容，不能删除",
     };
   }
 
@@ -68,5 +69,6 @@ export function getCopyActionState(isLocked: boolean) {
     statusLabel: null,
     canGenerate: true,
     canDelete: true,
+    deleteHint: null,
   };
 }

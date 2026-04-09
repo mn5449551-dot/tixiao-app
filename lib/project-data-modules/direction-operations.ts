@@ -3,6 +3,5 @@ export {
   generateDirectionsSmart,
   appendDirectionSmart,
   updateDirection,
-  regenerateDirection,
   deleteDirection,
 } from "@/lib/project-data-modules-internal";

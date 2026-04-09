@@ -66,7 +66,7 @@ test("buildGraph keeps the canvas free of direction nodes before directions are 
   assert.equal(graph.nodes.length, 1);
 });
 
-test("buildGraph creates row-level source handles and shows candidate pool only after images are displayable", () => {
+test("buildGraph creates row-level source handles and shows candidate pool when candidate groups exist", () => {
   const graph = buildGraph({
     project: {
       id: "proj_1",
@@ -350,14 +350,11 @@ test("buildGraph keeps image config card interactive while candidate images are 
 
   assert.ok(configNode && "status" in configNode.data);
   assert.equal(configNode.data.status, "idle");
-  assert.ok(candidateNode && "groups" in candidateNode.data);
-  const candidateData = candidateNode.data as {
-    groups: Array<{ images: Array<{ status: string }> }>;
-  };
-  assert.equal(candidateData.groups[0]?.images[0]?.status, "pending");
+  assert.ok(candidateNode && "status" in candidateNode.data);
+  assert.equal(candidateNode.data.status, "partial-success");
 });
 
-test("buildGraph still shows candidate pool while images are pending but keeps finalized pool hidden", () => {
+test("buildGraph keeps candidate pool visible while images are still pending", () => {
   const graph = buildGraph({
     project: {
       id: "proj_1",
@@ -486,11 +483,8 @@ test("buildGraph still shows candidate pool while images are pending but keeps f
   });
 
   const candidateNode = graph.nodes.find((node) => node.id === "candidate-cfg_1");
-  assert.ok(candidateNode && "groups" in candidateNode.data);
-  const candidateData = candidateNode.data as {
-    groups: Array<{ images: Array<{ status: string }> }>;
-  };
-  assert.equal(candidateData.groups[0]?.images[0]?.status, "pending");
+  assert.ok(candidateNode && "status" in candidateNode.data);
+  assert.equal(candidateNode.data.status, "partial-success");
   assert.equal(graph.nodes.find((node) => node.id === "finalized-cfg_1"), undefined);
 });
 

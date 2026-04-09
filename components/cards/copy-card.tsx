@@ -78,27 +78,6 @@ export function CopyCard({
   const [isDeletingCard, setIsDeletingCard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const nextIds = new Set(copyItems.map((item) => item.id));
-    const selectableIds = new Set(copyItems.filter((item) => !item.isLocked).map((item) => item.id));
-
-    setLocalItems(copyItems);
-    setExpandedIds((prev) => {
-      const next = new Set([...prev].filter((id) => nextIds.has(id)));
-      for (const item of copyItems) {
-        if (!prev.has(item.id)) {
-          next.add(item.id);
-        }
-      }
-      return next;
-    });
-    setSelectedIds((prev) => new Set([...prev].filter((id) => selectableIds.has(id))));
-    setEditBuffer((prev) =>
-      Object.fromEntries(Object.entries(prev).filter(([id]) => nextIds.has(id))),
-    );
-    setEditingId((current) => (current && nextIds.has(current) ? current : null));
-  }, [copyItems]);
-
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -159,12 +138,12 @@ export function CopyCard({
         ),
       );
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "保存文案失败");
+      setActionError(error instanceof Error ? error.message : "保存文案失败");
     }
     cancelEdit();
   };
 
-  const generateCopyConfig = async (id: string, shouldRefresh = true) => {
+  const generateCopyConfig = useCallback(async (id: string, shouldRefresh = true) => {
     if (isGenerating) return;
     try {
       setActionError(null);
@@ -176,9 +155,9 @@ export function CopyCard({
         dispatchWorkspaceInvalidated();
       }
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "生成图片配置失败");
+      setActionError(error instanceof Error ? error.message : "生成图片配置失败");
     }
-  };
+  }, [imageForm, isGenerating]);
 
   const generateSelectedCopyConfigs = useCallback(async () => {
     if (isGenerating) return;
@@ -195,7 +174,7 @@ export function CopyCard({
     } finally {
       setIsGenerating(false);
     }
-  }, [isGenerating, localItems, selectedIds]);
+  }, [generateCopyConfig, isGenerating, localItems, selectedIds]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -236,12 +215,16 @@ export function CopyCard({
       setEditingId((current) => (current === id ? null : current));
       dispatchWorkspaceInvalidated();
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "删除文案失败");
+      setActionError(error instanceof Error ? error.message : "删除文案失败");
     }
   };
 
   const deleteCopyCard = async () => {
     if (!copyCardId || isDeletingCard) return;
+    if (localItems.some((item) => item.isLocked)) {
+      setActionError("已有下游内容，不能删除");
+      return;
+    }
     setIsDeletingCard(true);
     try {
       setActionError(null);
@@ -251,7 +234,7 @@ export function CopyCard({
       }
       dispatchWorkspaceInvalidated();
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "删除文案卡失败");
+      setActionError(error instanceof Error ? error.message : "删除文案卡失败");
     } finally {
       setIsDeletingCard(false);
     }
@@ -274,7 +257,7 @@ export function CopyCard({
       }
       dispatchWorkspaceInvalidated();
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "追加生成文案失败");
+      setActionError(error instanceof Error ? error.message : "追加生成文案失败");
     } finally {
       setIsAppending(false);
     }
@@ -341,15 +324,13 @@ export function CopyCard({
             {directionTitle}{version ? ` · V${version}` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge tone="brand" size="sm" className="shrink-0">{localItems.length} 条</Badge>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="shrink-0 text-[11px] text-[var(--ink-400)] hover:text-[var(--danger-700)] hover:bg-[var(--danger-soft)]" 
-            onClick={deleteCopyCard} 
-            disabled={!copyCardId || isDeletingCard}
-            title="删除文案卡"
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            className="h-7 px-2 text-[11px]"
+            onClick={deleteCopyCard}
+            disabled={!copyCardId || isDeletingCard || localItems.some((item) => item.isLocked)}
+            title={localItems.some((item) => item.isLocked) ? "已有下游内容，不能删除" : "删除文案卡"}
           >
             删除
           </Button>
@@ -386,6 +367,7 @@ export function CopyCard({
               index={index}
               compactSummary={compactSummary}
               statusLabel={actions.statusLabel ?? undefined}
+              deleteHint={actions.deleteHint ?? undefined}
               expanded={isExpanded}
               editing={isEditing}
               selected={isChecked}
@@ -438,42 +420,30 @@ export function CopyCard({
         })}
       </div>
 
-      {/* Bottom actions - 优化操作按钮层级 */}
-      <div className="mt-3 flex flex-col gap-2">
-        {/* 主操作区 */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            className="flex-1 text-sm"
-            disabled={selectedCount === 0 || isGenerating}
-            onClick={generateSelectedCopyConfigs}
-          >
-            {isGenerating ? (
-              <><span className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
-            ) : (
-              <><span className="mr-1.5">⚡</span> 生成选中文案 {selectedCount > 0 && `(${selectedCount})`}</>
-            )}
-          </Button>
-        </div>
-        
-        {/* 次要操作区 */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            className="h-8 px-2 text-xs text-[var(--ink-500)] hover:text-[var(--brand-600)]"
-            disabled={isAppending}
-            onClick={appendGenerate}
-          >
-            {isAppending ? "生成中..." : "+ 追加生成文案"}
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-8 px-2 text-xs text-[var(--ink-500)] hover:text-[var(--brand-600)]"
-            onClick={toggleSelectAll}
-          >
-            {isAllSelected ? "全不选" : "全选"}
-          </Button>
-        </div>
+      <div className="mt-3 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          className="shrink-0 text-xs"
+          disabled={isAppending}
+          onClick={appendGenerate}
+        >
+          {isAppending ? "生成中..." : "+"} 追加生成文案
+        </Button>
+        <Button
+          variant="secondary"
+          className="shrink-0"
+          onClick={toggleSelectAll}
+        >
+          {isAllSelected ? "全不选" : "全选"}
+        </Button>
+        <Button
+          variant="primary"
+          className="flex-1"
+          disabled={selectedCount === 0 || isGenerating}
+          onClick={generateSelectedCopyConfigs}
+        >
+          {"\u26A1"} 生成图片配置
+        </Button>
       </div>
     </div>
   );

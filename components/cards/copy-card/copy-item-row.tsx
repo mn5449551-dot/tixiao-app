@@ -15,6 +15,7 @@ export function CopyItemRow({
   editing,
   selected,
   canDelete,
+  deleteHint,
   expandedContent,
   onToggleSelect,
   onToggleExpand,
@@ -29,6 +30,7 @@ export function CopyItemRow({
   editing: boolean;
   selected: boolean;
   canDelete: boolean;
+  deleteHint?: string;
   expandedContent?: React.ReactNode;
   onToggleSelect: () => void;
   onToggleExpand: () => void;
@@ -88,8 +90,8 @@ export function CopyItemRow({
           </button>
           <button
             type="button"
-            title="删除"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
+            title={deleteHint ?? "删除"}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)] disabled:cursor-not-allowed disabled:opacity-40"
             onClick={onDelete}
             disabled={!canDelete}
           >
