@@ -25,10 +25,10 @@ test("buildImagePrompt injects selected IP description and consistency guardrail
 
   const parsed = JSON.parse(prompt) as Record<string, unknown>;
   assert.equal(parsed.direction_title, "方向1");
-  assert.match(prompt, /豆包/);
   assert.match(prompt, /篮球少年·阳光活力型/);
   assert.match(prompt, /dark spiky hair/);
   assert.match(prompt, /长相和整体风格必须与参考图一致/);
+  assert.match(prompt, /无需复现参考图中的动作或姿势/);
   assert.match(prompt, /品牌 Logo 必须真实出现在画面左上角/);
   assert.match(prompt, /不得改字/);
   assert.match(prompt, /不得改变图形/);
@@ -54,7 +54,7 @@ test("buildImagePrompt avoids stuffing all copy text into a multi-image frame", 
 
   const parsed = JSON.parse(prompt) as {
     text_instruction: string;
-    text_overlay: {
+    text_overlay?: {
       main_title: string | null;
       sub_title: string | null;
       extra_title: string | null;
@@ -63,9 +63,7 @@ test("buildImagePrompt avoids stuffing all copy text into a multi-image frame", 
   assert.match(prompt, /多图素材/);
   assert.match(prompt, /不要把整套文案同时放进同一张图/);
   assert.match(parsed.text_instruction, /不要把整套文案同时放进同一张图/);
-  assert.equal(parsed.text_overlay.main_title, null);
-  assert.equal(parsed.text_overlay.sub_title, null);
-  assert.equal(parsed.text_overlay.extra_title, null);
+  assert.equal(parsed.text_overlay, undefined);
 });
 
 test("buildImageSlotPrompt for double-image only binds the current slot title", () => {
@@ -77,6 +75,7 @@ test("buildImageSlotPrompt for double-image only binds the current slot title", 
     copyTitleMain: "难题卡壳",
     copyTitleSub: "拍题拆解",
     copyTitleExtra: null,
+    logo: "onion",
   });
 
   assert.match(slotPrompt, /难题卡壳/);
@@ -93,6 +92,7 @@ test("buildImageSlotPrompt encodes triple-image progression roles", () => {
     copyTitleMain: "看题发懵",
     copyTitleSub: "动画拆解",
     copyTitleExtra: "一步学会",
+    logo: "onion",
   });
 
   assert.match(slotPrompt, /三图关系是“递进”/);
@@ -111,6 +111,7 @@ test("buildImageSlotPrompt encodes triple-image causal roles", () => {
     copyTitleMain: "难题卡壳",
     copyTitleSub: "拍题拆解",
     copyTitleExtra: "马上学会",
+    logo: "onion",
   });
 
   assert.match(slotPrompt, /三图关系是“因果”/);
@@ -161,6 +162,8 @@ test("buildImagePrompt excludes CTA guidance for non-information-flow or multi-i
 
   assert.doesNotMatch(prompt, /CTA/);
   assert.doesNotMatch(prompt, /立即下载/);
+  const parsed = JSON.parse(prompt) as { cta?: unknown };
+  assert.equal(parsed.cta, undefined);
 });
 
 test("buildImagePrompt returns JSON-formatted prompt content", () => {
@@ -183,13 +186,15 @@ test("buildImagePrompt returns JSON-formatted prompt content", () => {
   const parsed = JSON.parse(prompt) as {
     prompt_version: string;
     aspect_ratio: string;
-    text_overlay: { main_title: string; sub_title: string | null };
+    text_overlay?: { main_title: string; sub_title: string | null };
+    cta?: { enabled: boolean; text: string | null };
   };
 
   assert.equal(parsed.prompt_version, "v1");
   assert.equal(parsed.aspect_ratio, "16:9");
-  assert.equal(parsed.text_overlay.main_title, "拍一下就会");
-  assert.equal(parsed.text_overlay.sub_title, "10秒出解析");
+  assert.equal(parsed.text_overlay?.main_title, "拍一下就会");
+  assert.equal(parsed.text_overlay?.sub_title, "10秒出解析");
+  assert.equal(parsed.cta?.enabled, true);
 });
 
 test("buildImagePrompt does not leak channel label into visible prompt fields when logo is disabled", () => {
@@ -266,6 +271,27 @@ test("buildImagePrompt anchors default人物为中国教育场景人物", () => 
   });
 
   assert.match(prompt, /中国|东亚/);
+});
+
+test("buildImagePrompt omits text_overlay entirely for multi-image prompts", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "图一文案",
+    copyTitleSub: "图二文案",
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "double",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: false,
+    ctaText: null,
+  });
+
+  const parsed = JSON.parse(prompt) as { text_overlay?: unknown };
+  assert.equal(parsed.text_overlay, undefined);
 });
 
 test("mergeImagePromptWithSlot appends slot information while keeping JSON format", () => {
@@ -381,7 +407,7 @@ test("buildImagePrompt ignores multi-image aggregated text from structured paylo
 
   const parsed = JSON.parse(prompt) as {
     text_instruction: string;
-    text_overlay: {
+    text_overlay?: {
       main_title: string | null;
       sub_title: string | null;
       extra_title: string | null;
@@ -389,9 +415,7 @@ test("buildImagePrompt ignores multi-image aggregated text from structured paylo
   };
 
   assert.doesNotMatch(parsed.text_instruction, /图一文案 \/ 图二文案 \/ 图三文案/);
-  assert.equal(parsed.text_overlay.main_title, null);
-  assert.equal(parsed.text_overlay.sub_title, null);
-  assert.equal(parsed.text_overlay.extra_title, null);
+  assert.equal(parsed.text_overlay, undefined);
 });
 
 test("buildImagePrompt can consume structured description payload as an object", () => {
@@ -455,4 +479,20 @@ test("buildImagePrompt can consume structured description payload as an object",
   const parsed = JSON.parse(prompt) as { visual_concept?: string; scene?: string };
   assert.match(parsed.visual_concept ?? "", /学生举起手机拍题/);
   assert.match(parsed.scene ?? "", /家庭书桌/);
+});
+
+test("buildImageSlotPrompt omits logo instructions when logo is disabled", () => {
+  const slotPrompt = buildImageSlotPrompt({
+    imageForm: "single",
+    slotIndex: 1,
+    slotCount: 1,
+    copyType: null,
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    copyTitleExtra: null,
+    logo: "none",
+  });
+
+  assert.doesNotMatch(slotPrompt, /Logo 在左上角可见/);
+  assert.doesNotMatch(slotPrompt, /参考 Logo/);
 });

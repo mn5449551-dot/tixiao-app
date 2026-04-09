@@ -58,7 +58,7 @@ export function buildImagePrompt(input: {
     ? "中国家长代表，东亚面孔特征，家庭教育场景气质自然可信"
     : "中国学生代表，东亚面孔特征，符合中国校园与家庭学习场景";
   const ipText = input.ipRole
-    ? `画面中央出现${input.ipRole}角色，姿态亲切自然。角色设定：${input.ipDescription ?? input.ipRole}。人物关键词：${input.ipPromptKeywords ?? ""}。长相和整体风格必须与参考图一致，姿势可变化但身份设定不能漂移，整体气质贴近中国校园或家庭教育场景。`
+    ? `画面主体使用指定 IP 形象。角色设定：${input.ipDescription ?? input.ipRole}。人物关键词：${input.ipPromptKeywords ?? ""}。长相和整体风格必须与参考图一致，无需复现参考图中的动作或姿势，姿势可变化但角色身份设定不能漂移，整体气质贴近中国校园或家庭教育场景。`
     : `${String(descriptionCharacters?.characterSummary ?? defaultHumanSubject)}，默认使用中国/东亚人物特征。`;
   const logoText =
     input.logo && input.logo !== "none"
@@ -72,23 +72,19 @@ export function buildImagePrompt(input: {
     input.channel === "信息流（广点通）" && input.imageForm === "single" && input.ctaEnabled
       ? `画面中需要在合适广告位加入一个清晰的 CTA 按钮，按钮文案为“${input.ctaText ?? "立即下载"}”，按钮样式应像广告行动号召按钮。`
       : "";
-  const textOverlay = isMultiImage
+  const textOverlay = !isMultiImage
     ? {
-        main_title: null,
-        sub_title: null,
-        extra_title: null,
-      }
-    : {
         main_title: input.copyTitleMain,
         sub_title: input.copyTitleSub ?? null,
         extra_title: input.copyTitleExtra ?? null,
-      };
+      }
+    : undefined;
   const textInstructionWithStructuredContext =
     !isMultiImage && descriptionTextOverlay?.currentText
       ? `${textInstruction} 当前图重点文案：${String(descriptionTextOverlay.currentText)}。`
       : textInstruction;
 
-  return JSON.stringify({
+  const promptObject: Record<string, unknown> = {
     prompt_version: "v1",
     direction_title: input.directionTitle,
     scenario_problem: input.scenarioProblem ?? "",
@@ -107,13 +103,21 @@ export function buildImagePrompt(input: {
       ? `${String(descriptionBrandConstraints.brandTone)}。${logoText}`
       : logoText,
     text_instruction: textInstructionWithStructuredContext,
-    text_overlay: textOverlay,
-    cta: {
-      enabled: Boolean(ctaInstruction),
-      text: ctaInstruction ? (input.ctaText ?? "立即下载") : null,
-      instruction: ctaInstruction || null,
-    },
-  });
+  };
+
+  if (textOverlay) {
+    promptObject.text_overlay = textOverlay;
+  }
+
+  if (ctaInstruction) {
+    promptObject.cta = {
+      enabled: true,
+      text: input.ctaText ?? "立即下载",
+      instruction: ctaInstruction,
+    };
+  }
+
+  return JSON.stringify(promptObject);
 }
 
 export function buildNegativePrompt(input: {
@@ -131,6 +135,7 @@ export function buildImageSlotPrompt(input: {
   copyTitleMain: string;
   copyTitleSub?: string | null;
   copyTitleExtra?: string | null;
+  logo?: string | null;
 }) {
   const titles = [
     input.copyTitleMain,
@@ -139,17 +144,22 @@ export function buildImageSlotPrompt(input: {
   ];
   const currentTitle = titles[input.slotIndex - 1] ?? "";
 
+  const logoInstruction =
+    input.logo && input.logo !== "none"
+      ? "Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。"
+      : "";
+
   if (input.slotCount <= 1 || input.imageForm === "single") {
-    return `当前输出第 ${input.slotIndex} 张图（共 ${input.slotCount} 张）。本张图必须重点服务文案“${currentTitle}”，文字必须真实出现在图中，且 Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。`;
+    return `当前输出第 ${input.slotIndex} 张图（共 ${input.slotCount} 张）。本张图必须重点服务文案“${currentTitle}”，文字必须真实出现在图中。${logoInstruction}`.trim();
   }
 
   if (input.slotCount === 2) {
-    return `当前输出第 ${input.slotIndex} 张图（共 2 张）。图间关系是“${input.copyType ?? "自动分配"}”。本张图必须重点服务文案“${currentTitle}”，并和另一张图形成清晰对照或递进关系，不能重复同一画面。文字必须真实出现在图中，Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。`;
+    return `当前输出第 ${input.slotIndex} 张图（共 2 张）。图间关系是“${input.copyType ?? "自动分配"}”。本张图必须重点服务文案“${currentTitle}”，并和另一张图形成清晰对照或递进关系，不能重复同一画面。文字必须真实出现在图中。${logoInstruction}`.trim();
   }
 
   const relation = input.copyType ?? "递进";
   const roleText = getTripleSlotRole(relation, input.slotIndex);
-  return `当前输出第 ${input.slotIndex} 张图（共 3 张）。三图关系是“${relation}”。本张图必须重点服务文案“${currentTitle}”。本张图承担的角色是：${roleText}。三张图的人物、风格、品牌元素必须一致，但画面内容不能重复，合起来要能读出完整逻辑链。文字必须真实出现在图中，Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。`;
+  return `当前输出第 ${input.slotIndex} 张图（共 3 张）。三图关系是“${relation}”。本张图必须重点服务文案“${currentTitle}”。本张图承担的角色是：${roleText}。三张图的人物、风格、品牌元素必须一致，但画面内容不能重复，合起来要能读出完整逻辑链。文字必须真实出现在图中。${logoInstruction}`.trim();
 }
 
 function getTripleSlotRole(copyType: string, slotIndex: number) {

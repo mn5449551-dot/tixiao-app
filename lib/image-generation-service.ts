@@ -240,6 +240,7 @@ export async function processPreparedImageGeneration(input: {
             copyTitleMain: copy.titleMain,
             copyTitleSub: copy.titleSub,
             copyTitleExtra: copy.titleExtra,
+            logo: group.logo ?? config.logo ?? "none",
           });
           const fullPrompt = mergeImagePromptWithSlot(groupPromptEn, slotDescription);
 

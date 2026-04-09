@@ -258,6 +258,7 @@ async function regenerateSingleImage(input: {
       copyTitleMain: copy.titleMain,
       copyTitleSub: copy.titleSub,
       copyTitleExtra: copy.titleExtra,
+      logo: group?.logo ?? config.logo ?? "none",
     });
     const fullPrompt = mergeImagePromptWithSlot(promptEn, slotPrompt);
     const binaries = referenceImageUrls.length > 0
