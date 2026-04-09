@@ -238,6 +238,7 @@ async function regenerateSingleImage(input: {
       channel: direction.channel,
       ctaEnabled: config.ctaEnabled === 1,
       ctaText: config.ctaText,
+      descriptionPayload: config.promptZh ?? undefined,
     });
 
     const referenceImageUrls = [

@@ -206,3 +206,34 @@ test("mergeImagePromptWithSlot appends slot information while keeping JSON forma
 
   assert.equal(parsed.slot_prompt, "当前输出第1张图，承担问题角色。");
 });
+
+test("buildImagePrompt can consume structured description payload", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "信息流（广点通）",
+    ctaEnabled: true,
+    ctaText: "立即下载",
+    descriptionPayload: JSON.stringify({
+      schemaVersion: "v1",
+      channelPositioning: { channel: "信息流（广点通）", imageForm: "single", aspectRatio: "16:9" },
+      visualConcept: { mainEvent: "学生举起手机拍题", creativeAxis: "家庭书桌夜读", productAnchor: "手机拍题界面" },
+      sceneAtmosphere: { location: "家庭书桌", lighting: "明亮", moodColor: "蓝色品牌感" },
+      composition: { layoutType: "wide", subjectPlacement: "right", logoSafeArea: "top-left", textSafeArea: "left" },
+      textOverlay: { currentText: "拍一下就会", textRole: "hook", ctaText: "立即下载" },
+      brandConstraints: { brandTone: "教育可信、积极、明亮、成长导向" },
+    }),
+  });
+
+  const parsed = JSON.parse(prompt) as { visual_concept?: string; scene?: string };
+  assert.match(parsed.visual_concept ?? "", /学生举起手机拍题/);
+  assert.match(parsed.scene ?? "", /家庭书桌/);
+});

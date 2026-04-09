@@ -150,6 +150,7 @@ export async function processPreparedImageGeneration(input: {
       channel: direction.channel,
       ctaEnabled: config.ctaEnabled === 1,
       ctaText: config.ctaText,
+      descriptionPayload: promptZh,
     });
 
     const negativePrompt = buildNegativePrompt({ imageStyle: config.imageStyle });

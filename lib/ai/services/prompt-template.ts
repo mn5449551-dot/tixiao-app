@@ -18,7 +18,31 @@ export function buildImagePrompt(input: {
   channel?: string;
   ctaEnabled?: boolean;
   ctaText?: string | null;
+  descriptionPayload?: string;
 }): string {
+  const parsedDescription = input.descriptionPayload
+    ? JSON.parse(input.descriptionPayload) as Record<string, unknown>
+    : null;
+  const descriptionVisualConcept =
+    parsedDescription && typeof parsedDescription.visualConcept === "object" && parsedDescription.visualConcept
+      ? parsedDescription.visualConcept as Record<string, unknown>
+      : null;
+  const descriptionSceneAtmosphere =
+    parsedDescription && typeof parsedDescription.sceneAtmosphere === "object" && parsedDescription.sceneAtmosphere
+      ? parsedDescription.sceneAtmosphere as Record<string, unknown>
+      : null;
+  const descriptionComposition =
+    parsedDescription && typeof parsedDescription.composition === "object" && parsedDescription.composition
+      ? parsedDescription.composition as Record<string, unknown>
+      : null;
+  const descriptionTextOverlay =
+    parsedDescription && typeof parsedDescription.textOverlay === "object" && parsedDescription.textOverlay
+      ? parsedDescription.textOverlay as Record<string, unknown>
+      : null;
+  const descriptionBrandConstraints =
+    parsedDescription && typeof parsedDescription.brandConstraints === "object" && parsedDescription.brandConstraints
+      ? parsedDescription.brandConstraints as Record<string, unknown>
+      : null;
   const style = IMAGE_STYLE_DESCRIPTIONS[input.imageStyle] ?? "清新明亮的广告风格";
   const ipText = input.ipRole
     ? `画面中央出现${input.ipRole}角色，姿态亲切自然。角色设定：${input.ipDescription ?? input.ipRole}。人物关键词：${input.ipPromptKeywords ?? ""}。长相和整体风格必须与参考图一致，姿势可变化但身份设定不能漂移`
@@ -44,11 +68,18 @@ export function buildImagePrompt(input: {
     aspect_ratio: input.aspectRatio,
     style_mode: input.styleMode,
     image_style: input.imageStyle,
+    visual_concept: descriptionVisualConcept?.mainEvent ?? "",
     subject: ipText,
-    scene: `${style}。站在明亮舒适的学习环境中。背景氛围体现"学习、成长、突破"的主题，色调温馨积极。`,
-    composition: `画面构图采用${input.aspectRatio}布局，主体位于画面中右侧。`,
-    brand_constraints: logoText,
-    text_instruction: textInstruction,
+    scene: descriptionSceneAtmosphere?.location
+      ? `${style}。场景设定为${String(descriptionSceneAtmosphere.location)}，光线${String(descriptionSceneAtmosphere.lighting ?? "明亮")}。`
+      : `${style}。站在明亮舒适的学习环境中。背景氛围体现"学习、成长、突破"的主题，色调温馨积极。`,
+    composition: descriptionComposition?.subjectPlacement
+      ? `画面构图采用${input.aspectRatio}布局，主体位于画面${String(descriptionComposition.subjectPlacement)}侧。`
+      : `画面构图采用${input.aspectRatio}布局，主体位于画面中右侧。`,
+    brand_constraints: descriptionBrandConstraints?.brandTone
+      ? `${String(descriptionBrandConstraints.brandTone)}。${logoText}`
+      : logoText,
+    text_instruction: descriptionTextOverlay?.currentText ? `${textInstruction} 当前图重点文案：${String(descriptionTextOverlay.currentText)}。` : textInstruction,
     text_overlay: {
       main_title: input.copyTitleMain,
       sub_title: input.copyTitleSub ?? null,
