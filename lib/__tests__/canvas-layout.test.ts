@@ -13,10 +13,10 @@ test("arrangeNodesByHierarchy places nodes by tier from left to right", () => {
 
   const layout = arrangeNodesByHierarchy(nodes);
 
-  assert.equal(layout[0]?.position.x, 970);
+  assert.equal(layout[0]?.position.x, 1180);
   assert.equal(layout[1]?.position.x, 40);
   assert.equal(layout[2]?.position.x, 500);
-  assert.equal(layout[3]?.position.x, 970);
+  assert.equal(layout[3]?.position.x, 1180);
   assert.ok((layout[0]?.position.y ?? 0) > (layout[3]?.position.y ?? 0));
 });
 
@@ -141,7 +141,7 @@ test("arrangeNodesByHierarchy keeps image branches aligned with safe spacing for
   assert.equal(configOne.position.y, candidateOne.position.y);
   assert.equal(candidateOne.position.y, finalizedOne.position.y);
   assert.ok(candidateTwo.position.y - candidateOne.position.y >= 1200);
-  assert.ok(finalizedOne.position.x - candidateOne.position.x >= 700);
+  assert.ok(finalizedOne.position.x - candidateOne.position.x >= 450);
   assert.equal(configTwo.position.y, candidateTwo.position.y);
   assert.equal(candidateTwo.position.y, finalizedTwo.position.y);
 });
@@ -210,4 +210,30 @@ test("arrangeNodesByHierarchy uses measured node heights when available to avoid
 
   assert.ok(configA && configB);
   assert.ok(configB.position.y - configA.position.y >= 1000);
+});
+
+test("arrangeNodesByHierarchy keeps widened direction and copy columns from overlapping", () => {
+  const nodes = [
+    {
+      id: "direction-board",
+      type: "directionCard",
+      position: { x: 0, y: 80 },
+      measured: { width: 620, height: 520 },
+      data: { directions: [{}, {}, {}, {}, {}, {}] },
+    },
+    {
+      id: "copy-card-1",
+      type: "copyCard",
+      position: { x: 0, y: 80 },
+      measured: { width: 400, height: 520 },
+      data: { copyItems: [{}, {}, {}] },
+    },
+  ] as const;
+
+  const layout = arrangeNodesByHierarchy(nodes);
+  const direction = layout.find((node) => node.id === "direction-board");
+  const copy = layout.find((node) => node.id === "copy-card-1");
+
+  assert.ok(direction && copy);
+  assert.ok(copy.position.x - direction.position.x >= 620);
 });

@@ -50,9 +50,9 @@ const DIRECTION_FIELD_LABELS = {
   title: "素材方向",
   targetAudience: "目标人群",
   stage: "适配阶段",
-  scenarioProblem: "具体场景和问题",
-  differentiation: "核心差异化解法",
-  effect: "最终奇效",
+  scenarioProblem: "1 能解决用户在“具体哪个场景里的哪个问题”",
+  differentiation: "2 能带来什么不一样的“一听很惊艳”的解法？",
+  effect: "3 因此带来了哪个场景下的什么“奇效”？",
 } as const;
 
 export function DirectionCard({
@@ -153,7 +153,7 @@ export function DirectionCard({
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 560 } satisfies CSSProperties}
+      style={{ width: 620 } satisfies CSSProperties}
     >
       {isLoading && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[28px] bg-white/60">
@@ -418,7 +418,7 @@ function ReadOnlyDirectionDetails({
   stageLabel?: string;
 }) {
   return (
-    <div className="grid gap-2 md:grid-cols-2">
+    <div className="grid gap-2 md:grid-cols-3">
       <DetailBlock label={labels.title} value={direction.title} />
       <DetailBlock label={labels.targetAudience} value={direction.targetAudience} />
       {stageLabel ? <DetailBlock label={labels.stage} value={stageLabel} /> : null}
@@ -431,9 +431,9 @@ function ReadOnlyDirectionDetails({
 
 function DetailBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white/70 px-3 py-2">
-      <div className="text-[11px] font-medium leading-5 text-[var(--ink-500)]">{label}</div>
-      <div className="mt-1 whitespace-pre-wrap break-words text-[var(--ink-900)]">{value}</div>
+    <div className="rounded-2xl bg-white/70 px-3 py-2.5">
+      <div className="text-[10px] font-medium leading-4 text-[var(--ink-500)]">{label}</div>
+      <div className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-5 text-[var(--ink-900)]">{value}</div>
     </div>
   );
 }

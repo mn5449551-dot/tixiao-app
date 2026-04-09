@@ -79,10 +79,39 @@ export function ImagePreviewModal({
   aspectRatio?: string;
   onClose: () => void;
 }) {
+  const portalRoot =
+    typeof document === "undefined"
+      ? null
+      : document.getElementById("workflow-canvas-overlay-root");
+
+  if (!imageUrl || !portalRoot) return null;
+
+  return createPortal(
+    <PreviewSurface
+      key={imageUrl}
+      imageUrl={imageUrl}
+      title={title}
+      aspectRatio={aspectRatio}
+      onClose={onClose}
+    />,
+    portalRoot,
+  );
+}
+
+function PreviewSurface({
+  imageUrl,
+  title,
+  aspectRatio,
+  onClose,
+}: {
+  imageUrl: string;
+  title: string;
+  aspectRatio?: string;
+  onClose: () => void;
+}) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragOriginRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
 
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [baseFitScale, setBaseFitScale] = useState(1);
@@ -90,11 +119,22 @@ export function ImagePreviewModal({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
+  const updateViewportForSize = (nextNaturalSize: { width: number; height: number }, nextStageSize: { width: number; height: number }) => {
+    if (!nextStageSize.width || !nextStageSize.height) return;
+
+    const nextBaseFitScale = getInitialScale({
+      naturalWidth: nextNaturalSize.width,
+      naturalHeight: nextNaturalSize.height,
+      stageWidth: nextStageSize.width,
+      stageHeight: nextStageSize.height,
+    });
+
+    setBaseFitScale(nextBaseFitScale);
+    setZoom(nextBaseFitScale);
+    setPan({ x: 0, y: 0 });
+  };
+
   useEffect(() => {
-    if (!imageUrl) return;
-
-    setPortalRoot(document.getElementById("workflow-canvas-overlay-root"));
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
@@ -106,31 +146,7 @@ export function ImagePreviewModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [imageUrl, onClose]);
-
-  useEffect(() => {
-    setNaturalSize(null);
-    setBaseFitScale(1);
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-    setIsDragging(false);
-    dragOriginRef.current = null;
-  }, [imageUrl]);
-
-  useEffect(() => {
-    if (!naturalSize || !stageSize.width || !stageSize.height) return;
-
-    const nextBaseFitScale = getInitialScale({
-      naturalWidth: naturalSize.width,
-      naturalHeight: naturalSize.height,
-      stageWidth: stageSize.width,
-      stageHeight: stageSize.height,
-    });
-
-    setBaseFitScale(nextBaseFitScale);
-    setZoom(nextBaseFitScale);
-    setPan({ x: 0, y: 0 });
-  }, [naturalSize, stageSize]);
+  }, [onClose]);
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -140,18 +156,21 @@ export function ImagePreviewModal({
       const rect = stageRef.current.getBoundingClientRect();
       const width = Math.max(rect.width - VIEWER_PADDING_X, 320);
       const height = Math.max(rect.height - VIEWER_PADDING_Y, 240);
-      setStageSize({ width, height });
+      const nextStageSize = { width, height };
+      setStageSize(nextStageSize);
+      if (naturalSize) {
+        updateViewportForSize(naturalSize, nextStageSize);
+      }
     };
-
-    measureStage();
 
     const observer = new ResizeObserver(() => {
       measureStage();
     });
     observer.observe(stageRef.current);
+    requestAnimationFrame(measureStage);
 
     return () => observer.disconnect();
-  }, [portalRoot]);
+  }, [naturalSize]);
 
   useEffect(() => {
     if (!isDragging || !naturalSize || !stageSize.width || !stageSize.height) return;
@@ -187,8 +206,6 @@ export function ImagePreviewModal({
     };
   }, [isDragging, naturalSize, stageSize, zoom]);
 
-  if (!imageUrl || !portalRoot) return null;
-
   const canPan = Boolean(
     naturalSize &&
     stageSize.width &&
@@ -217,7 +234,7 @@ export function ImagePreviewModal({
     setPan(nextPan);
   };
 
-  return createPortal(
+  return (
     <div className="absolute inset-0 z-50 bg-black/88 pointer-events-auto" onClick={onClose}>
       <button
         type="button"
@@ -249,10 +266,14 @@ export function ImagePreviewModal({
               draggable={false}
               data-aspect-ratio={aspectRatio}
               onLoad={(event) => {
-                setNaturalSize({
+                const nextNaturalSize = {
                   width: event.currentTarget.naturalWidth,
                   height: event.currentTarget.naturalHeight,
-                });
+                };
+                setNaturalSize(nextNaturalSize);
+                setIsDragging(false);
+                dragOriginRef.current = null;
+                updateViewportForSize(nextNaturalSize, stageSize);
               }}
               onMouseDown={(event) => {
                 if (!canPan) return;
@@ -310,7 +331,6 @@ export function ImagePreviewModal({
           重置
         </button>
       </div>
-    </div>,
-    portalRoot,
+    </div>
   );
 }

@@ -15,10 +15,10 @@ const COLUMN_X_BY_TYPE: Record<string, number> = {
   requirementCard: 40,
   frame: 500,
   directionCard: 500,
-  copyCard: 970,
-  imageConfigCard: 1390,
-  candidatePool: 1840,
-  finalizedPool: 2550,
+  copyCard: 1180,
+  imageConfigCard: 1650,
+  candidatePool: 2110,
+  finalizedPool: 2590,
 };
 
 const COLUMN_ORDER_BY_TYPE: Record<string, number> = {
