@@ -3,7 +3,7 @@ import sharp from "sharp";
 
 import { generateImageDescription } from "@/lib/ai/agents/image-description-agent";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
-import { buildImagePrompt, buildImageSlotPrompt, buildNegativePrompt } from "@/lib/ai/services/prompt-template";
+import { buildImagePrompt, buildImageSlotPrompt, buildNegativePrompt, mergeImagePromptWithSlot } from "@/lib/ai/services/prompt-template";
 import { getDb } from "@/lib/db";
 import { finishGenerationRun } from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
@@ -128,6 +128,8 @@ export async function processPreparedImageGeneration(input: {
       imageStyle: config.imageStyle,
       logo: config.logo ?? "none",
       imageForm: direction.imageForm ?? "single",
+      ctaEnabled: config.ctaEnabled === 1,
+      ctaText: config.ctaText,
     });
 
     const promptEn = buildImagePrompt({
@@ -145,6 +147,9 @@ export async function processPreparedImageGeneration(input: {
       logo: config.logo ?? "none",
       imageForm: direction.imageForm ?? "single",
       referenceImageUrl: config.referenceImageUrl,
+      channel: direction.channel,
+      ctaEnabled: config.ctaEnabled === 1,
+      ctaText: config.ctaText,
     });
 
     const negativePrompt = buildNegativePrompt({ imageStyle: config.imageStyle });
@@ -175,11 +180,11 @@ export async function processPreparedImageGeneration(input: {
             copyTitleSub: copy.titleSub,
             copyTitleExtra: copy.titleExtra,
           });
-          const fullPrompt = `${promptZh}。${slotDescription}`;
+          const fullPrompt = mergeImagePromptWithSlot(promptEn, slotDescription);
 
           const binaries = referenceImageUrls.length > 0
             ? await generateImageFromReference({
-                instruction: fullPrompt,
+              instruction: fullPrompt,
                 imageUrls: referenceImageUrls,
                 aspectRatio: config.aspectRatio,
               })

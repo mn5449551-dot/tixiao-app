@@ -15,6 +15,9 @@ export function buildImagePrompt(input: {
   logo?: string;
   imageForm?: string;
   referenceImageUrl?: string | null;
+  channel?: string;
+  ctaEnabled?: boolean;
+  ctaText?: string | null;
 }): string {
   const style = IMAGE_STYLE_DESCRIPTIONS[input.imageStyle] ?? "清新明亮的广告风格";
   const ipText = input.ipRole
@@ -28,8 +31,35 @@ export function buildImagePrompt(input: {
   const textInstruction = isMultiImage
     ? "这是多图素材，具体每张图只承载自己的分图文案；当前基础画面提示不要把整套文案同时放进同一张图。"
     : `文案"${input.copyTitleMain}"${input.copyTitleSub ? `和"${input.copyTitleSub}"` : ""}${input.copyTitleExtra ? `以及"${input.copyTitleExtra}"` : ""}以清晰可读的字体直接体现在画面中，不可缺字漏字。`;
+  const ctaInstruction =
+    input.channel === "信息流（广点通）" && input.imageForm === "single" && input.ctaEnabled
+      ? `画面中需要在合适广告位加入一个清晰的 CTA 按钮，按钮文案为“${input.ctaText ?? "立即下载"}”，按钮样式应像广告行动号召按钮。`
+      : "";
 
-  return `${style}。${ipText}，站在明亮舒适的学习环境中。背景氛围体现"学习、成长、突破"的主题，色调温馨积极。画面构图采用${input.aspectRatio}布局，主体位于画面中右侧。${logoText} ${textInstruction}`;
+  return JSON.stringify({
+    prompt_version: "v1",
+    channel: input.channel ?? "",
+    direction_title: input.directionTitle,
+    scenario_problem: input.scenarioProblem ?? "",
+    aspect_ratio: input.aspectRatio,
+    style_mode: input.styleMode,
+    image_style: input.imageStyle,
+    subject: ipText,
+    scene: `${style}。站在明亮舒适的学习环境中。背景氛围体现"学习、成长、突破"的主题，色调温馨积极。`,
+    composition: `画面构图采用${input.aspectRatio}布局，主体位于画面中右侧。`,
+    brand_constraints: logoText,
+    text_instruction: textInstruction,
+    text_overlay: {
+      main_title: input.copyTitleMain,
+      sub_title: input.copyTitleSub ?? null,
+      extra_title: input.copyTitleExtra ?? null,
+    },
+    cta: {
+      enabled: Boolean(ctaInstruction),
+      text: ctaInstruction ? (input.ctaText ?? "立即下载") : null,
+      instruction: ctaInstruction || null,
+    },
+  });
 }
 
 export function buildNegativePrompt(input: {
@@ -94,6 +124,14 @@ function getTripleSlotRole(copyType: string, slotIndex: number) {
   };
 
   return roleMap[normalized]?.[slotIndex - 1] ?? roleMap.递进[slotIndex - 1];
+}
+
+export function mergeImagePromptWithSlot(promptJson: string, slotPrompt: string) {
+  const parsed = JSON.parse(promptJson) as Record<string, unknown>;
+  return JSON.stringify({
+    ...parsed,
+    slot_prompt: slotPrompt,
+  });
 }
 
 export function buildImagePromptJson(input: {

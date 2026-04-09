@@ -98,6 +98,8 @@ function bootstrap(connection: Database.Database) {
       logo TEXT,
       image_style TEXT NOT NULL,
       reference_image_url TEXT,
+      cta_enabled INTEGER NOT NULL DEFAULT 0,
+      cta_text TEXT,
       prompt_zh TEXT,
       prompt_en TEXT,
       negative_prompt TEXT,
@@ -215,6 +217,22 @@ function bootstrap(connection: Database.Database) {
   if (!imageGroupColumns.some((column) => column.name === "aspect_ratio")) {
     connection.exec(
       "ALTER TABLE image_groups ADD COLUMN aspect_ratio TEXT NOT NULL DEFAULT '1:1';",
+    );
+  }
+
+  const imageConfigColumns = connection
+    .prepare("PRAGMA table_info(image_configs)")
+    .all() as Array<{ name: string }>;
+
+  if (!imageConfigColumns.some((column) => column.name === "cta_enabled")) {
+    connection.exec(
+      "ALTER TABLE image_configs ADD COLUMN cta_enabled INTEGER NOT NULL DEFAULT 0;",
+    );
+  }
+
+  if (!imageConfigColumns.some((column) => column.name === "cta_text")) {
+    connection.exec(
+      "ALTER TABLE image_configs ADD COLUMN cta_text TEXT;",
     );
   }
 

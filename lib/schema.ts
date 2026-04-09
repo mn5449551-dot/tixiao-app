@@ -98,6 +98,8 @@ export const imageConfigs = sqliteTable("image_configs", {
   logo: text("logo"),
   imageStyle: text("image_style").notNull(),
   referenceImageUrl: text("reference_image_url"),
+  ctaEnabled: integer("cta_enabled").notNull().default(0),
+  ctaText: text("cta_text"),
   promptZh: text("prompt_zh"),
   promptEn: text("prompt_en"),
   negativePrompt: text("negative_prompt"),

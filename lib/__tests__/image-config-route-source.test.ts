@@ -21,3 +21,10 @@ test("image config save route exposes the ids of groups created in the current s
   assert.match(source, /created_group_ids/);
   assert.match(source, /config\.createdGroups/);
 });
+
+test("image config save route accepts CTA fields", async () => {
+  const source = await readFile(saveRoutePath, "utf8");
+
+  assert.match(source, /cta_enabled/);
+  assert.match(source, /cta_text/);
+});

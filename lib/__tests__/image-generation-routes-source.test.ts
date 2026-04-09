@@ -21,7 +21,7 @@ test("image generation routes pass aspect ratio through the shared OpenAI-compat
   assert.match(generateSource, /generateImageFromReference\([\s\S]{0,200}aspectRatio:\s*config\.aspectRatio/);
   assert.match(generateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,120}aspectRatio:\s*config\.aspectRatio/);
   assert.match(regenerateSource, /generateImageFromReference\([\s\S]{0,200}aspectRatio:\s*config\.aspectRatio/);
-  assert.match(regenerateSource, /generateImageFromPrompt\(`\$\{promptEn\}。\$\{slotPrompt\}`,\s*\{[\s\S]{0,120}aspectRatio:\s*config\.aspectRatio/);
+  assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,120}aspectRatio:\s*config\.aspectRatio/);
   assert.match(referenceSource, /aspect_ratio\?:/);
   assert.match(referenceSource, /aspectRatio:\s*body\.aspect_ratio/);
 });
@@ -30,8 +30,9 @@ test("single-image regenerate preserves slot prompt for both reference and promp
   const regenerateSource = await readFile(regenerateRoutePath, "utf8");
 
   assert.match(regenerateSource, /const slotPrompt = buildImageSlotPrompt/);
-  assert.match(regenerateSource, /instruction: `\$\{promptEn\}。\$\{slotPrompt\}`/);
-  assert.match(regenerateSource, /generateImageFromPrompt\(`\$\{promptEn\}。\$\{slotPrompt\}`/);
+  assert.match(regenerateSource, /const fullPrompt = mergeImagePromptWithSlot/);
+  assert.match(regenerateSource, /instruction:\s*fullPrompt/);
+  assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt/);
 });
 
 test("logo remains part of the reference image inputs for both initial generation and regenerate", async () => {

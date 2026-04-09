@@ -51,6 +51,8 @@ export type GraphNodeData =
   | {
       copyId: string;
       copyText: string;
+      channel: string;
+      imageForm: string;
       imageConfigId?: string;
       initialAspectRatio?: string;
       initialStyleMode?: string;
@@ -58,6 +60,8 @@ export type GraphNodeData =
       initialCount?: number;
       initialLogo?: string;
       initialIpRole?: string | null;
+      initialCtaEnabled?: boolean;
+      initialCtaText?: string | null;
       status?: string;
     }
   | {

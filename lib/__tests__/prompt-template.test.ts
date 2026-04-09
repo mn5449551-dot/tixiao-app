@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildImagePrompt, buildImageSlotPrompt } from "../ai/services/prompt-template";
+import { buildImagePrompt, buildImageSlotPrompt, mergeImagePromptWithSlot } from "../ai/services/prompt-template";
 
 test("buildImagePrompt injects selected IP description and consistency guardrails", () => {
   const prompt = buildImagePrompt({
@@ -18,8 +18,13 @@ test("buildImagePrompt injects selected IP description and consistency guardrail
     logo: "onion",
     imageForm: "single",
     referenceImageUrl: "data:image/png;base64,abc",
+    channel: "信息流（广点通）",
+    ctaEnabled: false,
+    ctaText: null,
   });
 
+  const parsed = JSON.parse(prompt) as Record<string, unknown>;
+  assert.equal(parsed.channel, "信息流（广点通）");
   assert.match(prompt, /豆包/);
   assert.match(prompt, /篮球少年·阳光活力型/);
   assert.match(prompt, /dark spiky hair/);
@@ -47,9 +52,10 @@ test("buildImagePrompt avoids stuffing all copy text into a multi-image frame", 
     referenceImageUrl: null,
   });
 
+  const parsed = JSON.parse(prompt) as { text_instruction: string };
   assert.match(prompt, /多图素材/);
   assert.match(prompt, /不要把整套文案同时放进同一张图/);
-  assert.doesNotMatch(prompt, /图一文案.*图二文案/);
+  assert.match(parsed.text_instruction, /不要把整套文案同时放进同一张图/);
 });
 
 test("buildImageSlotPrompt for double-image only binds the current slot title", () => {
@@ -100,4 +106,103 @@ test("buildImageSlotPrompt encodes triple-image causal roles", () => {
   assert.match(slotPrompt, /三图关系是“因果”/);
   assert.match(slotPrompt, /难题卡壳/);
   assert.match(slotPrompt, /原因或痛点/);
+});
+
+test("buildImagePrompt includes CTA button guidance only for information-flow single images", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "信息流（广点通）",
+    ctaEnabled: true,
+    ctaText: "立即下载",
+  });
+
+  assert.match(prompt, /立即下载/);
+  assert.match(prompt, /CTA/);
+  const parsed = JSON.parse(prompt) as { cta: { enabled: boolean; text: string | null } };
+  assert.equal(parsed.cta.enabled, true);
+  assert.equal(parsed.cta.text, "立即下载");
+});
+
+test("buildImagePrompt excludes CTA guidance for non-information-flow or multi-image cases", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "图一文案",
+    copyTitleSub: "图二文案",
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "double",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: true,
+    ctaText: "立即下载",
+  });
+
+  assert.doesNotMatch(prompt, /CTA/);
+  assert.doesNotMatch(prompt, /立即下载/);
+});
+
+test("buildImagePrompt returns JSON-formatted prompt content", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "信息流（广点通）",
+    ctaEnabled: true,
+    ctaText: "立即下载",
+  });
+
+  const parsed = JSON.parse(prompt) as {
+    prompt_version: string;
+    channel: string;
+    aspect_ratio: string;
+    text_overlay: { main_title: string; sub_title: string | null };
+  };
+
+  assert.equal(parsed.prompt_version, "v1");
+  assert.equal(parsed.channel, "信息流（广点通）");
+  assert.equal(parsed.aspect_ratio, "16:9");
+  assert.equal(parsed.text_overlay.main_title, "拍一下就会");
+  assert.equal(parsed.text_overlay.sub_title, "10秒出解析");
+});
+
+test("mergeImagePromptWithSlot appends slot information while keeping JSON format", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "图一文案",
+    copyTitleSub: "图二文案",
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "double",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: false,
+    ctaText: null,
+  });
+
+  const merged = mergeImagePromptWithSlot(prompt, "当前输出第1张图，承担问题角色。");
+  const parsed = JSON.parse(merged) as { slot_prompt: string };
+
+  assert.equal(parsed.slot_prompt, "当前输出第1张图，承担问题角色。");
 });

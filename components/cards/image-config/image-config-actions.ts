@@ -10,6 +10,8 @@ export async function saveImageConfigAndGenerate(input: {
   logo: string;
   ipRole: string | null;
   referenceImageUrl: string | null;
+  ctaEnabled: boolean;
+  ctaText?: string | null;
 }) {
   try {
     const payload = await apiFetch<{ id?: string; created_group_ids?: string[] }>(
@@ -24,6 +26,8 @@ export async function saveImageConfigAndGenerate(input: {
         image_style: input.imageStyle,
         count: input.count,
         reference_image_url: input.referenceImageUrl,
+        cta_enabled: input.ctaEnabled,
+        cta_text: input.ctaText ?? null,
         append: !!input.imageConfigId,
       },
     });

@@ -25,6 +25,8 @@ import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 export type ImageConfigCardData = {
   copyId: string;
   copyText: string;
+  channel: string;
+  imageForm: string;
   imageConfigId?: string;
   initialAspectRatio?: string;
   initialStyleMode?: string;
@@ -32,6 +34,8 @@ export type ImageConfigCardData = {
   initialCount?: number;
   initialLogo?: string;
   initialIpRole?: string | null;
+  initialCtaEnabled?: boolean;
+  initialCtaText?: string | null;
   status?: CardStatus;
 };
 
@@ -61,9 +65,12 @@ export function ImageConfigCard({
   const [useIp, setUseIp] = useState(!!data.initialIpRole);
   const [ipRole, setIpRole] = useState<string>(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
   const [referenceImageUrl, setReferenceImageUrl] = useState("");
+  const [ctaEnabled, setCtaEnabled] = useState(Boolean(data.initialCtaEnabled));
+  const [ctaText] = useState(data.initialCtaText ?? "立即下载");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const isIpMode = styleMode === "ip";
+  const supportsCta = data.channel === "信息流（广点通）" && data.imageForm === "single";
   const showImageStyleField = shouldShowImageStyleField(styleMode);
   const showIpAssetSelector = shouldShowIpAssetSelector(styleMode, useIp);
   const activeIp = IP_ASSET_OPTIONS.find((item) => item.role === ipRole) ?? IP_ASSET_OPTIONS[0];
@@ -85,15 +92,18 @@ export function ImageConfigCard({
     setLogoOption(data.initialLogo ?? LOGO_OPTIONS[0]);
     setUseIp(!!data.initialIpRole);
     setIpRole(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
+    setCtaEnabled(supportsCta ? Boolean(data.initialCtaEnabled) : false);
     setSubmitError(null);
   }, [
     data.initialAspectRatio,
     data.initialCount,
     data.initialImageStyle,
     data.initialIpRole,
+    data.initialCtaEnabled,
     data.initialLogo,
     data.initialStyleMode,
     isSubmitting,
+    supportsCta,
   ]);
 
   const borderColorClass = isError
@@ -182,11 +192,15 @@ export function ImageConfigCard({
       </div>
 
       <ImageConfigForm
+        channel={data.channel}
+        imageForm={data.imageForm}
         aspectRatio={aspectRatio}
         styleMode={styleMode}
         imageStyle={imageStyle}
         count={count}
         referenceImageUrl={referenceImageUrl}
+        ctaEnabled={supportsCta ? ctaEnabled : false}
+        ctaText={ctaText}
         isIpMode={isIpMode}
         showImageStyleField={showImageStyleField}
         onAspectRatioChange={setAspectRatio}
@@ -207,6 +221,7 @@ export function ImageConfigCard({
           }
         }}
         onReferenceImageUrlChange={setReferenceImageUrl}
+        onCtaEnabledChange={setCtaEnabled}
       >
         <ImageConfigBrandSection
           useLogo={useLogo}
@@ -254,6 +269,8 @@ export function ImageConfigCard({
               logo: useLogo ? logoOption : "none",
               ipRole: showIpAssetSelector ? ipRole : null,
               referenceImageUrl: showIpAssetSelector ? null : referenceImageUrl || null,
+              ctaEnabled: supportsCta ? ctaEnabled : false,
+              ctaText: supportsCta ? ctaText : null,
             });
             if (!result.ok) {
               if (result.configSaved) {

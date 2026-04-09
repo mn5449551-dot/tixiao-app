@@ -165,7 +165,7 @@ export function buildGraph(workspace: WorkspaceData) {
         if (!copy.imageConfig) return;
 
         const configY = cardBaseY + copyIndex * CONFIG_CARD_VERTICAL_GAP;
-        const imageConfigNode = buildImageConfigNode({ copy, configY });
+        const imageConfigNode = buildImageConfigNode({ direction, copy, configY });
         nodes.push(imageConfigNode);
 
         edges.push(

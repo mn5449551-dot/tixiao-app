@@ -19,10 +19,11 @@ function getGroupAspectRatio(groupType: string, fallback: string) {
 }
 
 export function buildImageConfigNode(input: {
+  direction: WorkspaceData["directions"][number];
   copy: WorkspaceData["directions"][number]["copyCards"][number]["copies"][number];
   configY: number;
 }): Node<GraphNodeData, GraphNodeType> {
-  const { copy, configY } = input;
+  const { direction, copy, configY } = input;
   const config = copy.imageConfig!;
 
   return {
@@ -32,6 +33,8 @@ export function buildImageConfigNode(input: {
     data: {
       copyId: copy.id,
       copyText: copy.titleSub ? `${copy.titleMain} / ${copy.titleSub}` : copy.titleMain,
+      channel: direction.channel,
+      imageForm: direction.imageForm ?? "single",
       imageConfigId: config.id,
       initialAspectRatio: config.aspectRatio,
       initialStyleMode: config.styleMode,
@@ -39,6 +42,8 @@ export function buildImageConfigNode(input: {
       initialCount: config.count,
       initialLogo: config.logo ?? undefined,
       initialIpRole: config.ipRole,
+      initialCtaEnabled: config.ctaEnabled === 1,
+      initialCtaText: config.ctaText ?? null,
       status: "idle",
     },
   };

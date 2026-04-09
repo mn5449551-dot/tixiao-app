@@ -12,11 +12,15 @@ const imageStyleLabel: Record<string, string> = {
 };
 
 export function ImageConfigForm({
+  channel,
+  imageForm,
   aspectRatio,
   styleMode,
   imageStyle,
   count,
   referenceImageUrl,
+  ctaEnabled,
+  ctaText,
   isIpMode,
   showImageStyleField,
   onAspectRatioChange,
@@ -24,13 +28,18 @@ export function ImageConfigForm({
   onImageStyleChange,
   onCountChange,
   onReferenceImageUrlChange,
+  onCtaEnabledChange,
   children,
 }: {
+  channel: string;
+  imageForm: string;
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
   count: number;
   referenceImageUrl: string;
+  ctaEnabled: boolean;
+  ctaText: string;
   isIpMode: boolean;
   showImageStyleField: boolean;
   onAspectRatioChange: (value: string) => void;
@@ -38,8 +47,11 @@ export function ImageConfigForm({
   onImageStyleChange: (value: string) => void;
   onCountChange: (value: number) => void;
   onReferenceImageUrlChange: (value: string) => void;
+  onCtaEnabledChange: (value: boolean) => void;
   children?: React.ReactNode;
 }) {
+  const supportsCta = channel === "信息流（广点通）" && imageForm === "single";
+
   return (
     <div className="space-y-2 rounded-[22px] bg-[var(--surface-1)] p-3">
       <Field label="生成比例">
@@ -90,6 +102,24 @@ export function ImageConfigForm({
             onChange={(e) => onReferenceImageUrlChange(e.target.value)}
             placeholder="https://..."
           />
+        </Field>
+      ) : null}
+
+      {supportsCta ? (
+        <Field label="CTA">
+          <label className="flex items-center gap-3 rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 py-3 text-sm text-[var(--ink-800)]">
+            <input
+              type="checkbox"
+              checked={ctaEnabled}
+              onChange={(e) => onCtaEnabledChange(e.target.checked)}
+              className="h-4 w-4 accent-[var(--brand-500)]"
+            />
+            <span className="font-medium">立即下载</span>
+            <span className="text-xs text-[var(--ink-500)]">仅信息流单图生效</span>
+          </label>
+          {ctaEnabled ? (
+            <p className="mt-2 text-xs text-[var(--ink-500)]">将为画面增加 CTA 按钮：{ctaText}</p>
+          ) : null}
         </Field>
       ) : null}
 

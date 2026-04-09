@@ -1065,6 +1065,8 @@ export async function saveImageConfig(
     imageStyle: string;
     count: number;
     referenceImageUrl: string | null;
+    ctaEnabled: boolean;
+    ctaText: string | null;
     append: boolean;
     createGroups: boolean;
   }>,
@@ -1090,6 +1092,8 @@ export async function saveImageConfig(
     referenceImageUrl: input.referenceImageUrl ?? current?.referenceImageUrl ?? null,
   });
   const nextCount = Math.max(1, Math.min(5, Math.trunc(input.count ?? current?.count ?? 1)));
+  const nextCtaEnabled = Boolean(input.ctaEnabled ?? current?.ctaEnabled ?? 0);
+  const nextCtaText = nextCtaEnabled ? (input.ctaText ?? current?.ctaText ?? "立即下载") : null;
 
   if (!current) {
     const configId = createId("imgcfg");
@@ -1104,6 +1108,8 @@ export async function saveImageConfig(
         logo: input.logo ?? LOGO_OPTIONS[0],
         imageStyle: nextImageStyle,
         referenceImageUrl: nextReferenceImageUrl,
+        ctaEnabled: nextCtaEnabled ? 1 : 0,
+        ctaText: nextCtaText,
         promptZh: `围绕 ${direction.title} 生成画面描述，左上角预留 Logo 留白。`,
         promptEn: `Hero visual for ${direction.title}`,
         negativePrompt: "distorted text, messy layout, unrelated characters",
@@ -1123,6 +1129,8 @@ export async function saveImageConfig(
         logo: input.logo ?? current.logo,
         imageStyle: nextImageStyle,
         referenceImageUrl: nextReferenceImageUrl,
+        ctaEnabled: nextCtaEnabled ? 1 : 0,
+        ctaText: nextCtaText,
         count: nextCount,
         updatedAt: timestamp,
       })

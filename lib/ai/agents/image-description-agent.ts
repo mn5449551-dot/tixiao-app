@@ -29,6 +29,8 @@ export async function generateImageDescription(input: {
   imageStyle: string;
   logo: string;
   imageForm: string;
+  ctaEnabled?: boolean;
+  ctaText?: string | null;
 }) {
   const rules = rulesContent
     ? `以下是画面描述生成规则，请严格遵守：\n\n${rulesContent}`
@@ -46,6 +48,7 @@ ${rules}
 4.1 Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计
 5. 风格必须匹配用户选择的图片风格
 6. 文案文字必须清晰可读，位置合理
+6.1 若启用 CTA，CTA 只允许以信息流单图中的行动按钮形式出现
 7. 不要生成JSON或其他格式，只输出纯文本描述`;
 
   const userPrompt = `方向上下文：
@@ -70,9 +73,11 @@ ${input.ipRole ? `- IP角色：${input.ipRole}` : ""}
 ${input.ipDescription ? `- IP角色描述：${input.ipDescription}` : ""}
 ${input.ipPromptKeywords ? `- IP关键词：${input.ipPromptKeywords}` : ""}
 - Logo：${input.logo === "onion" ? "洋葱学园（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : input.logo === "onion_app" ? "洋葱学园+APP（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : "不使用"}
+${input.ctaEnabled ? `- CTA：${input.ctaText ?? "立即下载"}` : ""}
 
 额外约束：
 ${input.imageForm === "single" ? "单图时，文案可以整体进入同一张图。" : "多图时，此处只描述整套画面的统一风格、人物、场景和Logo要求，不要把整套文案同时塞进同一张图；具体每一张图承载哪句文案，由后续分图规则决定。"}
+${input.ctaEnabled ? "当前为信息流单图，需要在画面合适位置保留一个清晰的 CTA 按钮区域，按钮文案为“立即下载”。" : ""}
 
 请生成画面描述。`;
 

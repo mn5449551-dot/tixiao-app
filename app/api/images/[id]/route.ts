@@ -13,7 +13,7 @@ import { getIpAssetMetadata } from "@/lib/ip-assets";
 import { readLogoAssetAsDataUrl } from "@/lib/logo-assets";
 import { generatedImages, imageConfigs, directions, copies } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
-import { buildImagePrompt, buildImageSlotPrompt } from "@/lib/ai/services/prompt-template";
+import { buildImagePrompt, buildImageSlotPrompt, mergeImagePromptWithSlot } from "@/lib/ai/services/prompt-template";
 import sharp from "sharp";
 
 export async function GET(
@@ -235,6 +235,9 @@ async function regenerateSingleImage(input: {
       logo: config.logo ?? "none",
       imageForm: direction.imageForm ?? "single",
       referenceImageUrl: config.referenceImageUrl,
+      channel: direction.channel,
+      ctaEnabled: config.ctaEnabled === 1,
+      ctaText: config.ctaText,
     });
 
     const referenceImageUrls = [
@@ -254,13 +257,14 @@ async function regenerateSingleImage(input: {
       copyTitleSub: copy.titleSub,
       copyTitleExtra: copy.titleExtra,
     });
+    const fullPrompt = mergeImagePromptWithSlot(promptEn, slotPrompt);
     const binaries = referenceImageUrls.length > 0
       ? await generateImageFromReference({
-          instruction: `${promptEn}。${slotPrompt}`,
+          instruction: fullPrompt,
           imageUrls: referenceImageUrls,
           aspectRatio: config.aspectRatio,
         })
-      : await generateImageFromPrompt(`${promptEn}。${slotPrompt}`, {
+      : await generateImageFromPrompt(fullPrompt, {
           aspectRatio: config.aspectRatio,
         });
 

@@ -16,6 +16,8 @@ export async function POST(
       image_style?: string;
       count?: number;
       reference_image_url?: string | null;
+      cta_enabled?: boolean;
+      cta_text?: string | null;
       append?: boolean;
       create_groups?: boolean;
     };
@@ -28,6 +30,8 @@ export async function POST(
       imageStyle: body.image_style,
       count: body.count,
       referenceImageUrl: body.reference_image_url,
+      ctaEnabled: body.cta_enabled,
+      ctaText: body.cta_text,
       append: body.append,
       createGroups: body.create_groups,
     });

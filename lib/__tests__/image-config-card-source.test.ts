@@ -31,3 +31,18 @@ test("image config card delegates form and action logic", async () => {
   assert.match(actionsSource, /created_group_ids/);
   assert.match(actionsSource, /group_ids:\s*payload\.created_group_ids/);
 });
+
+test("image config card supports CTA only for information-flow single-image cases", async () => {
+  const [cardSource, formSource, actionsSource] = await Promise.all([
+    readFile(cardPath, "utf8"),
+    readFile(new URL("../../components/cards/image-config/image-config-form.tsx", import.meta.url), "utf8"),
+    readFile(actionsPath, "utf8"),
+  ]);
+
+  assert.match(cardSource, /initialCtaEnabled/);
+  assert.match(cardSource, /supportsCta/);
+  assert.match(formSource, /CTA/);
+  assert.match(formSource, /立即下载/);
+  assert.match(actionsSource, /cta_enabled/);
+  assert.match(actionsSource, /cta_text/);
+});
