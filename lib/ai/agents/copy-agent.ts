@@ -1,5 +1,16 @@
 import { createChatCompletion } from "@/lib/ai/client";
 
+export type CopyAgentIdea = {
+  titleMain: string;
+  titleSub?: string | null;
+  titleExtra?: string | null;
+  copyType?: string | null;
+};
+
+export type CopyAgentOutput = {
+  copies: CopyAgentIdea[];
+};
+
 type CopyAgentInput = {
   directionTitle: string;
   targetAudience: string;
@@ -96,5 +107,5 @@ export async function generateCopyIdeas(input: CopyAgentInput) {
     responseFormat: { type: "json_object" },
   });
 
-  return content;
+  return JSON.parse(content) as CopyAgentOutput;
 }

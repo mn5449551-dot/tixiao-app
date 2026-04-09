@@ -1,5 +1,17 @@
 import { createChatCompletion } from "@/lib/ai/client";
 
+export type DirectionAgentIdea = {
+  title: string;
+  targetAudience: string;
+  scenarioProblem: string;
+  differentiation: string;
+  effect: string;
+};
+
+export type DirectionAgentOutput = {
+  directions: DirectionAgentIdea[];
+};
+
 type DirectionAgentInput = {
   targetAudience: string;
   feature: string;
@@ -87,5 +99,5 @@ export async function generateDirectionIdeas(input: DirectionAgentInput) {
     responseFormat: { type: "json_object" },
   });
 
-  return content;
+  return JSON.parse(content) as DirectionAgentOutput;
 }

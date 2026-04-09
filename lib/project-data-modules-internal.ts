@@ -732,8 +732,7 @@ export async function generateDirectionsSmart(
         timeNode: requirement.timeNode ?? DEFAULT_REQUIREMENT.timeNode,
         count: requirement.directionCount,
       });
-      const parsed = parseJsonBlock<unknown>(raw);
-      const ideas = normalizeDirectionIdeas(parsed, requirement.directionCount);
+      const ideas = normalizeDirectionIdeas(raw, requirement.directionCount);
       if (ideas) {
         return persistDirections(
           projectId,
@@ -785,8 +784,7 @@ export async function appendDirectionSmart(
           effect: direction.effect ?? "",
         })),
       });
-      const parsed = parseJsonBlock<unknown>(raw);
-      const ideas = normalizeDirectionIdeas(parsed, 1);
+      const ideas = normalizeDirectionIdeas(raw, 1);
       if (ideas) {
         return appendDirections(
           projectId,
@@ -924,8 +922,7 @@ export async function generateCopyCardSmart(directionId: string, count: number, 
         count: actualCount,
         knowledgeContext: knowledge.promptBlock,
       });
-      const parsed = parseJsonBlock<unknown>(raw);
-      const ideas = normalizeCopyIdeas(parsed, actualCount, direction.imageForm ?? "single");
+      const ideas = normalizeCopyIdeas(raw, actualCount, direction.imageForm ?? "single");
       if (ideas) {
         return persistCopyCard(direction, actualCount, ideas);
       }
@@ -981,8 +978,7 @@ export async function appendCopyToCardSmart(copyCardId: string, useAi = false) {
         })),
         knowledgeContext: knowledge.promptBlock,
       });
-      const parsed = parseJsonBlock<unknown>(raw);
-      nextIdea = normalizeCopyIdeas(parsed, 1, direction.imageForm ?? "single")?.[0] ?? null;
+      nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0] ?? null;
     } catch {
       nextIdea = null;
     }
@@ -1021,8 +1017,7 @@ export async function regenerateCopy(copyId: string, useAi = false) {
         imageForm: direction.imageForm ?? "single",
         count: 1,
       });
-      const parsed = parseJsonBlock<unknown>(raw);
-      nextIdea = normalizeCopyIdeas(parsed, 1, direction.imageForm ?? "single")?.[0] ?? null;
+      nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0] ?? null;
     } catch {
       nextIdea = null;
     }

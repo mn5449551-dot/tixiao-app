@@ -110,7 +110,7 @@ export async function processPreparedImageGeneration(input: {
   try {
     const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
 
-    const promptZh = await generateImageDescription({
+    const promptZhPayload = await generateImageDescription({
       directionTitle: direction.title,
       targetAudience: direction.targetAudience ?? "家长",
       scenarioProblem: direction.scenarioProblem ?? "",
@@ -150,10 +150,11 @@ export async function processPreparedImageGeneration(input: {
       channel: direction.channel,
       ctaEnabled: config.ctaEnabled === 1,
       ctaText: config.ctaText,
-      descriptionPayload: promptZh,
+      descriptionPayload: promptZhPayload,
     });
 
     const negativePrompt = buildNegativePrompt({ imageStyle: config.imageStyle });
+    const promptZh = JSON.stringify(promptZhPayload);
 
     db.update(imageConfigs)
       .set({ promptZh, promptEn, negativePrompt, updatedAt: Date.now() })

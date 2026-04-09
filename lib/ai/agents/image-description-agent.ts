@@ -11,143 +11,7 @@ try {
   // Rules file not available — proceed with inline defaults.
 }
 
-export async function generateImageDescription(input: {
-  directionTitle: string;
-  targetAudience: string;
-  scenarioProblem: string;
-  differentiation: string;
-  effect: string;
-  channel: string;
-  copyTitleMain: string;
-  copyTitleSub: string | null;
-  copyTitleExtra: string | null;
-  aspectRatio: string;
-  styleMode: string;
-  ipRole: string | null;
-  ipDescription?: string | null;
-  ipPromptKeywords?: string | null;
-  imageStyle: string;
-  logo: string;
-  imageForm: string;
-  ctaEnabled?: boolean;
-  ctaText?: string | null;
-}) {
-  const messages = buildImageDescriptionMessages(input);
-
-  try {
-    const content = await createChatCompletion({
-      messages,
-      temperature: 0.8,
-    });
-
-    if (content && content.trim().length > 10) {
-      return JSON.stringify(buildFallbackImageDescriptionPayload(input, content.trim()));
-    }
-  } catch (error) {
-    // Fallback to rule-based description.
-    void error;
-  }
-
-  // Fallback: rule-based description
-  return JSON.stringify(buildFallbackImageDescriptionPayload(input));
-}
-
-export function buildImageDescriptionMessages(input: {
-  directionTitle: string;
-  targetAudience: string;
-  scenarioProblem: string;
-  differentiation: string;
-  effect: string;
-  channel: string;
-  copyTitleMain: string;
-  copyTitleSub: string | null;
-  copyTitleExtra: string | null;
-  aspectRatio: string;
-  styleMode: string;
-  ipRole: string | null;
-  ipDescription?: string | null;
-  ipPromptKeywords?: string | null;
-  imageStyle: string;
-  logo: string;
-  imageForm: string;
-  ctaEnabled?: boolean;
-  ctaText?: string | null;
-}) {
-  const rules = rulesContent
-    ? `以下是画面描述生成规则，请严格遵守：\n\n${rulesContent}`
-    : "画面描述需包含场景氛围、画面构图、IP动作与位置（如有）、目标人群特征、文案融入方式，以及左上角Logo真实露出要求，并强调 Logo 与参考完全一致，不得改字改形。";
-
-  const systemPrompt = `角色定位：
-你是广告画面描述专家，也是图文生图链路里的视觉策略师。
-
-业务背景：
-你处在文案卡之后、Prompt 模板引擎之前，负责把方向上下文、文案和图片配置，整理成当前图片任务的自然语言画面描述，再交给后续结构化层继续组装。
-
-核心任务：
-根据方向上下文、文案和图片配置，生成一段自然语言画面描述。
-${rules}
-
-可信输入：
-- 方向上下文
-- 当前图位文案
-- 图片配置
-- CTA / Logo / IP / 风格设定
-
-决策规则：
-1. 描述必须包含：场景氛围、画面构图、目标人群特征、文案融入方式。
-2. 如涉及 IP，必须包含 IP 形象的动作与位置描述。
-3. 如涉及 IP，必须保持角色长相、服装、发型、整体风格与参考图一致。
-4. 如启用 Logo，必须提及 Logo 真实出现在左上角，而不是只留白。
-5. 风格必须匹配用户选择的图片风格。
-6. 文案文字必须清晰可读，位置合理。
-7. 若启用 CTA，CTA 只允许以信息流单图中的行动按钮形式出现。
-
-硬性边界：
-- Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。
-- 多图时，此处描述整套共享底座与当前图位职责，不要把整套文案同时塞进同一张图。
-- 不要生成 JSON 或其他格式，只输出纯文本描述。
-
-输出要求：
-1. 一段完整的自然语言描述（200-400字）
-2. 只输出纯文本描述`;
-
-  const userPrompt = `方向上下文：
-- 方向名称：${input.directionTitle}
-- 目标人群：${input.targetAudience}
-- 场景问题：${input.scenarioProblem}
-- 差异化解法：${input.differentiation}
-- 奇效：${input.effect}
-- 渠道：${input.channel}
-
-文案内容：
-- 主标题：${input.copyTitleMain}
-${input.copyTitleSub ? `- 副标题：${input.copyTitleSub}` : ""}
-${input.copyTitleExtra ? `- 第三图文案：${input.copyTitleExtra}` : ""}
-
-图片配置：
-- 图片形式：${input.imageForm === "single" ? "单图" : input.imageForm === "double" ? "双图" : "三图"}
-- 比例：${input.aspectRatio}
-- 风格模式：${input.styleMode}
-- 图片风格：${input.imageStyle}
-${input.ipRole ? `- IP角色：${input.ipRole}` : ""}
-${input.ipDescription ? `- IP角色描述：${input.ipDescription}` : ""}
-${input.ipPromptKeywords ? `- IP关键词：${input.ipPromptKeywords}` : ""}
-- Logo：${input.logo === "onion" ? "洋葱学园（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : input.logo === "onion_app" ? "洋葱学园+APP（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : "不使用"}
-${input.ctaEnabled ? `- CTA：${input.ctaText ?? "立即下载"}` : ""}
-
-额外约束：
-${input.imageForm === "single" ? "单图时，文案可以整体进入同一张图。" : "多图时，此处只描述整套画面的统一风格、人物、场景和Logo要求，不要把整套文案同时塞进同一张图；具体每一张图承载哪句文案，由后续分图规则决定。"}
-${input.ctaEnabled ? "当前为信息流单图，需要在画面合适位置保留一个清晰的 CTA 按钮区域，按钮文案为“立即下载”。" : ""}
-
-请生成画面描述。`;
-
-  return [
-    { role: "system" as const, content: systemPrompt },
-    { role: "user" as const, content: userPrompt },
-  ];
-}
-
-type ImageDescriptionPayload = {
+export type ImageDescriptionPayload = {
   schemaVersion: "v1";
   channelPositioning: {
     channel: string;
@@ -210,6 +74,155 @@ type ImageDescriptionPayload = {
   };
   summaryText: string;
 };
+
+export async function generateImageDescription(input: {
+  directionTitle: string;
+  targetAudience: string;
+  scenarioProblem: string;
+  differentiation: string;
+  effect: string;
+  channel: string;
+  copyTitleMain: string;
+  copyTitleSub: string | null;
+  copyTitleExtra: string | null;
+  aspectRatio: string;
+  styleMode: string;
+  ipRole: string | null;
+  ipDescription?: string | null;
+  ipPromptKeywords?: string | null;
+  imageStyle: string;
+  logo: string;
+  imageForm: string;
+  ctaEnabled?: boolean;
+  ctaText?: string | null;
+}) {
+  const messages = buildImageDescriptionMessages(input);
+
+  try {
+    const content = await createChatCompletion({
+      messages,
+      temperature: 0.8,
+      responseFormat: { type: "json_object" },
+    });
+    return normalizeImageDescriptionPayload(input, JSON.parse(content) as Partial<ImageDescriptionPayload>);
+  } catch (error) {
+    // Fallback to rule-based description.
+    void error;
+  }
+
+  // Fallback: rule-based description
+  return buildFallbackImageDescriptionPayload(input);
+}
+
+export function buildImageDescriptionMessages(input: {
+  directionTitle: string;
+  targetAudience: string;
+  scenarioProblem: string;
+  differentiation: string;
+  effect: string;
+  channel: string;
+  copyTitleMain: string;
+  copyTitleSub: string | null;
+  copyTitleExtra: string | null;
+  aspectRatio: string;
+  styleMode: string;
+  ipRole: string | null;
+  ipDescription?: string | null;
+  ipPromptKeywords?: string | null;
+  imageStyle: string;
+  logo: string;
+  imageForm: string;
+  ctaEnabled?: boolean;
+  ctaText?: string | null;
+}) {
+  const rules = rulesContent
+    ? `以下是画面描述生成规则，请严格遵守：\n\n${rulesContent}`
+    : "画面描述需包含场景氛围、画面构图、IP动作与位置（如有）、目标人群特征、文案融入方式，以及左上角Logo真实露出要求，并强调 Logo 与参考完全一致，不得改字改形。";
+
+  const systemPrompt = `角色定位：
+你是广告画面描述专家，也是图文生图链路里的视觉策略师。
+
+业务背景：
+你处在文案卡之后、Prompt 模板引擎之前，负责把方向上下文、文案和图片配置，整理成当前图片任务的自然语言画面描述，再交给后续结构化层继续组装。
+
+核心任务：
+根据方向上下文、文案和图片配置，生成一个结构化画面描述 JSON，对后续 Prompt 模板引擎提供稳定输入。
+${rules}
+
+可信输入：
+- 方向上下文
+- 当前图位文案
+- 图片配置
+- CTA / Logo / IP / 风格设定
+
+决策规则：
+1. 描述必须包含：场景氛围、画面构图、目标人群特征、文案融入方式。
+2. 如涉及 IP，必须包含 IP 形象的动作与位置描述。
+3. 如涉及 IP，必须保持角色长相、服装、发型、整体风格与参考图一致。
+4. 如启用 Logo，必须提及 Logo 真实出现在左上角，而不是只留白。
+5. 风格必须匹配用户选择的图片风格。
+6. 文案文字必须清晰可读，位置合理。
+7. 若启用 CTA，CTA 只允许以信息流单图中的行动按钮形式出现。
+
+硬性边界：
+- Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。
+- 多图时，此处描述整套共享底座与当前图位职责，不要把整套文案同时塞进同一张图。
+- 不要输出 Markdown、自然语言说明、额外注释。
+
+输出契约：
+- 只输出一个 JSON 对象
+- 必须包含以下顶层字段：
+  - schemaVersion
+  - channelPositioning
+  - adGoal
+  - userState
+  - coreSellingPoint
+  - visualConcept
+  - sceneAtmosphere
+  - charactersAndProps
+  - composition
+  - textOverlay
+  - brandConstraints
+  - variationHints
+  - summaryText
+- schemaVersion 固定为 v1
+- summaryText 是对整张图策略的简洁中文总结`;
+
+  const userPrompt = `方向上下文：
+- 方向名称：${input.directionTitle}
+- 目标人群：${input.targetAudience}
+- 场景问题：${input.scenarioProblem}
+- 差异化解法：${input.differentiation}
+- 奇效：${input.effect}
+- 渠道：${input.channel}
+
+文案内容：
+- 主标题：${input.copyTitleMain}
+${input.copyTitleSub ? `- 副标题：${input.copyTitleSub}` : ""}
+${input.copyTitleExtra ? `- 第三图文案：${input.copyTitleExtra}` : ""}
+
+图片配置：
+- 图片形式：${input.imageForm === "single" ? "单图" : input.imageForm === "double" ? "双图" : "三图"}
+- 比例：${input.aspectRatio}
+- 风格模式：${input.styleMode}
+- 图片风格：${input.imageStyle}
+${input.ipRole ? `- IP角色：${input.ipRole}` : ""}
+${input.ipDescription ? `- IP角色描述：${input.ipDescription}` : ""}
+${input.ipPromptKeywords ? `- IP关键词：${input.ipPromptKeywords}` : ""}
+- Logo：${input.logo === "onion" ? "洋葱学园（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : input.logo === "onion_app" ? "洋葱学园+APP（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : "不使用"}
+${input.ctaEnabled ? `- CTA：${input.ctaText ?? "立即下载"}` : ""}
+
+额外约束：
+${input.imageForm === "single" ? "单图时，文案可以整体进入同一张图。" : "多图时，此处只描述整套画面的统一风格、人物、场景和Logo要求，不要把整套文案同时塞进同一张图；具体每一张图承载哪句文案，由后续分图规则决定。"}
+${input.ctaEnabled ? "当前为信息流单图，需要在画面合适位置保留一个清晰的 CTA 按钮区域，按钮文案为“立即下载”。" : ""}
+
+请严格输出结构化 JSON，不要输出自然语言段落。`;
+
+  return [
+    { role: "system" as const, content: systemPrompt },
+    { role: "user" as const, content: userPrompt },
+  ];
+}
 
 export function buildFallbackImageDescriptionPayload(input: {
   directionTitle: string;
@@ -301,5 +314,73 @@ export function buildFallbackImageDescriptionPayload(input: {
     summaryText:
       summaryText ??
       `${style}。围绕“${input.directionTitle}”构建学习广告场景，文案“${currentText}”服务当前图位，保持品牌统一与学习语境。`,
+  };
+}
+
+function normalizeImageDescriptionPayload(
+  input: Parameters<typeof buildFallbackImageDescriptionPayload>[0],
+  candidate: Partial<ImageDescriptionPayload>,
+): ImageDescriptionPayload {
+  const base = buildFallbackImageDescriptionPayload(input);
+
+  return {
+    ...base,
+    ...candidate,
+    channelPositioning: {
+      ...base.channelPositioning,
+      ...(candidate.channelPositioning ?? {}),
+    },
+    adGoal: {
+      ...base.adGoal,
+      ...(candidate.adGoal ?? {}),
+    },
+    userState: {
+      ...base.userState,
+      ...(candidate.userState ?? {}),
+    },
+    coreSellingPoint: {
+      ...base.coreSellingPoint,
+      ...(candidate.coreSellingPoint ?? {}),
+    },
+    visualConcept: {
+      ...base.visualConcept,
+      ...(candidate.visualConcept ?? {}),
+    },
+    sceneAtmosphere: {
+      ...base.sceneAtmosphere,
+      ...(candidate.sceneAtmosphere ?? {}),
+    },
+    charactersAndProps: {
+      ...base.charactersAndProps,
+      ...(candidate.charactersAndProps ?? {}),
+      ip: {
+        ...base.charactersAndProps.ip,
+        ...(candidate.charactersAndProps?.ip ?? {}),
+      },
+      props: Array.isArray(candidate.charactersAndProps?.props)
+        ? candidate.charactersAndProps.props
+        : base.charactersAndProps.props,
+    },
+    composition: {
+      ...base.composition,
+      ...(candidate.composition ?? {}),
+    },
+    textOverlay: {
+      ...base.textOverlay,
+      ...(candidate.textOverlay ?? {}),
+    },
+    brandConstraints: {
+      ...base.brandConstraints,
+      ...(candidate.brandConstraints ?? {}),
+    },
+    variationHints: {
+      ...base.variationHints,
+      ...(candidate.variationHints ?? {}),
+    },
+    summaryText:
+      typeof candidate.summaryText === "string" && candidate.summaryText.trim().length > 0
+        ? candidate.summaryText
+        : base.summaryText,
+    schemaVersion: "v1",
   };
 }

@@ -1,4 +1,5 @@
 import { IMAGE_STYLE_DESCRIPTIONS } from "@/lib/constants";
+import type { ImageDescriptionPayload } from "@/lib/ai/agents/image-description-agent";
 
 export function buildImagePrompt(input: {
   directionTitle: string;
@@ -18,11 +19,11 @@ export function buildImagePrompt(input: {
   channel?: string;
   ctaEnabled?: boolean;
   ctaText?: string | null;
-  descriptionPayload?: string;
+  descriptionPayload?: string | ImageDescriptionPayload;
 }): string {
-  const parsedDescription = input.descriptionPayload
+  const parsedDescription = typeof input.descriptionPayload === "string"
     ? JSON.parse(input.descriptionPayload) as Record<string, unknown>
-    : null;
+    : input.descriptionPayload ?? null;
   const descriptionVisualConcept =
     parsedDescription && typeof parsedDescription.visualConcept === "object" && parsedDescription.visualConcept
       ? parsedDescription.visualConcept as Record<string, unknown>

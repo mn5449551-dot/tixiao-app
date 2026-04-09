@@ -237,3 +237,66 @@ test("buildImagePrompt can consume structured description payload", () => {
   assert.match(parsed.visual_concept ?? "", /学生举起手机拍题/);
   assert.match(parsed.scene ?? "", /家庭书桌/);
 });
+
+test("buildImagePrompt can consume structured description payload as an object", () => {
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "信息流（广点通）",
+    ctaEnabled: true,
+    ctaText: "立即下载",
+    descriptionPayload: {
+      schemaVersion: "v1",
+      channelPositioning: { channel: "信息流（广点通）", imageForm: "single", aspectRatio: "16:9" },
+      adGoal: { primaryGoal: "抢停留" },
+      userState: {
+        audienceType: "student",
+        audienceSegment: "初中生",
+        scenarioSummary: "孩子做题卡住",
+      },
+      coreSellingPoint: { primaryPoint: "拍一下就能出解析" },
+      visualConcept: { mainEvent: "学生举起手机拍题", creativeAxis: "家庭书桌夜读", productAnchor: "手机拍题界面" },
+      sceneAtmosphere: { location: "家庭书桌", lighting: "明亮", moodColor: "蓝色品牌感" },
+      charactersAndProps: {
+        characterMode: "single",
+        characterSummary: "初中生",
+        expression: "专注",
+        action: "举起手机拍题",
+        props: ["手机", "练习册"],
+        ip: {
+          enabled: false,
+          role: "",
+          placement: "",
+          action: "",
+          consistencyRule: "",
+        },
+      },
+      composition: {
+        layoutType: "wide",
+        subjectPlacement: "right",
+        logoSafeArea: "top-left",
+        textSafeArea: "left",
+        multiImageConsistency: "单图完整表达",
+      },
+      textOverlay: { currentText: "拍一下就会", textRole: "hook", ctaText: "立即下载" },
+      brandConstraints: {
+        brandTone: "教育可信、积极、明亮、成长导向",
+        logoPolicy: "Logo 保持左上角统一规则",
+      },
+      variationHints: { noveltyFocus: "通过构图避免重复" },
+      summaryText: "围绕学生书桌拍题场景构建信息流广告图。",
+    },
+  });
+
+  const parsed = JSON.parse(prompt) as { visual_concept?: string; scene?: string };
+  assert.match(parsed.visual_concept ?? "", /学生举起手机拍题/);
+  assert.match(parsed.scene ?? "", /家庭书桌/);
+});

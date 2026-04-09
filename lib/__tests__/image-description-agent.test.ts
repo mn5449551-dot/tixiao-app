@@ -87,6 +87,8 @@ test("buildImageDescriptionMessages uses layered system prompt framework without
   assert.match(messages[0]?.content ?? "", /业务背景/);
   assert.match(messages[0]?.content ?? "", /核心任务/);
   assert.match(messages[0]?.content ?? "", /硬性边界/);
-  assert.match(messages[0]?.content ?? "", /输出要求/);
+  assert.match(messages[0]?.content ?? "", /输出契约|输出要求/);
+  assert.match(messages[0]?.content ?? "", /只输出一个 JSON 对象/);
+  assert.doesNotMatch(messages[0]?.content ?? "", /只输出纯文本描述/);
   assert.match(messages[1]?.content ?? "", /CTA：立即下载/);
 });
