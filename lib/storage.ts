@@ -1,36 +1,34 @@
-import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 import sharp from "sharp";
-import { getLegacyStorageRoot, getStorageRootPath } from "@/lib/runtime-paths";
+import { getStorageRootPath } from "@/lib/runtime-paths";
 
 const storageRoot = getStorageRootPath();
 
 export function getStorageRoot() {
-  migrateLegacyStorageIfNeeded();
   return storageRoot;
-}
-
-function migrateLegacyStorageIfNeeded() {
-  const legacyStorageRoot = getLegacyStorageRoot();
-  if (storageRoot === legacyStorageRoot || fsSync.existsSync(storageRoot) || !fsSync.existsSync(legacyStorageRoot)) {
-    return;
-  }
-
-  fsSync.mkdirSync(path.dirname(storageRoot), { recursive: true });
-  fsSync.cpSync(legacyStorageRoot, storageRoot, { recursive: true });
 }
 
 export function getProjectImageDirectory(projectId: string) {
   return path.join(storageRoot, "images", projectId);
 }
 
+export function getProjectExportDirectory(projectId: string) {
+  return path.join(storageRoot, "exports", projectId);
+}
+
 export async function ensureProjectImageDirectory(projectId: string) {
-  migrateLegacyStorageIfNeeded();
   const dir = getProjectImageDirectory(projectId);
   await fs.mkdir(dir, { recursive: true });
   return dir;
+}
+
+export async function deleteProjectFiles(projectId: string) {
+  await Promise.all([
+    fs.rm(getProjectImageDirectory(projectId), { recursive: true, force: true }),
+    fs.rm(getProjectExportDirectory(projectId), { recursive: true, force: true }),
+  ]);
 }
 
 export async function saveImageBuffer(input: {

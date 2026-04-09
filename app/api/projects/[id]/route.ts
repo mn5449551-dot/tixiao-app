@@ -21,7 +21,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const deleted = deleteProject(id);
+  const deleted = await deleteProject(id);
 
   return NextResponse.json({ deleted }, { status: deleted ? 200 : 404 });
 }

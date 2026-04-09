@@ -7,8 +7,6 @@ import {
   getAppDataRoot,
   getDbFilePath,
   getStorageRootPath,
-  getLegacyDbFilePath,
-  getLegacyStorageRoot,
 } from "../runtime-paths";
 
 test("test mode uses an isolated temp app data root", () => {
@@ -52,7 +50,22 @@ test("explicit data root overrides both runtime db and storage paths", () => {
   }
 });
 
-test("legacy paths continue pointing at repository db and storage for migration", () => {
-  assert.match(getLegacyDbFilePath(), /db\/onion\.db$/);
-  assert.match(getLegacyStorageRoot(), /storage$/);
+test("default app data root uses the repository-local .local-data directory", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const previousNodeEnv = env.NODE_ENV;
+  const previousDataRoot = env.TIXIAO_DATA_ROOT;
+
+  env.NODE_ENV = "development";
+  delete env.TIXIAO_DATA_ROOT;
+
+  try {
+    assert.match(getAppDataRoot(), /\.local-data$/);
+    assert.match(getDbFilePath(), /\.local-data\/db\/onion\.db$/);
+    assert.match(getStorageRootPath(), /\.local-data\/storage$/);
+  } finally {
+    if (previousNodeEnv === undefined) delete env.NODE_ENV;
+    else env.NODE_ENV = previousNodeEnv;
+    if (previousDataRoot === undefined) delete env.TIXIAO_DATA_ROOT;
+    else env.TIXIAO_DATA_ROOT = previousDataRoot;
+  }
 });

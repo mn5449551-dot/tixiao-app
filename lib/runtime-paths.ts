@@ -20,11 +20,3 @@ export function getDbFilePath() {
 export function getStorageRootPath() {
   return path.join(getAppDataRoot(), "storage");
 }
-
-export function getLegacyDbFilePath() {
-  return path.join(/* turbopackIgnore: true */ process.cwd(), "db", "onion.db");
-}
-
-export function getLegacyStorageRoot() {
-  return path.join(/* turbopackIgnore: true */ process.cwd(), "storage");
-}

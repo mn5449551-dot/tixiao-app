@@ -8,6 +8,6 @@ test("db module marks its process cwd path lookup as turbopack-ignored", async (
   const source = await readFile(dbPath, "utf8");
 
   assert.match(source, /getDbFilePath/);
-  assert.match(source, /getLegacyDbFilePath/);
+  assert.doesNotMatch(source, /getLegacyDbFilePath/);
   assert.doesNotMatch(source, /process\.cwd\(/);
 });

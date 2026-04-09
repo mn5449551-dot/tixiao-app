@@ -29,7 +29,7 @@ import {
   requirementCards,
 } from "@/lib/schema";
 import { fromJson, toJson } from "@/lib/utils";
-import { deleteFileIfExists, saveImageBuffer } from "@/lib/storage";
+import { deleteFileIfExists, deleteProjectFiles, saveImageBuffer } from "@/lib/storage";
 import { resolveImageStyleForMode } from "@/lib/workflow-defaults";
 import { buildGraph } from "@/lib/workflow-graph";
 
@@ -605,9 +605,12 @@ export function getProjectById(id: string) {
   return db.select().from(projects).where(eq(projects.id, id)).get() ?? null;
 }
 
-export function deleteProject(id: string) {
+export async function deleteProject(id: string) {
   const db = getDb();
   const result = db.delete(projects).where(eq(projects.id, id)).run();
+  if (result.changes > 0) {
+    await deleteProjectFiles(id);
+  }
   return result.changes > 0;
 }
 

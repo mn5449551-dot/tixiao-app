@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import path from "node:path";
 
 import { eq } from "drizzle-orm";
 
@@ -23,6 +25,7 @@ import {
 import { getDb } from "../db";
 import { finishGenerationRun, startGenerationRun } from "../generation-runs";
 import { copies, directions, generatedImages, imageConfigs, imageGroups } from "../schema";
+import { getStorageRoot } from "../storage";
 
 test("regenerateCopy replaces copy text and clears downstream generated assets", async () => {
   const project = createProject(`regenerate-copy-${Date.now()}`);
@@ -259,6 +262,28 @@ test("appendCopyToCardSmart appends a new copy into the existing copy card", asy
   assert.ok(appended);
   assert.equal(appended?.id, card!.id);
   assert.equal(appended?.copies.length, 3);
+});
+
+test("deleteProject removes project-scoped image and export directories under .local-data storage", async () => {
+  const project = createProject(`delete-project-files-${Date.now()}`);
+  assert.ok(project);
+
+  const storageRoot = getStorageRoot();
+  const imageDir = path.join(storageRoot, "images", project!.id);
+  const exportDir = path.join(storageRoot, "exports", project!.id);
+
+  await fs.mkdir(imageDir, { recursive: true });
+  await fs.mkdir(exportDir, { recursive: true });
+  await fs.writeFile(path.join(imageDir, "img_demo.png"), "demo");
+  await fs.writeFile(path.join(exportDir, "export_demo.zip"), "demo");
+
+  assert.equal(fsSync.existsSync(imageDir), true);
+  assert.equal(fsSync.existsSync(exportDir), true);
+
+  const deleted = await projectData.deleteProject(project!.id);
+  assert.equal(deleted, true);
+  assert.equal(fsSync.existsSync(imageDir), false);
+  assert.equal(fsSync.existsSync(exportDir), false);
 });
 
 test("getCanvasData marks the direction card loading while a direction generation run is active", () => {
