@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -18,6 +18,7 @@ import { DirectionItemRow } from "@/components/cards/direction-card/direction-it
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
+import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
 import { CHANNELS, getAvailableImageForms } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -83,6 +84,8 @@ export function DirectionCard({
     String(data.directions[0]?.copyGenerationCount ?? 3),
   );
   const [isAppending, setIsAppending] = useState(false);
+  const [isGeneratingSelected, setIsGeneratingSelected] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Sync imageForm when channel changes to a locked form
   const handleChannelChange = useCallback(
@@ -110,6 +113,39 @@ export function DirectionCard({
 
   // Edit buffer
   const [editBuffer, setEditBuffer] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const nextIds = new Set(directions.map((direction) => direction.id));
+    const nextChannel = data.initialChannel ?? directions[0]?.channel ?? CHANNELS[0];
+    const nextForms = getAvailableImageForms(nextChannel);
+    const nextImageForm =
+      data.initialImageForm ??
+      (directions[0]?.imageForm && nextForms.some((form) => form === directions[0]?.imageForm)
+        ? directions[0]?.imageForm
+        : nextForms[0]) ??
+      "single";
+
+    setChannel(nextChannel);
+    setImageForm(nextImageForm);
+    setCopyGenerationCount(String(directions[0]?.copyGenerationCount ?? 3));
+    setExpandedIds((prev) => {
+      const next = new Set([...prev].filter((id) => nextIds.has(id)));
+      for (const direction of directions) {
+        if (!prev.has(direction.id)) {
+          next.add(direction.id);
+        }
+      }
+      return next;
+    });
+    setSelectedIds((prev) => {
+      const next = new Set([...prev].filter((id) => nextIds.has(id)));
+      if (prev.size === 0 && directions.length > 0) {
+        return new Set(directions.map((direction) => direction.id));
+      }
+      return next;
+    });
+    setEditingId((current) => (current && nextIds.has(current) ? current : null));
+  }, [data.initialChannel, data.initialImageForm, directions]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -173,7 +209,7 @@ export function DirectionCard({
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 380 } satisfies CSSProperties}
+      style={{ width: 400 } satisfies CSSProperties}
     >
       {/* Loading overlay */}
       {isLoading && (
@@ -193,21 +229,27 @@ export function DirectionCard({
         position={Position.Left}
         type="target"
       />
-      {/* Header */}
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-center justify-between gap-2 border-b border-[#f5f0eb] pb-3 active:cursor-grabbing">
+      {/* Header - 简洁布局 */}
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-3 active:cursor-grabbing">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">方向卡</h3>
-            {isDone && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#27ae60] text-white text-[10px]">{"\u2713"}</span>
-            )}
-          </div>
-          <p className="mt-0.5 text-[11px] text-[var(--ink-400)]">
-            {totalCount}条 {selectedCount > 0 ? `· 已选${selectedCount}条` : ""}
+          <h3 className="text-base font-semibold text-[var(--ink-950)]">方向卡</h3>
+          <p className="mt-0.5 text-[10px] text-[var(--ink-500)]">
+            {totalCount}条方向 {selectedCount > 0 && <span className="font-medium text-[var(--brand-600)]">· 已选{selectedCount}</span>}
           </p>
         </div>
-        <Badge tone="brand">方向</Badge>
+        <div className="flex items-center gap-2">
+          {isDone && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-700)] text-[10px] text-white">
+              ✓
+            </span>
+          )}
+          {isError && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-700)] text-[10px] text-white">
+              ✕
+            </span>
+          )}
+          <Badge tone="brand" size="sm">方向</Badge>
+        </div>
       </div>
 
       {/* Error message */}
@@ -216,10 +258,15 @@ export function DirectionCard({
           方向生成失败，请重试
         </div>
       )}
+      {actionError ? (
+        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+          {actionError}
+        </div>
+      ) : null}
 
-      {/* Channel + Image Form */}
-      <div className="mb-3 space-y-2 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <Field label="渠道">
+      {/* Channel + Image Form - 简洁表单 */}
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <Field label="投放渠道">
           <Select value={channel} onChange={handleChannelChange}>
             {CHANNELS.map((ch) => (
               <option key={ch} value={ch}>
@@ -230,9 +277,7 @@ export function DirectionCard({
         </Field>
         <Field
           label="图片形式"
-          hint={
-            availableImageForms.length === 1 ? "渠道锁定" : undefined
-          }
+          hint={availableImageForms.length === 1 ? "渠道锁定" : undefined}
         >
           <Select
             value={imageForm}
@@ -251,7 +296,7 @@ export function DirectionCard({
       {/* Divider */}
       <div className="my-3 h-px bg-[var(--line-soft)]" />
 
-      {/* Directions list */}
+      {/* Directions list - 美化列表 */}
       <div className="space-y-2">
         {directions.map((direction, index) => {
           const isExpanded = expandedIds.has(direction.id);
@@ -284,12 +329,11 @@ export function DirectionCard({
               onDelete={async () => {
                 if (!confirm(`确定删除方向 #${index + 1} 及其所有下游产物？`)) return;
                 try {
-                  const ok = await deleteDirectionItem(direction.id);
-                  if (ok) {
-                    dispatchWorkspaceInvalidated();
-                  }
+                  setActionError(null);
+                  await deleteDirectionItem(direction.id);
+                  dispatchWorkspaceInvalidated();
                 } catch (error) {
-                  console.error("Failed to delete direction:", error);
+                  setActionError(error instanceof ApiError ? error.message : "删除方向失败");
                 }
               }}
               expandedContent={
@@ -303,6 +347,7 @@ export function DirectionCard({
                     onSave={async () => {
                       if (!editingId) return;
                       try {
+                        setActionError(null);
                         const ok = await saveDirectionItem({
                           directionId: editingId,
                           title: editBuffer.title ?? "",
@@ -316,7 +361,7 @@ export function DirectionCard({
                           dispatchWorkspaceInvalidated();
                         }
                       } catch (error) {
-                        console.error("Failed to save direction:", error);
+                        setActionError(error instanceof ApiError ? error.message : "保存方向失败");
                       }
                     }}
                   />
@@ -333,16 +378,17 @@ export function DirectionCard({
         })}
 
         {directions.length === 0 && (
-          <div className="rounded-[22px] bg-[var(--surface-1)] p-6 text-center text-sm text-[var(--ink-400)]">
+          <div className="rounded-xl bg-[var(--surface-1)] p-6 text-center text-sm text-[var(--ink-400)]">
             暂无方向，请先从需求卡生成方向
           </div>
         )}
       </div>
 
       {/* Divider */}
-      <div className="my-3 h-px bg-[var(--line-soft)]" />
+      <div className="my-2.5 h-px bg-[var(--line-soft)]" />
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      {/* Copy generation settings */}
+      <div className="mb-3">
         <Field label="文案生成数量" hint="1-5">
           <Select
             value={copyGenerationCount}
@@ -357,63 +403,85 @@ export function DirectionCard({
         </Field>
       </div>
 
-      {/* Bottom bar */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          onClick={async () => {
-            if (isAppending) return;
-            setIsAppending(true);
-            try {
-              if (!data.projectId) return;
-              const ok = await appendDirectionGeneration({
-                projectId: data.projectId,
-                channel,
-                imageForm,
-                copyGenerationCount: Number(copyGenerationCount),
-              });
-              if (ok) {
-                dispatchWorkspaceInvalidated();
-              }
-            } catch (error) {
-              console.error("Error appending direction:", error);
-            } finally {
-              setIsAppending(false);
-            }
-          }}
-          className="shrink-0"
-        >
-          {isAppending ? "生成中..." : "+ 追加生成方向"}
-        </Button>
-        <Button variant="secondary" onClick={toggleSelectAll} className="shrink-0">
-          {isAllSelected ? "全不选" : "全选"}
-        </Button>
-        <Button
-          variant="primary"
-          className="flex-1"
-          disabled={selectedCount === 0}
-          onClick={async () => {
-            const selected = directions.filter((d) => selectedIds.has(d.id));
-            if (selected.length === 0) return;
-            const count = Number(copyGenerationCount);
+      {/* Bottom actions - 优化操作按钮层级 */}
+      <div className="flex flex-col gap-2">
+        {/* 主操作区 */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            className="flex-1 text-sm"
+            disabled={selectedCount === 0 || isGeneratingSelected}
+            onClick={async () => {
+              const selected = directions.filter((d) => selectedIds.has(d.id));
+              if (selected.length === 0) return;
+              const count = Number(copyGenerationCount);
 
-            try {
-              const ok = await generateSelectedDirections({
-                directionIds: selected.map((direction) => direction.id),
-                channel,
-                imageForm,
-                copyGenerationCount: count,
-              });
-              if (ok) {
-                dispatchWorkspaceInvalidated();
+              setIsGeneratingSelected(true);
+              setActionError(null);
+              try {
+                const ok = await generateSelectedDirections({
+                  directionIds: selected.map((direction) => direction.id),
+                  channel,
+                  imageForm,
+                  copyGenerationCount: count,
+                });
+                if (ok) {
+                  dispatchWorkspaceInvalidated();
+                } else {
+                  setActionError("批量生成文案失败");
+                }
+              } catch (error) {
+                setActionError(error instanceof ApiError ? error.message : "批量生成文案失败");
+              } finally {
+                setIsGeneratingSelected(false);
               }
-            } catch (error) {
-              console.error("Error generating selected directions:", error);
-            }
-          }}
-        >
-          {"\u26A1"} 生成选中方向的文案
-        </Button>
+            }}
+          >
+            {isGeneratingSelected ? (
+              <><span className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
+            ) : (
+              <><span className="mr-1.5">⚡</span> 生成文案 {selectedCount > 0 && `(${selectedCount})`}</>
+            )}
+          </Button>
+        </div>
+        
+        {/* 次要操作区 */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            className="h-8 px-2 text-xs text-[var(--ink-500)] hover:text-[var(--brand-600)]"
+            onClick={async () => {
+              if (isAppending) return;
+              setIsAppending(true);
+              setActionError(null);
+              try {
+                if (!data.projectId) return;
+                const ok = await appendDirectionGeneration({
+                  projectId: data.projectId,
+                  channel,
+                  imageForm,
+                  copyGenerationCount: Number(copyGenerationCount),
+                });
+                if (ok) {
+                  dispatchWorkspaceInvalidated();
+                }
+              } catch (error) {
+                setActionError(error instanceof ApiError ? error.message : "追加生成方向失败");
+              } finally {
+                setIsAppending(false);
+              }
+            }}
+          >
+            {isAppending ? "生成中..." : "+ 追加生成方向"}
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-8 px-2 text-xs text-[var(--ink-500)] hover:text-[var(--brand-600)]"
+            onClick={toggleSelectAll}
+          >
+            {isAllSelected ? "全不选" : "全选"}
+          </Button>
+        </div>
       </div>
     </div>
   );

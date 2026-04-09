@@ -1,4 +1,5 @@
 export {
+  appendCopyToCardSmart,
   generateCopyCard,
   generateCopyCardSmart,
   regenerateCopy,

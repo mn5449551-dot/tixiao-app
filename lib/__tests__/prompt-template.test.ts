@@ -25,6 +25,10 @@ test("buildImagePrompt injects selected IP description and consistency guardrail
   assert.match(prompt, /dark spiky hair/);
   assert.match(prompt, /长相和整体风格必须与参考图一致/);
   assert.match(prompt, /品牌 Logo 必须真实出现在画面左上角/);
+  assert.match(prompt, /不得改字/);
+  assert.match(prompt, /不得改变图形/);
+  assert.match(prompt, /不得改变颜色/);
+  assert.match(prompt, /不得重新设计/);
   assert.match(prompt, /不可缺字漏字/);
 });
 
@@ -79,6 +83,7 @@ test("buildImageSlotPrompt encodes triple-image progression roles", () => {
   assert.match(slotPrompt, /动画拆解/);
   assert.match(slotPrompt, /第二层推进或行动/);
   assert.match(slotPrompt, /Logo 在左上角可见/);
+  assert.match(slotPrompt, /不得改字/);
 });
 
 test("buildImageSlotPrompt encodes triple-image causal roles", () => {

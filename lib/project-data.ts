@@ -24,6 +24,7 @@ export {
 } from "@/lib/project-data-modules/direction-operations";
 
 export {
+  appendCopyToCardSmart,
   generateCopyCard,
   generateCopyCardSmart,
   regenerateCopy,
@@ -31,6 +32,7 @@ export {
 
 export {
   saveImageConfig,
+  appendImageConfigGroup,
   deleteImageConfigCascade,
   generateFinalizedVariants,
 } from "@/lib/project-data-modules/image-config-operations";

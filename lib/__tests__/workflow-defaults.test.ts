@@ -35,8 +35,8 @@ test("shouldShowImageStyleField hides image style when ip mode is selected", () 
   assert.equal(shouldShowImageStyleField("normal"), true);
 });
 
-test("shouldShowIpAssetSelector shows ip thumbnails in ip mode or when ip is enabled manually", () => {
+test("shouldShowIpAssetSelector only allows ip selection in ip mode", () => {
   assert.equal(shouldShowIpAssetSelector("ip", false), true);
-  assert.equal(shouldShowIpAssetSelector("normal", true), true);
+  assert.equal(shouldShowIpAssetSelector("normal", true), false);
   assert.equal(shouldShowIpAssetSelector("normal", false), false);
 });

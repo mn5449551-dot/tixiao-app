@@ -77,22 +77,17 @@ export function ImageConfigBrandSection({
               );
             })}
           </div>
-          <p className="text-[10px] text-[var(--ink-400)]">（仅导出时叠加）</p>
+          <p className="text-[10px] text-[var(--ink-400)]">（生成阶段会纳入画面，导出阶段不再重复叠加）</p>
         </div>
       ) : null}
 
       {isIpMode ? (
         <div className="text-sm font-medium text-[var(--ink-900)]">IP 形象</div>
       ) : (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={useIp}
-            onChange={(e) => onUseIpChange(e.target.checked)}
-            className="h-4 w-4 accent-[var(--brand-500)]"
-          />
-          <span className="text-[var(--ink-700)]">IP 形象</span>
-        </label>
+        <div className="rounded-2xl border border-dashed border-[var(--line-soft)] bg-white/70 px-3 py-2">
+          <p className="text-sm font-medium text-[var(--ink-700)]">IP 形象</p>
+          <p className="mt-1 text-[11px] leading-5 text-[var(--ink-500)]">普通模式不可选，切换到 IP 风格后才可选择。</p>
+        </div>
       )}
 
       {showIpAssetSelector ? (

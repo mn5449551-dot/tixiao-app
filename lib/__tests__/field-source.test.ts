@@ -10,4 +10,6 @@ test("Textarea supports auto-growing height", async () => {
   assert.match(source, /scrollHeight/);
   assert.match(source, /minRows/);
   assert.match(source, /style\.height = "0px"/);
+  assert.match(source, /nodrag/);
+  assert.match(source, /nopan/);
 });

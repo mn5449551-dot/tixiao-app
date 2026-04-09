@@ -1,21 +1,32 @@
 import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
 
 import { recommendRequirementFields } from "@/lib/ai/agents/requirement-agent";
 import { createSseResponse } from "@/lib/sse";
 import { getRequirement, upsertRequirement } from "@/lib/project-data";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  noStore();
+
   const { id } = await context.params;
   const requirement = getRequirement(id);
 
   if (!requirement) {
-    return NextResponse.json({ error: "需求卡不存在" }, { status: 404 });
+    return NextResponse.json(
+      { error: "需求卡不存在" },
+      { status: 404, headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
   }
 
-  return NextResponse.json(requirement);
+  return NextResponse.json(requirement, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
 
 export async function POST(

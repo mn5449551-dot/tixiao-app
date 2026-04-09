@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { getCanvasData, getGenerationStatusData } from "@/lib/project-data";
 
 import { WorkflowCanvas } from "@/components/canvas/workflow-canvas";
 import { useGenerationPolling } from "@/lib/hooks/use-generation-polling";
+import { createRequestCoordinator } from "@/lib/workspace-request-coordinator";
 import {
   mergeGenerationStatusesIntoGraph,
   shouldReloadGraphAfterStatusPoll,
@@ -21,29 +22,47 @@ function isCanvasData(value: unknown): value is CanvasData {
 export function WorkflowCanvasPanel({ projectId }: { projectId: string }) {
   const [graph, setGraph] = useState<CanvasData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const requestCoordinatorRef = useRef(createRequestCoordinator());
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadGraph = useCallback(() => {
-    let cancelled = false;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestToken = requestCoordinatorRef.current.next();
 
-    void fetch(`/api/projects/${projectId}/graph`)
+    void fetch(`/api/projects/${projectId}/graph`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
       .then(async (response) => {
         const payload = (await response.json()) as CanvasData | { error?: string };
         if (!response.ok || !isCanvasData(payload)) {
           throw new Error(!isCanvasData(payload) && "error" in payload ? payload.error ?? "获取画布数据失败" : "获取画布数据失败");
         }
-        if (!cancelled) {
+        if (requestCoordinatorRef.current.isLatest(requestToken)) {
           setGraph(payload);
           setError(null);
         }
       })
       .catch((fetchError) => {
-        if (!cancelled) {
+        if (
+          controller.signal.aborted ||
+          (fetchError instanceof Error && fetchError.name === "AbortError")
+        ) {
+          return;
+        }
+
+        if (requestCoordinatorRef.current.isLatest(requestToken)) {
           setError(fetchError instanceof Error ? fetchError.message : "获取画布数据失败");
         }
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     };
   }, [projectId]);
 

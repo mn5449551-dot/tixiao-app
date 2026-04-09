@@ -141,6 +141,62 @@ function imageSlotCount(imageForm: string | null | undefined) {
   return 1;
 }
 
+function createCandidateGroupWithImages(input: {
+  imageConfigId: string;
+  variantIndex: number;
+  slotCount: number;
+  aspectRatio: string;
+  styleMode: string;
+  imageStyle: string;
+  timestamp: number;
+}) {
+  const db = getDb();
+  const groupId = createId("grp");
+
+  db.insert(imageGroups)
+    .values({
+      id: groupId,
+      imageConfigId: input.imageConfigId,
+      groupType: "candidate",
+      variantIndex: input.variantIndex,
+      slotCount: input.slotCount,
+      aspectRatio: input.aspectRatio,
+      styleMode: input.styleMode,
+      imageStyle: input.imageStyle,
+      isConfirmed: 0,
+      createdAt: input.timestamp,
+      updatedAt: input.timestamp,
+    })
+    .run();
+
+  for (let slotIndex = 1; slotIndex <= input.slotCount; slotIndex += 1) {
+    db.insert(generatedImages)
+      .values({
+        id: createId("img"),
+        imageGroupId: groupId,
+        imageConfigId: input.imageConfigId,
+        slotIndex,
+        filePath: null,
+        fileUrl: null,
+        status: "pending",
+        inpaintParentId: null,
+        errorMessage: null,
+        seed: 1000 + input.variantIndex * 10 + slotIndex,
+        createdAt: input.timestamp,
+        updatedAt: input.timestamp,
+      })
+      .run();
+  }
+
+  return db.select().from(imageGroups).where(eq(imageGroups.id, groupId)).get() ?? null;
+}
+
+function getNextCandidateVariantIndex(imageConfigId: string) {
+  const db = getDb();
+  const rows = db.select({ variantIndex: imageGroups.variantIndex }).from(imageGroups).where(eq(imageGroups.imageConfigId, imageConfigId)).all();
+  return Math.max(...rows.map((row) => row.variantIndex), 0) + 1;
+}
+
 function buildDirectionBlueprint(index: number, requirement: ReturnType<typeof serializeRequirement>) {
   const feature = featureLabel(requirement?.feature);
   const audience = audienceLabel(requirement?.targetAudience);
@@ -466,36 +522,63 @@ function persistCopyCard(
   return listCopyCards(direction.id).find((card) => card.id === cardId) ?? null;
 }
 
+function appendCopyToExistingCard(
+  card: typeof copyCards.$inferSelect,
+  direction: typeof directions.$inferSelect,
+  idea: CopyIdea,
+) {
+  const db = getDb();
+  const existingCopies = db
+    .select()
+    .from(copies)
+    .where(eq(copies.copyCardId, card.id))
+    .orderBy(copies.variantIndex)
+    .all();
+  const timestamp = now();
+  const nextVariantIndex = Math.max(...existingCopies.map((copy) => copy.variantIndex), 0) + 1;
+
+  db.insert(copies)
+    .values({
+      id: createId("copy"),
+      copyCardId: card.id,
+      directionId: direction.id,
+      titleMain: idea.titleMain,
+      titleSub: idea.titleSub ?? null,
+      titleExtra: idea.titleExtra ?? null,
+      copyType: idea.copyType ?? null,
+      variantIndex: nextVariantIndex,
+      isLocked: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .run();
+
+  db.update(copyCards)
+    .set({ updatedAt: timestamp })
+    .where(eq(copyCards.id, card.id))
+    .run();
+
+  return listCopyCards(direction.id).find((item) => item.id === card.id) ?? null;
+}
+
 export function listProjects() {
   const db = getDb();
-  const rows = db.select().from(projects).orderBy(desc(projects.updatedAt)).all();
-
-  return rows.map((project) => {
-    const directionCount =
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(directions)
-        .where(eq(directions.projectId, project.id))
-        .get()?.count ?? 0;
-
-    const copyCardCount =
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(copyCards)
-        .innerJoin(directions, eq(copyCards.directionId, directions.id))
-        .where(eq(directions.projectId, project.id))
-        .get()?.count ?? 0;
-
-    return {
-      id: project.id,
-      title: project.title,
-      status: project.status,
-      directionCount,
-      copyCardCount,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-    };
-  });
+  return db
+    .select({
+      id: projects.id,
+      title: projects.title,
+      status: projects.status,
+      directionCount: sql<number>`count(distinct ${directions.id})`,
+      copyCardCount: sql<number>`count(distinct ${copyCards.id})`,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+    })
+    .from(projects)
+    .leftJoin(directions, eq(directions.projectId, projects.id))
+    .leftJoin(copyCards, eq(copyCards.directionId, directions.id))
+    .groupBy(projects.id)
+    .orderBy(desc(projects.updatedAt))
+    .all();
 }
 
 export function createProject(title: string) {
@@ -853,6 +936,54 @@ export async function generateCopyCardSmart(directionId: string, count: number, 
   return generateCopyCard(directionId, actualCount);
 }
 
+export async function appendCopyToCardSmart(copyCardId: string, useAi = false) {
+  const db = getDb();
+  const card = db.select().from(copyCards).where(eq(copyCards.id, copyCardId)).get();
+  if (!card) return null;
+
+  const direction = db.select().from(directions).where(eq(directions.id, card.directionId)).get();
+  if (!direction) {
+    throw new Error("方向不存在");
+  }
+
+  const existingCopies = db
+    .select()
+    .from(copies)
+    .where(eq(copies.copyCardId, copyCardId))
+    .orderBy(copies.variantIndex)
+    .all();
+  const lastCopy = existingCopies[existingCopies.length - 1] ?? null;
+
+  let nextIdea: CopyIdea | null = null;
+  if (useAi) {
+    try {
+      const raw = await generateCopyIdeas({
+        directionTitle: direction.title,
+        targetAudience: direction.targetAudience ?? "",
+        scenarioProblem: direction.scenarioProblem ?? "",
+        differentiation: direction.differentiation ?? "",
+        effect: direction.effect ?? "",
+        channel: direction.channel,
+        imageForm: direction.imageForm ?? "single",
+        count: 1,
+      });
+      const parsed = parseJsonBlock<unknown>(raw);
+      nextIdea = normalizeCopyIdeas(parsed, 1, direction.imageForm ?? "single")?.[0] ?? null;
+    } catch {
+      nextIdea = null;
+    }
+  }
+
+  if (!nextIdea) {
+    const variantSeed = lastCopy
+      ? getNextCopyVariantSeed(lastCopy, direction.imageForm ?? "single")
+      : 1;
+    nextIdea = buildCopyVariant(direction.imageForm ?? "single", variantSeed);
+  }
+
+  return appendCopyToExistingCard(card, direction, nextIdea);
+}
+
 export async function regenerateCopy(copyId: string, useAi = false) {
   const db = getDb();
   const copy = db.select().from(copies).where(eq(copies.id, copyId)).get();
@@ -921,6 +1052,7 @@ export async function saveImageConfig(
     count: number;
     referenceImageUrl: string | null;
     append: boolean;
+    createGroups: boolean;
   }>,
 ) {
   const db = getDb();
@@ -943,6 +1075,7 @@ export async function saveImageConfig(
     ipRole: nextIpRole,
     referenceImageUrl: input.referenceImageUrl ?? current?.referenceImageUrl ?? null,
   });
+  const nextCount = Math.max(1, Math.min(5, Math.trunc(input.count ?? current?.count ?? 1)));
 
   if (!current) {
     const configId = createId("imgcfg");
@@ -960,7 +1093,7 @@ export async function saveImageConfig(
         promptZh: `围绕 ${direction.title} 生成画面描述，左上角预留 Logo 留白。`,
         promptEn: `Hero visual for ${direction.title}`,
         negativePrompt: "distorted text, messy layout, unrelated characters",
-        count: input.count ?? 1,
+        count: nextCount,
         createdAt: timestamp,
         updatedAt: timestamp,
       })
@@ -976,7 +1109,7 @@ export async function saveImageConfig(
         logo: input.logo ?? current.logo,
         imageStyle: nextImageStyle,
         referenceImageUrl: nextReferenceImageUrl,
-        count: input.count ?? current.count,
+        count: nextCount,
         updatedAt: timestamp,
       })
       .where(eq(imageConfigs.id, current.id))
@@ -986,6 +1119,16 @@ export async function saveImageConfig(
   const config = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copyId)).get();
   if (!config) return null;
 
+  const shouldCreateGroups = input.createGroups ?? true;
+
+  if (!shouldCreateGroups) {
+    return {
+      ...config,
+      createdGroups: [] as Array<typeof imageGroups.$inferSelect>,
+      groups: db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all(),
+    };
+  }
+
   if (!input.append) {
     db.delete(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).run();
   }
@@ -993,45 +1136,53 @@ export async function saveImageConfig(
   const existingGroups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all();
   const startIndex = input.append ? existingGroups.length + 1 : 1;
   const groupCount = input.append ? (input.count ?? 1) : config.count;
+  const slotCount = imageSlotCount(direction.imageForm);
+  const createdGroups: Array<typeof imageGroups.$inferSelect> = [];
 
   for (let offset = 0; offset < groupCount; offset += 1) {
-    const index = startIndex + offset;
-    const groupId = createId("grp");
-    db.insert(imageGroups)
-      .values({
-        id: groupId,
-        imageConfigId: config.id,
-        groupType: "candidate",
-        variantIndex: index,
-        slotCount: imageSlotCount(direction.imageForm),
-        isConfirmed: 0,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      })
-      .run();
-
-    for (let slotIndex = 1; slotIndex <= imageSlotCount(direction.imageForm); slotIndex += 1) {
-      db.insert(generatedImages)
-        .values({
-          id: createId("img"),
-          imageGroupId: groupId,
-          imageConfigId: config.id,
-          slotIndex,
-          filePath: null,
-          fileUrl: null,
-          status: "pending",
-          inpaintParentId: null,
-          errorMessage: null,
-          seed: 1000 + index * 10 + slotIndex,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        })
-        .run();
+    const group = createCandidateGroupWithImages({
+      imageConfigId: config.id,
+      variantIndex: startIndex + offset,
+      slotCount,
+      aspectRatio: config.aspectRatio,
+      styleMode: config.styleMode,
+      imageStyle: config.imageStyle,
+      timestamp,
+    });
+    if (group) {
+      createdGroups.push(group);
     }
   }
 
   return {
     ...config,
+    createdGroups,
+    groups: db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all(),
+  };
+}
+
+export async function appendImageConfigGroup(imageConfigId: string) {
+  const db = getDb();
+  const config = db.select().from(imageConfigs).where(eq(imageConfigs.id, imageConfigId)).get();
+  if (!config) throw new Error("图片配置不存在");
+
+  const direction = db.select().from(directions).where(eq(directions.id, config.directionId)).get();
+  if (!direction) throw new Error("方向不存在");
+
+  const timestamp = now();
+  const group = createCandidateGroupWithImages({
+    imageConfigId: config.id,
+    variantIndex: getNextCandidateVariantIndex(config.id),
+    slotCount: imageSlotCount(direction.imageForm),
+    aspectRatio: config.aspectRatio,
+    styleMode: config.styleMode,
+    imageStyle: config.imageStyle,
+    timestamp,
+  });
+
+  return {
+    ...config,
+    group,
     groups: db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all(),
   };
 }
@@ -1437,6 +1588,7 @@ export function getProjectExportContext(projectId: string) {
   return {
     project,
     configMap: new Map(configRows.map((config) => [config.id, config])),
+    groupMap: new Map(groupRows.map((group) => [group.id, group])),
     images: imageRows.filter(
       (image) => confirmedGroupIds.has(image.imageGroupId) && Boolean(image.filePath),
     ),

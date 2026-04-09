@@ -67,3 +67,50 @@ test("workspace query helpers return scoped payloads", async () => {
   assert.equal(status?.projectId, project!.id);
   assert.ok(status!.images.some((image) => image.imageConfigId === config?.id));
 });
+
+test("canvas data keeps separate image-config branches available for candidate pool rendering", async () => {
+  const project = createProject(`workspace-multi-config-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "single", 2);
+  assert.ok(direction);
+
+  const card = generateCopyCard(direction.id, 2);
+  assert.ok(card);
+
+  const firstCopy = card?.copies[0];
+  const secondCopy = card?.copies[1];
+  assert.ok(firstCopy);
+  assert.ok(secondCopy);
+
+  const firstConfig = await saveImageConfig(firstCopy!.id, {
+    aspectRatio: "1:1",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+  });
+  const secondConfig = await saveImageConfig(secondCopy!.id, {
+    aspectRatio: "1:1",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+  });
+
+  assert.ok(firstConfig);
+  assert.ok(secondConfig);
+
+  const canvas = getCanvasData(project!.id);
+  assert.ok(canvas);
+  assert.ok(canvas!.nodes.some((node) => node.id === `image-config-${firstConfig!.id}`));
+  assert.ok(canvas!.nodes.some((node) => node.id === `image-config-${secondConfig!.id}`));
+});

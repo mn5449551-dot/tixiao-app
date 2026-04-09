@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const candidatePoolCardPath = new URL("../../components/cards/candidate-pool-card.tsx", import.meta.url);
 const candidateImageCardPath = new URL("../../components/cards/candidate-pool/candidate-image-card.tsx", import.meta.url);
 const candidateGroupCardPath = new URL("../../components/cards/candidate-pool/candidate-group-card.tsx", import.meta.url);
+const candidateActionsPath = new URL("../../components/cards/candidate-pool/candidate-pool-actions.ts", import.meta.url);
 const finalizedPoolCardPath = new URL("../../components/cards/finalized-pool-card.tsx", import.meta.url);
 const finalizedPreviewCardPath = new URL("../../components/cards/finalized-pool/finalized-preview-card.tsx", import.meta.url);
 
@@ -31,6 +32,9 @@ test("candidate pool card delegates rendering and action logic", async () => {
   assert.match(source, /CandidateGroupCard/);
   assert.match(source, /CandidateImageCard/);
   assert.match(source, /candidate-pool-actions/);
+  assert.doesNotMatch(source, /isAppending/);
+  assert.doesNotMatch(source, /追加生成一张/);
+  assert.doesNotMatch(source, /追加生成一套/);
 });
 
 test("finalized pool card delegates preview and export actions", async () => {

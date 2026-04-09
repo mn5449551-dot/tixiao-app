@@ -114,6 +114,9 @@ function bootstrap(connection: Database.Database) {
       group_type TEXT NOT NULL,
       variant_index INTEGER NOT NULL,
       slot_count INTEGER NOT NULL,
+      aspect_ratio TEXT NOT NULL DEFAULT '1:1',
+      style_mode TEXT NOT NULL DEFAULT 'normal',
+      image_style TEXT NOT NULL DEFAULT 'realistic',
       is_confirmed INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -171,6 +174,28 @@ function bootstrap(connection: Database.Database) {
       updated_at INTEGER NOT NULL,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS project_generation_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
+      error_message TEXT,
+      started_at INTEGER NOT NULL,
+      finished_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS project_generation_runs_project_status_idx
+      ON project_generation_runs(project_id, status);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS project_generation_runs_active_resource_idx
+      ON project_generation_runs(project_id, resource_type, resource_id)
+      WHERE status = 'running';
   `);
 
   const directionColumns = connection
@@ -180,6 +205,28 @@ function bootstrap(connection: Database.Database) {
   if (!directionColumns.some((column) => column.name === "copy_generation_count")) {
     connection.exec(
       "ALTER TABLE directions ADD COLUMN copy_generation_count INTEGER NOT NULL DEFAULT 3;",
+    );
+  }
+
+  const imageGroupColumns = connection
+    .prepare("PRAGMA table_info(image_groups)")
+    .all() as Array<{ name: string }>;
+
+  if (!imageGroupColumns.some((column) => column.name === "aspect_ratio")) {
+    connection.exec(
+      "ALTER TABLE image_groups ADD COLUMN aspect_ratio TEXT NOT NULL DEFAULT '1:1';",
+    );
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "style_mode")) {
+    connection.exec(
+      "ALTER TABLE image_groups ADD COLUMN style_mode TEXT NOT NULL DEFAULT 'normal';",
+    );
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "image_style")) {
+    connection.exec(
+      "ALTER TABLE image_groups ADD COLUMN image_style TEXT NOT NULL DEFAULT 'realistic';",
     );
   }
 

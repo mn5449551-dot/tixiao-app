@@ -163,6 +163,10 @@ export function WorkflowCanvas({
         />
         <AutoLayoutToolbar nodes={canvasNodes} onLayout={setCanvasNodes} />
       </ReactFlow>
+      <div
+        id="workflow-canvas-overlay-root"
+        className="pointer-events-none absolute inset-0 z-40"
+      />
     </div>
   );
 }

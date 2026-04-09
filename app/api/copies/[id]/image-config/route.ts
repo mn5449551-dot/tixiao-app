@@ -17,6 +17,7 @@ export async function POST(
       count?: number;
       reference_image_url?: string | null;
       append?: boolean;
+      create_groups?: boolean;
     };
 
     const config = await saveImageConfig(id, {
@@ -28,6 +29,7 @@ export async function POST(
       count: body.count,
       referenceImageUrl: body.reference_image_url,
       append: body.append,
+      createGroups: body.create_groups,
     });
 
     if (!config) {
@@ -41,6 +43,7 @@ export async function POST(
       prompt_en: config.promptEn,
       negative_prompt: config.negativePrompt,
       count: config.count,
+      created_group_ids: config.createdGroups?.map((group) => group.id) ?? [],
       groups: config.groups,
     });
   } catch (error) {

@@ -11,4 +11,9 @@ test("next config suppresses the known db NFT warning for turbopack", async () =
   assert.match(source, /next\\\.config\\\.ts/);
   assert.match(source, /Encountered unexpected file in NFT list/);
   assert.match(source, /whole project was traced unintentionally/i);
+  assert.match(source, /images:\s*\{/);
+  assert.match(source, /localPatterns/);
+  assert.match(source, /pathname:\s*"\/api\/images\/\*\*"/);
+  assert.match(source, /pathname:\s*"\/api\/logo-assets\/\*\*"/);
+  assert.match(source, /pathname:\s*"\/api\/ip-assets\/\*\*"/);
 });

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { getProjectTreeData } from "@/lib/project-data";
 
 import { ProjectTree } from "@/components/workspace/project-tree";
 import { WORKSPACE_TREE_INVALIDATED } from "@/lib/workspace-events";
+import { createRequestCoordinator } from "@/lib/workspace-request-coordinator";
 
 type ProjectTreeData = NonNullable<ReturnType<typeof getProjectTreeData>>;
 
@@ -26,29 +27,47 @@ export function ProjectTreePanel({
 }: ProjectTreePanelProps) {
   const [tree, setTree] = useState<ProjectTreeData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const requestCoordinatorRef = useRef(createRequestCoordinator());
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadTree = useCallback(() => {
-    let cancelled = false;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestToken = requestCoordinatorRef.current.next();
 
-    void fetch(`/api/projects/${projectId}/tree`)
+    void fetch(`/api/projects/${projectId}/tree`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
       .then(async (response) => {
         const payload = (await response.json()) as ProjectTreeData | { error?: string };
         if (!response.ok || !isProjectTreeData(payload)) {
           throw new Error(!isProjectTreeData(payload) && "error" in payload ? payload.error ?? "获取项目树失败" : "获取项目树失败");
         }
-        if (!cancelled) {
+        if (requestCoordinatorRef.current.isLatest(requestToken)) {
           setTree(payload);
           setError(null);
         }
       })
       .catch((fetchError) => {
-        if (!cancelled) {
+        if (
+          controller.signal.aborted ||
+          (fetchError instanceof Error && fetchError.name === "AbortError")
+        ) {
+          return;
+        }
+
+        if (requestCoordinatorRef.current.isLatest(requestToken)) {
           setError(fetchError instanceof Error ? fetchError.message : "获取项目树失败");
         }
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     };
   }, [projectId]);
 

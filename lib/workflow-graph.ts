@@ -1,5 +1,4 @@
 import type { Edge, Node } from "@xyflow/react";
-import { MarkerType } from "@xyflow/react";
 
 import { arrangeNodesByHierarchy } from "@/lib/canvas-layout";
 import {
@@ -176,7 +175,7 @@ export function buildGraph(workspace: WorkspaceData) {
         );
 
         const candidatePool = buildCandidatePoolNode({ copy, configY });
-        if (!candidatePool.hasDisplayableImages || !candidatePool.node) {
+        if (!candidatePool.hasCandidateGroups || !candidatePool.node) {
           return;
         }
 
@@ -221,7 +220,7 @@ function edgeOf(
     label,
     animated: options?.animated ?? false,
     type: "smoothstep",
-    markerEnd: { type: MarkerType.ArrowClosed, color: "#ff8a00" },
+    markerEnd: { type: "arrowclosed", color: "#ff8a00" },
     style: { stroke: "#ff8a00", strokeWidth: 1.5 },
     labelStyle: { fill: "#8b7355", fontSize: 10 },
     labelBgStyle: { fill: "#fffdfb", fillOpacity: 1 },

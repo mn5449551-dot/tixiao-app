@@ -7,6 +7,7 @@ import { useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { apiFetchOk } from "@/lib/api-fetch";
 import { formatRelativeDate } from "@/lib/utils";
 
 type ProjectSummary = {
@@ -38,19 +39,24 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {projects.map((project) => (
+      {projects.map((project, index) => (
         <div
           key={project.id}
-          className="group flex items-center gap-3 rounded-[20px] border border-[var(--line-soft)] bg-white/92 px-5 py-4 shadow-[var(--shadow-card)] transition hover:border-[var(--brand-300)] hover:bg-[var(--brand-50)]"
+          className="group flex items-center gap-3 rounded-[20px] border border-[var(--line-soft)] bg-white/92 px-5 py-4 shadow-[var(--shadow-card)] transition-all duration-200 hover:border-[var(--brand-300)] hover:bg-[var(--brand-50)] hover:shadow-[0_20px_50px_rgba(77,49,18,0.1)] animate-fade-in"
+          style={{ animationDelay: `${index * 50}ms` }}
         >
           <Link href={`/projects/${project.id}`} className="flex-1">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <h3 className="text-base font-semibold text-[var(--ink-950)]">{project.title}</h3>
-                <Badge tone="neutral">{project.status === "draft" ? "草稿" : "进行中"}</Badge>
+                <h3 className="text-base font-semibold text-[var(--ink-950)] group-hover:text-[var(--brand-700)] transition-colors">
+                  {project.title}
+                </h3>
+                <Badge tone={project.status === "draft" ? "neutral" : "brand"} size="sm">
+                  {project.status === "draft" ? "草稿" : "进行中"}
+                </Badge>
               </div>
               <p className="text-sm text-[var(--ink-500)]">
-                图文 · 方向 {project.directionCount} 条 · 文案 {project.copyCardCount} 条
+                图文 · 方向 <span className="font-medium text-[var(--ink-700)]">{project.directionCount}</span> 条 · 文案 <span className="font-medium text-[var(--ink-700)]">{project.copyCardCount}</span> 条
               </p>
             </div>
           </Link>
@@ -58,13 +64,16 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
             <span className="text-xs text-[var(--ink-400)]">{formatRelativeDate(project.updatedAt)}</span>
             <Button
               variant="ghost"
-              className="h-7 px-2 text-xs text-[var(--ink-400)]"
+              size="sm"
+              className="h-7 px-2 text-xs text-[var(--ink-400)] hover:text-[var(--danger-700)] hover:bg-[var(--danger-soft)]"
               disabled={isPending}
               onClick={() => {
                 if (!confirm(`确定删除项目「${project.title}」吗？此操作不可恢复。`)) return;
                 startTransition(async () => {
-                  await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
-                  router.refresh();
+                  const deleted = await apiFetchOk(`/api/projects/${project.id}`, { method: "DELETE" });
+                  if (deleted) {
+                    router.refresh();
+                  }
                 });
               }}
             >
@@ -72,7 +81,8 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
             </Button>
             <Link
               href={`/projects/${project.id}`}
-              className="text-lg text-[var(--ink-400)] transition group-hover:text-[var(--brand-500)]"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--ink-400)] transition-all group-hover:bg-[var(--brand-500)] group-hover:text-white"
+              title="进入项目"
             >
               {"\u2192"}
             </Link>

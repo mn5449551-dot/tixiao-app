@@ -31,3 +31,11 @@ export function toCssAspectRatio(value?: string) {
   if (!value) return "1 / 1";
   return value.replace(":", " / ");
 }
+
+export function toVersionedFileUrl(fileUrl: string | null | undefined, updatedAt?: number | null) {
+  if (!fileUrl) return null;
+  if (updatedAt == null) return fileUrl;
+
+  const separator = fileUrl.includes("?") ? "&" : "?";
+  return `${fileUrl}${separator}v=${updatedAt}`;
+}

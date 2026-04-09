@@ -145,3 +145,69 @@ test("arrangeNodesByHierarchy keeps image branches aligned with safe spacing for
   assert.equal(configTwo.position.y, candidateTwo.position.y);
   assert.equal(candidateTwo.position.y, finalizedTwo.position.y);
 });
+
+test("arrangeNodesByHierarchy uses measured node heights when available to avoid overlap", () => {
+  const nodes = [
+    {
+      id: "image-config-cfg_a",
+      type: "imageConfigCard",
+      position: { x: 0, y: 80 },
+      measured: { width: 340, height: 920 },
+      data: {},
+    },
+    {
+      id: "candidate-cfg_a",
+      type: "candidatePool",
+      position: { x: 0, y: 80 },
+      measured: { width: 440, height: 520 },
+      data: {
+        displayMode: "single",
+        groups: [{ id: "grp_a", variantIndex: 1, slotCount: 1, isConfirmed: false, images: [] }],
+      },
+    },
+    {
+      id: "finalized-cfg_a",
+      type: "finalizedPool",
+      position: { x: 0, y: 80 },
+      measured: { width: 480, height: 420 },
+      data: {
+        displayMode: "single",
+        groups: [{ id: "final_a", variantIndex: 1, slotCount: 1, images: [] }],
+      },
+    },
+    {
+      id: "image-config-cfg_b",
+      type: "imageConfigCard",
+      position: { x: 0, y: 120 },
+      measured: { width: 340, height: 620 },
+      data: {},
+    },
+    {
+      id: "candidate-cfg_b",
+      type: "candidatePool",
+      position: { x: 0, y: 120 },
+      measured: { width: 440, height: 300 },
+      data: {
+        displayMode: "single",
+        groups: [{ id: "grp_b", variantIndex: 1, slotCount: 1, isConfirmed: false, images: [] }],
+      },
+    },
+    {
+      id: "finalized-cfg_b",
+      type: "finalizedPool",
+      position: { x: 0, y: 120 },
+      measured: { width: 480, height: 300 },
+      data: {
+        displayMode: "single",
+        groups: [{ id: "final_b", variantIndex: 1, slotCount: 1, images: [] }],
+      },
+    },
+  ] as const;
+
+  const layout = arrangeNodesByHierarchy(nodes);
+  const configA = layout.find((node) => node.id === "image-config-cfg_a");
+  const configB = layout.find((node) => node.id === "image-config-cfg_b");
+
+  assert.ok(configA && configB);
+  assert.ok(configB.position.y - configA.position.y >= 1000);
+});

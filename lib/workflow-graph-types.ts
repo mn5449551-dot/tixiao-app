@@ -67,12 +67,16 @@ export type GraphNodeData =
         variantIndex: number;
         slotCount: number;
         isConfirmed: boolean;
+        aspectRatio?: string;
+        styleMode?: string;
+        imageStyle?: string;
         images: Array<{
           id: string;
           fileUrl: string | null;
           status: "pending" | "generating" | "done" | "failed";
           slotIndex: number;
           aspectRatio?: string;
+          updatedAt?: number;
         }>;
       }>;
       groupLabel?: string;
@@ -86,12 +90,16 @@ export type GraphNodeData =
         variantIndex: number;
         slotCount: number;
         groupType?: string;
+        aspectRatio?: string;
+        styleMode?: string;
+        imageStyle?: string;
         images: Array<{
           id: string;
           fileUrl: string | null;
           aspectRatio: string;
           groupLabel?: string;
           isConfirmed: boolean;
+          updatedAt?: number;
         }>;
       }>;
       groupLabel?: string;

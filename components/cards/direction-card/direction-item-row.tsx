@@ -34,21 +34,32 @@ export function DirectionItemRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="relative overflow-visible rounded-[22px] border border-[var(--line-soft)] bg-[var(--surface-1)] transition">
-      <div className="flex items-center gap-2 p-3">
+    <div className={cn(
+      "relative overflow-visible rounded-[22px] border bg-[var(--surface-1)] transition-all duration-200",
+      selected ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]" : "border-[var(--line-soft)]",
+      editing && "border-[var(--brand-400)]",
+    )}>
+      <div className="flex items-center gap-2.5 p-3">
         <input
           type="checkbox"
           checked={selected}
           onChange={onToggleSelect}
-          className="h-4 w-4 shrink-0 accent-[var(--brand-500)]"
+          className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--brand-500)]"
         />
-        <span className="min-w-0 flex-1 text-sm font-medium text-[var(--ink-900)]">方向 #{index + 1}</span>
-        <span className="truncate text-xs text-[var(--ink-500)]">{item.title}</span>
-        <div className="flex shrink-0 items-center gap-1">
+        <span className={cn(
+          "min-w-0 flex-1 text-sm font-medium",
+          selected ? "text-[var(--brand-700)]" : "text-[var(--ink-900)]",
+        )}>
+          方向 #{index + 1}
+        </span>
+        <span className="max-w-[140px] truncate text-xs text-[var(--ink-500)]" title={item.title}>
+          {item.title}
+        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             title="重新生成"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]"
             onClick={onRegenerate}
           >
             {"\u21BB"}
@@ -57,8 +68,10 @@ export function DirectionItemRow({
             type="button"
             title={editing ? "保存" : "编辑"}
             className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs hover:bg-[var(--surface-2)]",
-              editing ? "text-[var(--brand-500)]" : "text-[var(--ink-500)] hover:text-[var(--ink-700)]",
+              "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition-colors",
+              editing 
+                ? "bg-[var(--brand-50)] text-[var(--brand-600)]" 
+                : "text-[var(--ink-500)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]",
             )}
             onClick={onEditToggle}
           >
@@ -67,7 +80,7 @@ export function DirectionItemRow({
           <button
             type="button"
             title="删除"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
             onClick={onDelete}
           >
             {"\u2716"}
@@ -76,8 +89,8 @@ export function DirectionItemRow({
             type="button"
             title={expanded ? "收起" : "展开"}
             className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition",
-              expanded ? "rotate-180 text-[var(--brand-500)]" : "text-[var(--ink-500)]",
+              "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all",
+              expanded ? "rotate-180 text-[var(--brand-500)]" : "text-[var(--ink-500)] hover:text-[var(--ink-700)]",
             )}
             onClick={onToggleExpand}
           >
@@ -93,7 +106,11 @@ export function DirectionItemRow({
         />
       </div>
 
-      {expanded ? <div className="border-t border-[var(--line-soft)] p-3 pt-2">{expandedContent}</div> : null}
+      {expanded && (
+        <div className="border-t border-[var(--line-soft)] px-3 pb-3 pt-2 animate-fade-in">
+          {expandedContent}
+        </div>
+      )}
     </div>
   );
 }

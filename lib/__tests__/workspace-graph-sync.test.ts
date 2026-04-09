@@ -87,7 +87,151 @@ test("patches existing candidate node images in place when the node already exis
   const candidateData = candidate.data as {
     groups: Array<{ images: Array<{ fileUrl: string | null; status: string }> }>;
   };
-  assert.equal(candidateData.groups[0]?.images[0]?.fileUrl, "/api/images/img_1/file");
+  assert.equal(candidateData.groups[0]?.images[0]?.fileUrl, "/api/images/img_1/file?v=2");
   assert.equal(candidateData.groups[0]?.images[0]?.status, "done");
   assert.equal(nextGraph.hasPendingImages, false);
+});
+
+test("reload decision ignores already-mounted candidate branches when another config starts producing images", () => {
+  const graph = {
+    projectId: "proj_1",
+    nodes: [
+      {
+        id: "candidate-cfg_existing",
+        type: "candidatePool" as const,
+        position: { x: 0, y: 0 },
+        data: {
+          displayMode: "single" as const,
+          groups: [
+            {
+              id: "grp_existing",
+              variantIndex: 1,
+              slotCount: 1,
+              isConfirmed: false,
+              images: [
+                {
+                  id: "img_existing",
+                  fileUrl: "/api/images/img_existing/file?v=1",
+                  status: "done" as const,
+                  slotIndex: 1,
+                },
+              ],
+            },
+          ],
+          status: "done" as const,
+          imageConfigId: "cfg_existing",
+        },
+      },
+    ],
+    edges: [],
+    hasPendingImages: true,
+  };
+
+  const payload = {
+    projectId: "proj_1",
+    images: [
+      {
+        id: "img_existing",
+        imageConfigId: "cfg_existing",
+        fileUrl: "/api/images/img_existing/file",
+        status: "done" as const,
+        errorMessage: null,
+        updatedAt: 3,
+      },
+      {
+        id: "img_new",
+        imageConfigId: "cfg_new",
+        fileUrl: "/api/images/img_new/file",
+        status: "done" as const,
+        errorMessage: null,
+        updatedAt: 4,
+      },
+    ],
+  };
+
+  assert.equal(shouldReloadGraphAfterStatusPoll(graph, payload), true);
+});
+
+test("status merge keeps unrelated existing candidate branches intact", () => {
+  const graph = {
+    projectId: "proj_1",
+    nodes: [
+      {
+        id: "candidate-cfg_1",
+        type: "candidatePool" as const,
+        position: { x: 0, y: 0 },
+        data: {
+          displayMode: "single" as const,
+          groups: [
+            {
+              id: "grp_1",
+              variantIndex: 1,
+              slotCount: 1,
+              isConfirmed: false,
+              images: [
+                {
+                  id: "img_1",
+                  fileUrl: "/api/images/img_1/file?v=1",
+                  status: "done" as const,
+                  slotIndex: 1,
+                },
+              ],
+            },
+          ],
+          status: "done" as const,
+          imageConfigId: "cfg_1",
+        },
+      },
+      {
+        id: "candidate-cfg_2",
+        type: "candidatePool" as const,
+        position: { x: 0, y: 1000 },
+        data: {
+          displayMode: "single" as const,
+          groups: [
+            {
+              id: "grp_2",
+              variantIndex: 1,
+              slotCount: 1,
+              isConfirmed: false,
+              images: [
+                {
+                  id: "img_2",
+                  fileUrl: null,
+                  status: "generating" as const,
+                  slotIndex: 1,
+                },
+              ],
+            },
+          ],
+          status: "partial-success" as const,
+          imageConfigId: "cfg_2",
+        },
+      },
+    ],
+    edges: [],
+    hasPendingImages: true,
+  };
+
+  const payload = {
+    projectId: "proj_1",
+    images: [
+      {
+        id: "img_2",
+        imageConfigId: "cfg_2",
+        fileUrl: "/api/images/img_2/file",
+        status: "done" as const,
+        errorMessage: null,
+        updatedAt: 5,
+      },
+    ],
+  };
+
+  const nextGraph = mergeGenerationStatusesIntoGraph(graph, payload);
+  const candidateOne = nextGraph.nodes[0];
+  const candidateTwo = nextGraph.nodes[1];
+
+  assert.ok(candidateOne && candidateTwo);
+  assert.equal((candidateOne.data as { groups: Array<{ images: Array<{ fileUrl: string | null }> }> }).groups[0]?.images[0]?.fileUrl, "/api/images/img_1/file?v=1");
+  assert.equal((candidateTwo.data as { groups: Array<{ images: Array<{ fileUrl: string | null }> }> }).groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=5");
 });

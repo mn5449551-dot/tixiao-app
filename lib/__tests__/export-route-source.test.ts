@@ -10,4 +10,6 @@ test("export route delegates project export data loading instead of nesting db s
   assert.match(source, /getProjectExportContext/);
   assert.doesNotMatch(source, /flatMap\(\(directionId\) => db\.select\(\)\.from\(copyCards\)/);
   assert.doesNotMatch(source, /flatMap\(\(group\) => db\.select\(\)\.from\(generatedImages\)/);
+  assert.doesNotMatch(source, /getLogoAssetPath/);
+  assert.doesNotMatch(source, /logoPath/);
 });

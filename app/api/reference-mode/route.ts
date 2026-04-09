@@ -12,6 +12,7 @@ export async function POST(request: Request) {
       project_id?: string;
       reference_image_url?: string;
       instruction?: string;
+      aspect_ratio?: "1:1" | "3:2" | "16:9" | "9:16";
     };
 
     if (!body.reference_image_url || !body.instruction) {
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     const binaries = await generateImageFromReference({
       instruction: body.instruction,
       imageUrl: body.reference_image_url,
+      aspectRatio: body.aspect_ratio,
     });
 
     const projectId = body.project_id ?? "reference-mode";

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+import type { EdgeMarkerType } from "@xyflow/react";
+
 import {
   ASPECT_RATIOS,
   CHANNELS,
@@ -18,6 +20,8 @@ test("workflow graph delegates pool node construction to dedicated builders", as
   assert.match(source, /buildCandidatePoolNode/);
   assert.match(source, /buildFinalizedPoolNode/);
   assert.match(source, /buildImageConfigNode/);
+  assert.match(source, /markerEnd:\s*\{\s*type:\s*"arrowclosed"/);
+  assert.doesNotMatch(source, /MarkerType\.ArrowClosed/);
 });
 
 test("buildGraph keeps the canvas free of direction nodes before directions are generated", () => {
@@ -150,6 +154,9 @@ test("buildGraph creates row-level source handles and shows candidate pool only 
                     groupType: "candidate",
                     variantIndex: 1,
                     slotCount: 1,
+                    aspectRatio: "1:1",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
                     isConfirmed: 0,
                     createdAt: 0,
                     updatedAt: 0,
@@ -189,9 +196,14 @@ test("buildGraph creates row-level source handles and shows candidate pool only 
 
   const directionToCopy = graph.edges.find((edge) => edge.target === "copy-card-card_1");
   const copyToConfig = graph.edges.find((edge) => edge.target === "image-config-cfg_1");
+  const requirementToDirection = graph.edges.find((edge) => edge.target === "direction-board");
 
   assert.equal(directionToCopy?.sourceHandle, "direction-row-dir_1");
   assert.equal(copyToConfig?.sourceHandle, "copy-row-copy_1");
+  assert.equal(
+    (requirementToDirection?.markerEnd as Extract<EdgeMarkerType, { type: string }> | undefined)?.type,
+    "arrowclosed",
+  );
 
   const candidateNode = graph.nodes.find((node) => node.id === "candidate-cfg_1");
   const finalizedNode = graph.nodes.find((node) => node.id === "finalized-cfg_1");
@@ -200,6 +212,8 @@ test("buildGraph creates row-level source handles and shows candidate pool only 
   assert.equal(candidateNode.data.displayMode, "single");
   assert.ok("groups" in candidateNode.data);
   assert.equal(candidateNode.data.groups[0]?.id, "grp_1");
+  assert.equal(candidateNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_1/file?v=0");
+  assert.equal(candidateNode.data.groups[0]?.images[0]?.aspectRatio, "1:1");
   assert.equal(finalizedNode, undefined);
 });
 
@@ -291,6 +305,9 @@ test("buildGraph keeps image config card interactive while candidate images are 
                     groupType: "candidate",
                     variantIndex: 1,
                     slotCount: 1,
+                    aspectRatio: "1:1",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
                     isConfirmed: 0,
                     createdAt: 0,
                     updatedAt: 0,
@@ -333,10 +350,14 @@ test("buildGraph keeps image config card interactive while candidate images are 
 
   assert.ok(configNode && "status" in configNode.data);
   assert.equal(configNode.data.status, "idle");
-  assert.equal(candidateNode, undefined);
+  assert.ok(candidateNode && "groups" in candidateNode.data);
+  const candidateData = candidateNode.data as {
+    groups: Array<{ images: Array<{ status: string }> }>;
+  };
+  assert.equal(candidateData.groups[0]?.images[0]?.status, "pending");
 });
 
-test("buildGraph hides candidate and finalized pools when no image is displayable yet", () => {
+test("buildGraph still shows candidate pool while images are pending but keeps finalized pool hidden", () => {
   const graph = buildGraph({
     project: {
       id: "proj_1",
@@ -424,6 +445,9 @@ test("buildGraph hides candidate and finalized pools when no image is displayabl
                     groupType: "candidate",
                     variantIndex: 1,
                     slotCount: 1,
+                    aspectRatio: "1:1",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
                     isConfirmed: 0,
                     createdAt: 0,
                     updatedAt: 0,
@@ -461,7 +485,12 @@ test("buildGraph hides candidate and finalized pools when no image is displayabl
     },
   });
 
-  assert.equal(graph.nodes.find((node) => node.id === "candidate-cfg_1"), undefined);
+  const candidateNode = graph.nodes.find((node) => node.id === "candidate-cfg_1");
+  assert.ok(candidateNode && "groups" in candidateNode.data);
+  const candidateData = candidateNode.data as {
+    groups: Array<{ images: Array<{ status: string }> }>;
+  };
+  assert.equal(candidateData.groups[0]?.images[0]?.status, "pending");
   assert.equal(graph.nodes.find((node) => node.id === "finalized-cfg_1"), undefined);
 });
 
@@ -553,6 +582,9 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
                     groupType: "finalized",
                     variantIndex: 1,
                     slotCount: 1,
+                    aspectRatio: "1:1",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
                     isConfirmed: 1,
                     createdAt: 0,
                     updatedAt: 0,
@@ -579,6 +611,9 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
                     groupType: "derived|grp_2|16:9",
                     variantIndex: 2,
                     slotCount: 1,
+                    aspectRatio: "16:9",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
                     isConfirmed: 1,
                     createdAt: 0,
                     updatedAt: 0,
@@ -621,6 +656,9 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
 
   assert.ok(candidateNode && "groups" in candidateNode.data);
   assert.equal(candidateNode.data.groups.length, 1);
+  assert.equal(candidateNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
   assert.ok(finalizedNode && "groups" in finalizedNode.data);
   assert.equal(finalizedNode.data.groups.length, 2);
+  assert.equal(finalizedNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
+  assert.equal(finalizedNode.data.groups[1]?.images[0]?.fileUrl, "/api/images/img_2_derived/file?v=0");
 });

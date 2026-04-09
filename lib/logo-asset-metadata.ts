@@ -2,7 +2,7 @@ export const LOGO_ASSET_OPTIONS = [
   {
     value: "onion",
     label: "洋葱 Logo",
-    description: "标准品牌 Logo，适合常规图文导出。",
+    description: "标准品牌 Logo，适合常规图文展示。",
     thumbnailUrl: "/api/logo-assets/onion",
   },
   {

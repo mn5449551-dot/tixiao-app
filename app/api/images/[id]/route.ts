@@ -1,8 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { deleteFileIfExists, saveImageBuffer } from "@/lib/storage";
 import { getDb } from "@/lib/db";
+import {
+  finishGenerationRun,
+  GenerationConflictError,
+  GenerationLimitError,
+  startGenerationRun,
+} from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
 import { readLogoAssetAsDataUrl } from "@/lib/logo-assets";
 import { generatedImages, imageConfigs, directions, copies } from "@/lib/schema";
@@ -84,6 +90,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<unknown> },
 ) {
+  let runId: string | null = null;
+  let runFinished = false;
+
   try {
     const { id } = (await context.params) as { id: string };
     await request.json().catch(() => ({}));
@@ -128,12 +137,23 @@ export async function POST(
       return NextResponse.json({ error: "方向不存在" }, { status: 422 });
     }
 
-    // Trigger background regeneration
-    regenerateSingleImage({
-      image,
-      config,
-      direction,
+    runId = startGenerationRun({
       projectId: direction.projectId,
+      kind: "image",
+      resourceType: "generated-image",
+      resourceId: image.id,
+    }).id;
+
+    const activeRunId = runId;
+
+    after(async () => {
+      await regenerateSingleImage({
+        runId: activeRunId,
+        image,
+        config,
+        direction,
+        projectId: direction.projectId,
+      });
     });
 
     return NextResponse.json(
@@ -141,6 +161,38 @@ export async function POST(
       { status: 202 },
     );
   } catch (error) {
+    if (runId && !runFinished) {
+      finishGenerationRun(runId, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "重新生成失败",
+      });
+      runFinished = true;
+    }
+
+    if (error instanceof GenerationConflictError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          resource_type: error.resourceType,
+          resource_id: error.resourceId,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (error instanceof GenerationLimitError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          limit: error.limit,
+          active_count: error.activeCount,
+        },
+        { status: 429 },
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "重新生成失败" },
       { status: 500 },
@@ -148,91 +200,95 @@ export async function POST(
   }
 }
 
-function regenerateSingleImage(input: {
+async function regenerateSingleImage(input: {
+  runId: string;
   image: typeof generatedImages.$inferSelect;
   config: typeof imageConfigs.$inferSelect;
   direction: typeof directions.$inferSelect;
   projectId: string;
 }) {
-  setImmediate(async () => {
-    const db = getDb();
-    const { image, config, direction, projectId } = input;
+  const db = getDb();
+  const { runId, image, config, direction, projectId } = input;
 
-    try {
-      const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
-      // Get copy for prompt building
-      const copy = db.select().from(copies).where(eq(copies.id, config.copyId)).get();
+  try {
+    const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
+    // Get copy for prompt building
+    const copy = db.select().from(copies).where(eq(copies.id, config.copyId)).get();
 
-      if (!copy) {
-        throw new Error("文案不存在");
-      }
-
-      // Use existing prompt if available, otherwise build new one
-      const promptEn = config.promptEn || buildImagePrompt({
-        directionTitle: direction.title,
-        scenarioProblem: direction.scenarioProblem,
-        copyTitleMain: copy.titleMain,
-        copyTitleSub: copy.titleSub,
-        copyTitleExtra: copy.titleExtra,
-        aspectRatio: config.aspectRatio,
-        styleMode: config.styleMode,
-        imageStyle: config.imageStyle,
-        ipRole: config.ipRole,
-        ipDescription: ipMetadata?.description ?? null,
-        ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-        logo: config.logo ?? "none",
-        imageForm: direction.imageForm ?? "single",
-        referenceImageUrl: config.referenceImageUrl,
-      });
-
-      const referenceImageUrls = [
-        config.referenceImageUrl ?? null,
-        config.logo && config.logo !== "none"
-          ? await readLogoAssetAsDataUrl(config.logo as "onion" | "onion_app")
-          : null,
-      ].filter(Boolean) as string[];
-
-      // Generate image
-      const slotPrompt = buildImageSlotPrompt({
-        imageForm: direction.imageForm ?? "single",
-        slotIndex: image.slotIndex,
-        slotCount: direction.imageForm === "triple" ? 3 : direction.imageForm === "double" ? 2 : 1,
-        copyType: copy.copyType,
-        copyTitleMain: copy.titleMain,
-        copyTitleSub: copy.titleSub,
-        copyTitleExtra: copy.titleExtra,
-      });
-      const binaries = referenceImageUrls.length > 0
-        ? await generateImageFromReference({
-            instruction: `${promptEn}。${slotPrompt}`,
-            imageUrls: referenceImageUrls,
-          })
-        : await generateImageFromPrompt(promptEn);
-
-      const binary = binaries[0];
-      const pngBuffer = await sharp(binary.buffer).png().toBuffer();
-      const saved = await saveImageBuffer({
-        projectId,
-        imageId: image.id,
-        buffer: pngBuffer,
-        extension: "png",
-      });
-
-      db.update(generatedImages)
-        .set({
-          filePath: saved.filePath,
-          fileUrl: saved.fileUrl,
-          status: "done",
-          updatedAt: Date.now(),
-        })
-        .where(eq(generatedImages.id, image.id))
-        .run();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "图片重生成失败";
-      db.update(generatedImages)
-        .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
-        .where(eq(generatedImages.id, image.id))
-        .run();
+    if (!copy) {
+      throw new Error("文案不存在");
     }
-  });
+
+    // Use existing prompt if available, otherwise build new one
+    const promptEn = config.promptEn || buildImagePrompt({
+      directionTitle: direction.title,
+      scenarioProblem: direction.scenarioProblem,
+      copyTitleMain: copy.titleMain,
+      copyTitleSub: copy.titleSub,
+      copyTitleExtra: copy.titleExtra,
+      aspectRatio: config.aspectRatio,
+      styleMode: config.styleMode,
+      imageStyle: config.imageStyle,
+      ipRole: config.ipRole,
+      ipDescription: ipMetadata?.description ?? null,
+      ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
+      logo: config.logo ?? "none",
+      imageForm: direction.imageForm ?? "single",
+      referenceImageUrl: config.referenceImageUrl,
+    });
+
+    const referenceImageUrls = [
+      config.referenceImageUrl ?? null,
+      config.logo && config.logo !== "none"
+        ? await readLogoAssetAsDataUrl(config.logo as "onion" | "onion_app")
+        : null,
+    ].filter(Boolean) as string[];
+
+    // Generate image
+    const slotPrompt = buildImageSlotPrompt({
+      imageForm: direction.imageForm ?? "single",
+      slotIndex: image.slotIndex,
+      slotCount: direction.imageForm === "triple" ? 3 : direction.imageForm === "double" ? 2 : 1,
+      copyType: copy.copyType,
+      copyTitleMain: copy.titleMain,
+      copyTitleSub: copy.titleSub,
+      copyTitleExtra: copy.titleExtra,
+    });
+    const binaries = referenceImageUrls.length > 0
+      ? await generateImageFromReference({
+          instruction: `${promptEn}。${slotPrompt}`,
+          imageUrls: referenceImageUrls,
+          aspectRatio: config.aspectRatio,
+        })
+      : await generateImageFromPrompt(`${promptEn}。${slotPrompt}`, {
+          aspectRatio: config.aspectRatio,
+        });
+
+    const binary = binaries[0];
+    const pngBuffer = await sharp(binary.buffer).png().toBuffer();
+    const saved = await saveImageBuffer({
+      projectId,
+      imageId: image.id,
+      buffer: pngBuffer,
+      extension: "png",
+    });
+
+    db.update(generatedImages)
+      .set({
+        filePath: saved.filePath,
+        fileUrl: saved.fileUrl,
+        status: "done",
+        updatedAt: Date.now(),
+      })
+      .where(eq(generatedImages.id, image.id))
+      .run();
+    finishGenerationRun(runId, { status: "done" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "图片重生成失败";
+    db.update(generatedImages)
+      .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
+      .where(eq(generatedImages.id, image.id))
+      .run();
+    finishGenerationRun(runId, { status: "failed", errorMessage: message });
+  }
 }

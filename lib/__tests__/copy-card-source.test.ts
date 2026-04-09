@@ -27,4 +27,5 @@ test("copy card delegates item rendering and action logic", async () => {
   assert.match(source, /CopyItemRow/);
   assert.match(source, /CopyItemEditor/);
   assert.match(source, /copy-card-actions/);
+  assert.match(source, /copyCardId/);
 });

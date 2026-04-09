@@ -38,6 +38,7 @@ export type FinalizedImage = {
   aspectRatio: string;
   groupLabel?: string;
   isConfirmed: boolean;
+  updatedAt?: number;
 };
 
 export type FinalizedGroup = {

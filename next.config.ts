@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    localPatterns: [
+      {
+        pathname: "/api/images/**",
+      },
+      {
+        pathname: "/api/logo-assets/**",
+      },
+      {
+        pathname: "/api/ip-assets/**",
+      },
+    ],
+  },
   turbopack: {
     ignoreIssue: [
       {

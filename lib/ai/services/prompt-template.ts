@@ -22,7 +22,7 @@ export function buildImagePrompt(input: {
     : `画面主体为目标人群代表`;
   const logoText =
     input.logo && input.logo !== "none"
-      ? "品牌 Logo 必须真实出现在画面左上角，尺寸清晰可见，不可缺失，不可只留空白。"
+      ? "品牌 Logo 必须真实出现在画面左上角，尺寸清晰可见，不可缺失，不可只留空白。Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形，不得改变颜色，不得改变比例，不得改变布局，不得改变圆角或边框，不得增删任何元素，不得艺术化、卡通化、重绘，不得重新设计。"
       : "画面中不需要品牌 Logo。";
   const isMultiImage = input.imageForm === "double" || input.imageForm === "triple";
   const textInstruction = isMultiImage
@@ -56,16 +56,16 @@ export function buildImageSlotPrompt(input: {
   const currentTitle = titles[input.slotIndex - 1] ?? "";
 
   if (input.slotCount <= 1 || input.imageForm === "single") {
-    return `当前输出第 ${input.slotIndex} 张图（共 ${input.slotCount} 张）。本张图必须重点服务文案“${currentTitle}”，文字必须真实出现在图中，且 Logo 在左上角可见。`;
+    return `当前输出第 ${input.slotIndex} 张图（共 ${input.slotCount} 张）。本张图必须重点服务文案“${currentTitle}”，文字必须真实出现在图中，且 Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。`;
   }
 
   if (input.slotCount === 2) {
-    return `当前输出第 ${input.slotIndex} 张图（共 2 张）。图间关系是“${input.copyType ?? "自动分配"}”。本张图必须重点服务文案“${currentTitle}”，并和另一张图形成清晰对照或递进关系，不能重复同一画面。文字必须真实出现在图中，Logo 在左上角可见。`;
+    return `当前输出第 ${input.slotIndex} 张图（共 2 张）。图间关系是“${input.copyType ?? "自动分配"}”。本张图必须重点服务文案“${currentTitle}”，并和另一张图形成清晰对照或递进关系，不能重复同一画面。文字必须真实出现在图中，Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。`;
   }
 
   const relation = input.copyType ?? "递进";
   const roleText = getTripleSlotRole(relation, input.slotIndex);
-  return `当前输出第 ${input.slotIndex} 张图（共 3 张）。三图关系是“${relation}”。本张图必须重点服务文案“${currentTitle}”。本张图承担的角色是：${roleText}。三张图的人物、风格、品牌元素必须一致，但画面内容不能重复，合起来要能读出完整逻辑链。文字必须真实出现在图中，Logo 在左上角可见。`;
+  return `当前输出第 ${input.slotIndex} 张图（共 3 张）。三图关系是“${relation}”。本张图必须重点服务文案“${currentTitle}”。本张图承担的角色是：${roleText}。三张图的人物、风格、品牌元素必须一致，但画面内容不能重复，合起来要能读出完整逻辑链。文字必须真实出现在图中，Logo 在左上角可见。Logo 必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。`;
 }
 
 function getTripleSlotRole(copyType: string, slotIndex: number) {

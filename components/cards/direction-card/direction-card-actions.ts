@@ -1,11 +1,11 @@
-export async function regenerateDirectionItem(directionId: string) {
-  const response = await fetch(`/api/directions/${directionId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ regenerate: true }),
-  });
+import { apiFetch } from "@/lib/api-fetch";
 
-  return response.ok;
+export async function regenerateDirectionItem(directionId: string) {
+  await apiFetch(`/api/directions/${directionId}`, {
+    method: "PUT",
+    body: { regenerate: true },
+  });
+  return true;
 }
 
 export async function saveDirectionItem(input: {
@@ -16,24 +16,22 @@ export async function saveDirectionItem(input: {
   differentiation: string;
   effect: string;
 }) {
-  const response = await fetch(`/api/directions/${input.directionId}`, {
+  await apiFetch(`/api/directions/${input.directionId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: {
       title: input.title,
       target_audience: input.targetAudience,
       scenario_problem: input.scenarioProblem,
       differentiation: input.differentiation,
       effect: input.effect,
-    }),
+    },
   });
-
-  return response.ok;
+  return true;
 }
 
 export async function deleteDirectionItem(directionId: string) {
-  const response = await fetch(`/api/directions/${directionId}`, { method: "DELETE" });
-  return response.ok;
+  await apiFetch(`/api/directions/${directionId}`, { method: "DELETE" });
+  return true;
 }
 
 export async function appendDirectionGeneration(input: {
@@ -42,19 +40,17 @@ export async function appendDirectionGeneration(input: {
   imageForm: string;
   copyGenerationCount: number;
 }) {
-  const response = await fetch(`/api/projects/${input.projectId}/directions/generate`, {
+  await apiFetch(`/api/projects/${input.projectId}/directions/generate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: {
       append: true,
       channel: input.channel,
       image_form: input.imageForm,
       copy_generation_count: input.copyGenerationCount,
       use_ai: true,
-    }),
+    },
   });
-
-  return response.ok;
+  return true;
 }
 
 export async function generateSelectedDirections(input: {
@@ -64,27 +60,25 @@ export async function generateSelectedDirections(input: {
   copyGenerationCount: number;
 }) {
   for (const directionId of input.directionIds) {
-    const updateResponse = await fetch(`/api/directions/${directionId}`, {
+    try {
+      await apiFetch(`/api/directions/${directionId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      body: {
         channel: input.channel,
         image_form: input.imageForm,
         copy_generation_count: input.copyGenerationCount,
-      }),
-    });
-
-    if (!updateResponse.ok) {
+      },
+      });
+    } catch {
       return false;
     }
 
-    const generateResponse = await fetch(`/api/directions/${directionId}/copy-cards/generate`, {
+    try {
+      await apiFetch(`/api/directions/${directionId}/copy-cards/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ count: input.copyGenerationCount, use_ai: true }),
-    });
-
-    if (!generateResponse.ok) {
+      body: { count: input.copyGenerationCount, use_ai: true },
+      });
+    } catch {
       return false;
     }
   }

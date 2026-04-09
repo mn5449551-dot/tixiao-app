@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, Select, Textarea } from "@/components/ui/field";
+import { apiFetch } from "@/lib/api-fetch";
 import { LOGO_OPTIONS } from "@/lib/constants";
 import type { AssistantState } from "@/lib/assistant-state";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
@@ -38,11 +39,10 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     setAssistantLoading(true);
     setError(null);
 
-    fetch(`/api/projects/${projectId}/assistant`)
-      .then(async (response) => {
-        const payload = (await response.json()) as AssistantState | { error?: string };
-        if (!response.ok || !isAssistantState(payload)) {
-          throw new Error(!isAssistantState(payload) && "error" in (payload as { error?: string }) ? payload.error ?? "获取助手状态失败" : "获取助手状态失败");
+    apiFetch<AssistantState>(`/api/projects/${projectId}/assistant`)
+      .then((payload) => {
+        if (!isAssistantState(payload)) {
+          throw new Error("获取助手状态失败");
         }
         if (!cancelled) {
           setAssistantState(payload);
@@ -70,14 +70,12 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     setAssistantLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/assistant/messages`, {
+      const payload = await apiFetch<AssistantState>(`/api/projects/${projectId}/assistant/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: conversationInput.trim() }),
+        body: { message: conversationInput.trim() },
       });
-      const payload = (await response.json()) as AssistantState | { error?: string };
-      if (!response.ok || !isAssistantState(payload)) {
-        throw new Error(!isAssistantState(payload) && "error" in (payload as { error?: string }) ? payload.error ?? "发送消息失败" : "发送消息失败");
+      if (!isAssistantState(payload)) {
+        throw new Error("发送消息失败");
       }
       setAssistantState(payload);
       setConversationInput("");
@@ -92,12 +90,11 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     setAssistantLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/assistant/confirm`, {
+      const payload = await apiFetch<AssistantState>(`/api/projects/${projectId}/assistant/confirm`, {
         method: "POST",
       });
-      const payload = (await response.json()) as AssistantState | { error?: string };
-      if (!response.ok || !isAssistantState(payload)) {
-        throw new Error(!isAssistantState(payload) && "error" in (payload as { error?: string }) ? payload.error ?? "确认填充需求卡失败" : "确认填充需求卡失败");
+      if (!isAssistantState(payload)) {
+        throw new Error("确认填充需求卡失败");
       }
       setAssistantState(payload);
       dispatchWorkspaceInvalidated();
@@ -134,63 +131,75 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
 
   if (collapsed) {
     return (
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        className="flex h-full w-[24px] cursor-pointer items-center justify-center bg-[var(--surface-1)] text-[var(--ink-500)] transition hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]"
-        title="展开助手"
-      >
-        <span className="text-xs">&#9664;</span>
-      </button>
+      <div className="flex h-full w-[28px] items-center justify-center bg-gradient-to-b from-[var(--surface-1)] to-[var(--surface-2)] border-l border-[var(--line-soft)]">
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="flex h-16 w-6 items-center justify-center rounded-l-xl bg-white/80 text-[var(--ink-500)] shadow-sm transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)] hover:shadow-md"
+          title="展开助手"
+        >
+          <span className="text-xs font-medium">&#9664;</span>
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="flex h-full w-[360px] flex-col overflow-hidden border-l border-[var(--line-soft)] bg-[var(--panel-strong)]">
-      {/* Header */}
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line-soft)] px-4 py-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-[var(--ink-400)]">Assistant</p>
-          <h2 className="mt-2 text-lg font-semibold text-[var(--ink-900)]">对话助手</h2>
+    <div className="flex h-full w-[360px] flex-col overflow-hidden border-l border-[var(--line-soft)] bg-gradient-to-b from-[var(--panel-strong)] to-[var(--surface-1)]">
+      {/* Header - 美化布局 */}
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line-soft)] bg-white/60 px-4 py-3 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-sm">
+            <span className="text-sm font-bold">AI</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[var(--ink-400)]">Assistant</p>
+            <h2 className="text-sm font-semibold text-[var(--ink-900)]">对话助手</h2>
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <Badge tone="brand">AI已接入</Badge>
+        <div className="flex items-center gap-2">
+          <Badge tone="brand" size="sm">在线</Badge>
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="rounded-full p-1 text-xs text-[var(--ink-400)] transition hover:bg-[var(--surface-1)] hover:text-[var(--ink-700)]"
+            className="rounded-lg p-1.5 text-[var(--ink-400)] transition-all duration-150 hover:bg-[var(--surface-1)] hover:text-[var(--ink-700)]"
             title="收起"
           >
-            &#9654;
+            <span className="text-xs">&#9654;</span>
           </button>
         </div>
       </div>
 
       {/* Scrollable content — chat-first layout */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Chat messages */}
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        {/* Chat messages - 美化消息气泡 */}
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
           {(assistantState?.messages ?? []).map((msg) => (
-            <div key={msg.id} className={`flex items-start gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-              {msg.role === "ai" && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-50)] text-xs font-semibold text-[var(--brand-600)]">
+            <div 
+              key={msg.id} 
+              className={`flex items-start gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+            >
+              {/* 头像 */}
+              {msg.role === "ai" ? (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-xs font-bold text-white shadow-sm">
                   AI
                 </div>
-              )}
-              <div className={`max-w-[260px] rounded-[18px] px-4 py-3 text-sm leading-6 shadow-[var(--shadow-inset)] ${
+              ) : msg.role === "user" ? (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ink-400)] to-[var(--ink-500)] text-xs font-bold text-white shadow-sm">
+                  我
+                </div>
+              ) : null}
+              
+              {/* 消息气泡 */}
+              <div className={`max-w-[280px] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                 msg.role === "user"
-                  ? "bg-[var(--brand-50)] text-[var(--brand-800)]"
+                  ? "bg-gradient-to-br from-[var(--brand-50)] to-[var(--brand-100)] text-[var(--brand-800)]"
                   : msg.role === "system"
                     ? "bg-[var(--surface-2)] text-[var(--ink-500)] text-xs"
                     : "bg-white text-[var(--ink-700)]"
               }`}>
                 <pre className="whitespace-pre-wrap font-sans text-inherit">{msg.content}</pre>
               </div>
-              {msg.role === "user" && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ink-100)] text-xs font-semibold text-[var(--ink-600)]">
-                  我
-                </div>
-              )}
             </div>
           ))}
           <div ref={chatEndRef} />
@@ -200,60 +209,81 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
         {assistantState?.stage === "confirming" && (
           <div className="shrink-0 px-4 pb-3">
             <Button
-              className="w-full"
+              className="w-full bg-gradient-to-r from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-md hover:shadow-lg"
               onClick={confirmAndFill}
               disabled={isPending || assistantLoading}
               variant="primary"
             >
-              {assistantLoading ? "处理中..." : "确认并填充需求卡"}
+              {assistantLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  处理中...
+                </span>
+              ) : (
+                "确认并填充需求卡"
+              )}
             </Button>
           </div>
         )}
 
-        {/* Chat input */}
-        <div className="shrink-0 border-t border-[var(--line-soft)] px-4 py-3">
+        {/* Chat input - 美化输入框 */}
+        <div className="shrink-0 border-t border-[var(--line-soft)] bg-white/60 px-4 py-3 backdrop-blur-sm">
           <div className="flex gap-2">
-            <Textarea
-              minRows={1}
-              className="flex-1 rounded-xl px-3 py-2 text-xs focus:ring-1"
-              placeholder={
-                assistantState?.stage === "done"
-                  ? "继续补充需求、修改字段，或直接输入新想法..."
-                  : "输入你的回答..."
-              }
-              value={conversationInput}
-              onChange={(e) => setConversationInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleConversationSend();
+            <div className="flex-1 relative">
+              <Textarea
+                minRows={1}
+                className="w-full rounded-xl border border-[var(--line-strong)] bg-white px-4 py-3 text-sm shadow-sm focus:border-[var(--brand-400)] focus:ring-2 focus:ring-[var(--brand-ring)]"
+                placeholder={
+                  assistantState?.stage === "done"
+                    ? "继续补充需求、修改字段，或直接输入新想法..."
+                    : "输入你的回答..."
                 }
-              }}
-            />
+                value={conversationInput}
+                onChange={(e) => setConversationInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleConversationSend();
+                  }
+                }}
+              />
+            </div>
             <Button
               variant="primary"
-              className="shrink-0 text-xs"
+              className="shrink-0 bg-gradient-to-r from-[var(--brand-500)] to-[var(--brand-600)] px-6 text-sm font-medium shadow-md hover:shadow-lg"
               disabled={!conversationInput.trim() || assistantLoading}
               onClick={handleConversationSend}
             >
-              {assistantLoading ? "处理中..." : "发送"}
+              {assistantLoading ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  发送中...
+                </span>
+              ) : (
+                "发送"
+              )}
             </Button>
           </div>
         </div>
 
-        {/* Reference mode toggle button */}
-        <div className="shrink-0 border-t border-[var(--line-soft)]">
+        {/* Reference mode toggle button - 美化 */}
+        <div className="shrink-0 border-t border-[var(--line-soft)] bg-white/40">
           <button
             type="button"
             onClick={() => setReferenceModeOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-[var(--surface-1)]"
+            className="flex w-full items-center justify-between px-4 py-3 text-left transition-all duration-150 hover:bg-white/80"
           >
-            <div>
-              <p className="text-sm font-medium text-[var(--ink-900)]">参考图模式（旁路）</p>
-              <p className="mt-0.5 text-xs text-[var(--ink-500)]">上传参考图 URL 和新指令，结果不走主链路。</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-sm">
+                <span className="text-lg">🎨</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--ink-900)]">参考图模式（旁路）</p>
+                <p className="mt-0.5 text-xs text-[var(--ink-500)]">上传参考图 URL 和新指令，结果不走主链路。</p>
+              </div>
             </div>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-500)] text-white">
-              <span className="text-sm">✨</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--ink-500)] transition-transform duration-200" style={{ transform: referenceModeOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <span className="text-sm">&#9660;</span>
             </div>
           </button>
 
@@ -315,19 +345,15 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
                 variant="secondary"
                 onClick={() =>
                   runAction(async () => {
-                    const response = await fetch("/api/reference-mode", {
+                    await apiFetch("/api/reference-mode", {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
+                      body: {
                         project_id: projectId,
                         reference_image_url: referenceForm.imageUrl,
+                        aspect_ratio: referenceForm.aspectRatio,
                         instruction: `${referenceForm.instruction}\n目标比例：${referenceForm.aspectRatio}\nLogo：${referenceForm.logo}`,
-                      }),
+                      },
                     });
-                    if (!response.ok) {
-                      const payload = (await response.json()) as { error?: string };
-                      throw new Error(payload.error ?? "参考图模式生成失败");
-                    }
                   })
                 }
               >

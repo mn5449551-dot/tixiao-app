@@ -114,6 +114,9 @@ export const imageGroups = sqliteTable("image_groups", {
   groupType: text("group_type").notNull(),
   variantIndex: integer("variant_index").notNull(),
   slotCount: integer("slot_count").notNull(),
+  aspectRatio: text("aspect_ratio").notNull().default("1:1"),
+  styleMode: text("style_mode").notNull().default("normal"),
+  imageStyle: text("image_style").notNull().default("realistic"),
   isConfirmed: integer("is_confirmed").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
@@ -183,3 +186,19 @@ export const canvasStates = sqliteTable(
   },
   (table) => [uniqueIndex("canvas_states_project_id_unique").on(table.projectId)],
 );
+
+export const projectGenerationRuns = sqliteTable("project_generation_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id").notNull(),
+  status: text("status").notNull().default("running"),
+  errorMessage: text("error_message"),
+  startedAt: integer("started_at").notNull(),
+  finishedAt: integer("finished_at"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});

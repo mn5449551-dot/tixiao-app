@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const workspaceShellPath = new URL("../../components/workspace/workspace-shell.tsx", import.meta.url);
+const projectTreePath = new URL("../../components/workspace/project-tree.tsx", import.meta.url);
 const projectPagePath = new URL("../../app/projects/[id]/page.tsx", import.meta.url);
 
 test("workspace shell does not read window inside useState initialization for collapse state", async () => {
@@ -26,6 +27,16 @@ test("workspace shell renders panel components instead of consuming full workspa
   assert.match(source, /dynamic\(/);
   assert.match(source, /ProjectTreePanel/);
   assert.match(source, /WorkflowCanvasPanel/);
+  assert.doesNotMatch(source, /<header/);
+  assert.doesNotMatch(source, /Onion Workflow/);
   assert.doesNotMatch(source, /workspace:\s*WorkspaceData/);
   assert.doesNotMatch(source, /workspace\.directions/);
+});
+
+test("project tree renders the back-to-project-list entry inside the left panel", async () => {
+  const source = await readFile(projectTreePath, "utf8");
+
+  assert.match(source, /href="\/"/);
+  assert.match(source, /项目列表/);
+  assert.match(source, /dispatchFocusCanvasNode/);
 });

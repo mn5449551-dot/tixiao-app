@@ -1,5 +1,8 @@
+import { ApiError, apiFetch } from "@/lib/api-fetch";
+
 export async function saveImageConfigAndGenerate(input: {
   copyId: string;
+  imageConfigId?: string;
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
@@ -8,38 +11,50 @@ export async function saveImageConfigAndGenerate(input: {
   ipRole: string | null;
   referenceImageUrl: string | null;
 }) {
-  const configResponse = await fetch(`/api/copies/${input.copyId}/image-config`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      aspect_ratio: input.aspectRatio,
-      style_mode: input.styleMode,
-      ip_role: input.ipRole,
-      logo: input.logo,
-      image_style: input.imageStyle,
-      count: input.count,
-      reference_image_url: input.referenceImageUrl,
-    }),
-  });
-  if (!configResponse.ok) {
-    const payload = (await configResponse.json().catch(() => ({}))) as { error?: string };
-    return { ok: false, error: payload.error ?? "图片配置保存失败" };
-  }
+  try {
+    const payload = await apiFetch<{ id?: string; created_group_ids?: string[] }>(
+      `/api/copies/${input.copyId}/image-config`,
+      {
+      method: "POST",
+      body: {
+        aspect_ratio: input.aspectRatio,
+        style_mode: input.styleMode,
+        ip_role: input.ipRole,
+        logo: input.logo,
+        image_style: input.imageStyle,
+        count: input.count,
+        reference_image_url: input.referenceImageUrl,
+        append: !!input.imageConfigId,
+      },
+    });
 
-  const payload = (await configResponse.json()) as { id?: string };
-  if (!payload.id) {
-    return { ok: false, error: "图片配置保存失败" };
-  }
+    if (!payload.id) {
+      return { ok: false, configSaved: false, error: "图片配置保存失败" };
+    }
 
-  const generateResponse = await fetch(`/api/image-configs/${payload.id}/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
-  if (!generateResponse.ok) {
-    const errorPayload = (await generateResponse.json().catch(() => ({}))) as { error?: string };
-    return { ok: false, error: errorPayload.error ?? "图片生成失败" };
+    try {
+      await apiFetch(`/api/image-configs/${payload.id}/generate`, {
+        method: "POST",
+        body: {
+          group_ids:
+            payload.created_group_ids && payload.created_group_ids.length > 0
+              ? payload.created_group_ids
+              : undefined,
+        },
+      });
+      return { ok: true, configSaved: true, error: null as string | null };
+    } catch (error) {
+      return {
+        ok: false,
+        configSaved: true,
+        error: error instanceof ApiError ? error.message : "图片生成失败",
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      configSaved: false,
+      error: error instanceof ApiError ? error.message : "图片配置保存失败",
+    };
   }
-
-  return { ok: true, error: null as string | null };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -27,6 +27,7 @@ import {
   getCopyCompactSummary,
   getCopyDisplayRows,
 } from "@/lib/copy-card-presenter";
+import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
@@ -70,11 +71,33 @@ export function CopyCard({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState<Record<string, { main: string; sub: string; extra: string }>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(getSelectableCopyIds(copyItems)),
+    () => new Set(),
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAppending, setIsAppending] = useState(false);
   const [isDeletingCard, setIsDeletingCard] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nextIds = new Set(copyItems.map((item) => item.id));
+    const selectableIds = new Set(copyItems.filter((item) => !item.isLocked).map((item) => item.id));
+
+    setLocalItems(copyItems);
+    setExpandedIds((prev) => {
+      const next = new Set([...prev].filter((id) => nextIds.has(id)));
+      for (const item of copyItems) {
+        if (!prev.has(item.id)) {
+          next.add(item.id);
+        }
+      }
+      return next;
+    });
+    setSelectedIds((prev) => new Set([...prev].filter((id) => selectableIds.has(id))));
+    setEditBuffer((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([id]) => nextIds.has(id))),
+    );
+    setEditingId((current) => (current && nextIds.has(current) ? current : null));
+  }, [copyItems]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -114,6 +137,7 @@ export function CopyCard({
     }
 
     try {
+      setActionError(null);
       const ok = await saveCopyItem({
         id: item.id,
         titleMain: next.main,
@@ -134,8 +158,8 @@ export function CopyCard({
             : current,
         ),
       );
-    } catch {
-      // Silently fail — user can retry
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "保存文案失败");
     }
     cancelEdit();
   };
@@ -143,6 +167,7 @@ export function CopyCard({
   const generateCopyConfig = async (id: string, shouldRefresh = true) => {
     if (isGenerating) return;
     try {
+      setActionError(null);
       const ok = await generateCopyConfigAction({ copyId: id, imageForm });
       if (!ok) {
         throw new Error("生成失败");
@@ -150,8 +175,8 @@ export function CopyCard({
       if (shouldRefresh) {
         dispatchWorkspaceInvalidated();
       }
-    } catch {
-      // Silently fail
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "生成图片配置失败");
     }
   };
 
@@ -187,6 +212,7 @@ export function CopyCard({
 
   const deleteCopy = async (id: string) => {
     try {
+      setActionError(null);
       const ok = await deleteCopyItemAction(id);
       if (!ok) {
         throw new Error("删除失败");
@@ -209,8 +235,8 @@ export function CopyCard({
       });
       setEditingId((current) => (current === id ? null : current));
       dispatchWorkspaceInvalidated();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "删除文案失败");
     }
   };
 
@@ -218,13 +244,14 @@ export function CopyCard({
     if (!copyCardId || isDeletingCard) return;
     setIsDeletingCard(true);
     try {
+      setActionError(null);
       const ok = await deleteCopyCardAction(copyCardId);
       if (!ok) {
         throw new Error("删除失败");
       }
       dispatchWorkspaceInvalidated();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "删除文案卡失败");
     } finally {
       setIsDeletingCard(false);
     }
@@ -234,20 +261,24 @@ export function CopyCard({
     if (isAppending) return;
     setIsAppending(true);
     try {
+      setActionError(null);
       const directionId = data.directionId;
-      if (!directionId) return;
+      if (!directionId || !copyCardId) return;
 
-      const ok = await appendCopyGenerationAction(directionId);
+      const ok = await appendCopyGenerationAction({
+        directionId,
+        copyCardId,
+      });
       if (!ok) {
         throw new Error("追加生成失败");
       }
       dispatchWorkspaceInvalidated();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "追加生成文案失败");
     } finally {
       setIsAppending(false);
     }
-  }, [data.directionId, isAppending]);
+  }, [copyCardId, data.directionId, isAppending]);
 
   const borderColorClass = isError
     ? "border-[#c0392b]"
@@ -264,7 +295,7 @@ export function CopyCard({
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 380 } satisfies CSSProperties}
+      style={{ width: 400 } satisfies CSSProperties}
     >
       {/* Loading overlay */}
       {isLoading && (
@@ -290,23 +321,38 @@ export function CopyCard({
         isError ? "bg-[#c0392b]" : "bg-[var(--brand-500)]",
       )} />
 
-      {/* Header */}
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
-        <div className="space-y-1">
+      {/* Header - 简洁布局 */}
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-3 active:cursor-grabbing">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">文案</h3>
+            <h3 className="text-base font-semibold text-[var(--ink-950)]">文案</h3>
             {isDone && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#27ae60] text-white text-[10px]">{"\u2713"}</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-700)] text-[10px] text-white">
+                ✓
+              </span>
+            )}
+            {isError && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-700)] text-[10px] text-white">
+                ✕
+              </span>
             )}
           </div>
-          <p className="text-[11px] text-[var(--ink-400)]">{directionTitle}{version ? ` · V${version}` : ""}</p>
+          <p className="mt-1 line-clamp-1 text-[10px] text-[var(--ink-500)]" title={directionTitle}>
+            {directionTitle}{version ? ` · V${version}` : ""}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" className="h-7 px-2 text-[11px]" onClick={deleteCopyCard} disabled={!copyCardId || isDeletingCard}>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge tone="brand" size="sm" className="shrink-0">{localItems.length} 条</Badge>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="shrink-0 text-[11px] text-[var(--ink-400)] hover:text-[var(--danger-700)] hover:bg-[var(--danger-soft)]" 
+            onClick={deleteCopyCard} 
+            disabled={!copyCardId || isDeletingCard}
+            title="删除文案卡"
+          >
             删除
           </Button>
-          <Badge tone="brand">{localItems.length} 条</Badge>
         </div>
       </div>
 
@@ -316,9 +362,14 @@ export function CopyCard({
           文案生成失败，请重试
         </div>
       )}
+      {actionError ? (
+        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+          {actionError}
+        </div>
+      ) : null}
 
-      {/* Copy items */}
-      <div className="space-y-2">
+      {/* Copy items - 优化列表布局 */}
+      <div className="space-y-2.5">
         {localItems.map((item, index) => {
           const actions = getCopyActionState(item.isLocked);
           const rows = getCopyDisplayRows(imageForm, item);
@@ -387,30 +438,42 @@ export function CopyCard({
         })}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          className="shrink-0 text-xs"
-          disabled={isAppending}
-          onClick={appendGenerate}
-        >
-          {isAppending ? "生成中..." : "+"} 追加生成文案
-        </Button>
-        <Button
-          variant="secondary"
-          className="shrink-0"
-          onClick={toggleSelectAll}
-        >
-          {isAllSelected ? "全不选" : "全选"}
-        </Button>
-        <Button
-          variant="primary"
-          className="flex-1"
-          disabled={selectedCount === 0 || isGenerating}
-          onClick={generateSelectedCopyConfigs}
-        >
-          {"\u26A1"} 生成选中文案
-        </Button>
+      {/* Bottom actions - 优化操作按钮层级 */}
+      <div className="mt-3 flex flex-col gap-2">
+        {/* 主操作区 */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            className="flex-1 text-sm"
+            disabled={selectedCount === 0 || isGenerating}
+            onClick={generateSelectedCopyConfigs}
+          >
+            {isGenerating ? (
+              <><span className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
+            ) : (
+              <><span className="mr-1.5">⚡</span> 生成选中文案 {selectedCount > 0 && `(${selectedCount})`}</>
+            )}
+          </Button>
+        </div>
+        
+        {/* 次要操作区 */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            className="h-8 px-2 text-xs text-[var(--ink-500)] hover:text-[var(--brand-600)]"
+            disabled={isAppending}
+            onClick={appendGenerate}
+          >
+            {isAppending ? "生成中..." : "+ 追加生成文案"}
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-8 px-2 text-xs text-[var(--ink-500)] hover:text-[var(--brand-600)]"
+            onClick={toggleSelectAll}
+          >
+            {isAllSelected ? "全不选" : "全选"}
+          </Button>
+        </div>
       </div>
     </div>
   );

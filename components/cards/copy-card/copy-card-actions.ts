@@ -1,57 +1,57 @@
+import { apiFetch } from "@/lib/api-fetch";
+
 export async function saveCopyItem(input: {
   id: string;
   titleMain: string;
   titleSub: string | null;
   titleExtra: string | null;
 }) {
-  const response = await fetch(`/api/copies/${input.id}`, {
+  await apiFetch(`/api/copies/${input.id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: {
       title_main: input.titleMain,
       title_sub: input.titleSub,
       title_extra: input.titleExtra,
-    }),
+    },
   });
-
-  return response.ok;
+  return true;
 }
 
 export async function generateCopyConfigAction(input: {
   copyId: string;
   imageForm: string;
 }) {
-  const response = await fetch(`/api/copies/${input.copyId}/image-config`, {
+  await apiFetch(`/api/copies/${input.copyId}/image-config`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: {
       aspect_ratio: input.imageForm === "single" ? "1:1" : "3:2",
       style_mode: "normal",
       logo: "onion",
       image_style: "realistic",
       count: 1,
-    }),
+      create_groups: false,
+    },
   });
-
-  return response.ok;
+  return true;
 }
 
 export async function deleteCopyItemAction(copyId: string) {
-  const response = await fetch(`/api/copies/${copyId}`, { method: "DELETE" });
-  return response.ok;
+  await apiFetch(`/api/copies/${copyId}`, { method: "DELETE" });
+  return true;
 }
 
 export async function deleteCopyCardAction(copyCardId: string) {
-  const response = await fetch(`/api/copy-cards/${copyCardId}`, { method: "DELETE" });
-  return response.ok;
+  await apiFetch(`/api/copy-cards/${copyCardId}`, { method: "DELETE" });
+  return true;
 }
 
-export async function appendCopyGenerationAction(directionId: string) {
-  const response = await fetch(`/api/directions/${directionId}/copy-cards/generate`, {
+export async function appendCopyGenerationAction(input: {
+  directionId: string;
+  copyCardId: string;
+}) {
+  await apiFetch(`/api/directions/${input.directionId}/copy-cards/generate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ append: true, use_ai: true }),
+    body: { append: true, use_ai: true, copy_card_id: input.copyCardId },
   });
-
-  return response.ok;
+  return true;
 }

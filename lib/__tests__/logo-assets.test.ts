@@ -19,7 +19,9 @@ test("getLogoAssetPath resolves bundled logo assets", async () => {
 
 test("logo asset options expose thumbnail urls for the config card", () => {
   assert.equal(LOGO_ASSET_OPTIONS.length, 2);
+  assert.equal(LOGO_ASSET_OPTIONS[0]?.label, "洋葱 Logo");
   assert.equal(LOGO_ASSET_OPTIONS[0]?.thumbnailUrl, "/api/logo-assets/onion");
+  assert.equal(LOGO_ASSET_OPTIONS[1]?.label, "洋葱 App Icon");
   assert.equal(LOGO_ASSET_OPTIONS[1]?.thumbnailUrl, "/api/logo-assets/onion_app");
 });
 

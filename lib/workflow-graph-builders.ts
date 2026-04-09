@@ -5,6 +5,7 @@ import type {
   GraphNodeType,
   WorkspaceData,
 } from "@/lib/workflow-graph-types";
+import { toVersionedFileUrl } from "@/lib/utils";
 
 function getDisplayMode(slotCount: number): "single" | "double" | "triple" {
   if (slotCount === 3) return "triple";
@@ -57,16 +58,21 @@ export function buildCandidatePoolNode(input: {
       variantIndex: group.variantIndex,
       slotCount: group.slotCount,
       isConfirmed: group.isConfirmed === 1,
-      images: group.images.map((img) => ({
-        id: img.id,
-        fileUrl: img.fileUrl ?? null,
-        status: (img.status as "pending" | "generating" | "done" | "failed") ?? "pending",
-        slotIndex: img.slotIndex,
-        aspectRatio: config.aspectRatio,
-      })),
+      aspectRatio: group.aspectRatio ?? config.aspectRatio,
+      styleMode: group.styleMode ?? config.styleMode,
+      imageStyle: group.imageStyle ?? config.imageStyle,
+        images: group.images.map((img) => ({
+          id: img.id,
+          fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),
+          status: (img.status as "pending" | "generating" | "done" | "failed") ?? "pending",
+          slotIndex: img.slotIndex,
+          aspectRatio: group.aspectRatio ?? config.aspectRatio,
+          updatedAt: img.updatedAt,
+        })),
     }));
 
   const allImages = candidateGroups.flatMap((group) => group.images);
+  const hasCandidateGroups = candidateGroups.length > 0;
   const hasDisplayableImages = allImages.some((img) => Boolean(img.fileUrl));
   const hasGenerating = candidateGroups.some((group) =>
     group.images.some((img) => img.status === "generating" || img.status === "pending"),
@@ -84,7 +90,7 @@ export function buildCandidatePoolNode(input: {
         ? "done"
         : "idle";
 
-  const node = hasDisplayableImages
+  const node = hasCandidateGroups
     ? ({
         id: `candidate-${config.id}`,
         type: "candidatePool",
@@ -101,6 +107,7 @@ export function buildCandidatePoolNode(input: {
 
   return {
     node,
+    hasCandidateGroups,
     hasDisplayableImages,
     hasGenerating,
   };
@@ -121,16 +128,20 @@ export function buildFinalizedPoolNode(input: {
       variantIndex: group.variantIndex,
       slotCount: group.slotCount,
       groupType: group.groupType,
+      aspectRatio: group.aspectRatio ?? config.aspectRatio,
+      styleMode: group.styleMode ?? config.styleMode,
+      imageStyle: group.imageStyle ?? config.imageStyle,
       images: group.images
         .filter((img) => img.status === "done")
         .map((img) => ({
           id: img.id,
-          fileUrl: img.fileUrl ?? null,
-          aspectRatio: getGroupAspectRatio(group.groupType, config.aspectRatio ?? "1:1"),
+          fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),
+          aspectRatio: getGroupAspectRatio(group.groupType, group.aspectRatio ?? config.aspectRatio ?? "1:1"),
           groupLabel: group.groupType.startsWith("derived|")
-            ? `适配 ${getGroupAspectRatio(group.groupType, config.aspectRatio ?? "1:1")}`
+            ? `适配 ${getGroupAspectRatio(group.groupType, group.aspectRatio ?? config.aspectRatio ?? "1:1")}`
             : `组 #${group.variantIndex}`,
           isConfirmed: true,
+          updatedAt: img.updatedAt,
         })),
     }))
     .filter((group) => group.images.length > 0);

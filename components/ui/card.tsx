@@ -6,7 +6,7 @@ export function Card({ children, className }: PropsWithChildren<{ className?: st
   return (
     <div
       className={cn(
-        "rounded-[28px] border border-[var(--line-soft)] bg-white shadow-[var(--shadow-card)]",
+        "rounded-[28px] border border-[var(--line-soft)] bg-white shadow-[var(--shadow-card)] transition-all duration-200",
         className,
       )}
     >

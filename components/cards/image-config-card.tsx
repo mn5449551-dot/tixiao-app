@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -69,6 +69,34 @@ export function ImageConfigCard({
   const showIpAssetSelector = shouldShowIpAssetSelector(styleMode, useIp);
   const activeIp = IP_ASSET_OPTIONS.find((item) => item.role === ipRole) ?? IP_ASSET_OPTIONS[0];
 
+  useEffect(() => {
+    if (isSubmitting) return;
+
+    const nextStyleMode = data.initialStyleMode ?? "normal";
+    const nextImageStyle = resolveImageStyleForMode(nextStyleMode, data.initialImageStyle ?? IMAGE_STYLES[0]);
+
+    setAspectRatio(data.initialAspectRatio ?? ASPECT_RATIOS[0]);
+    setStyleMode(nextStyleMode);
+    setImageStyle(nextImageStyle);
+    setNormalImageStyle(
+      nextStyleMode === "ip" ? "realistic" : (data.initialImageStyle ?? IMAGE_STYLES[0]),
+    );
+    setCount(data.initialCount ?? 1);
+    setUseLogo(data.initialLogo !== "none" && data.initialLogo != null);
+    setLogoOption(data.initialLogo ?? LOGO_OPTIONS[0]);
+    setUseIp(!!data.initialIpRole);
+    setIpRole(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
+    setSubmitError(null);
+  }, [
+    data.initialAspectRatio,
+    data.initialCount,
+    data.initialImageStyle,
+    data.initialIpRole,
+    data.initialLogo,
+    data.initialStyleMode,
+    isSubmitting,
+  ]);
+
   const handleCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value, 10);
     if (!isNaN(val) && val >= 1 && val <= 5) {
@@ -89,17 +117,17 @@ export function ImageConfigCard({
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 340 } satisfies CSSProperties}
+      style={{ width: 380 } satisfies CSSProperties}
     >
       {/* Loading overlay */}
-      {isLoading && (
+      {(isLoading || isSubmitting) && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[28px] bg-white/60">
           <div className="flex flex-col items-center gap-2">
             <svg className="h-8 w-8 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-30" />
               <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
-            <span className="text-xs font-medium text-[var(--brand-600)]">生成中...</span>
+            <span className="text-xs font-medium text-[var(--brand-600)]">{isSubmitting ? "正在生成候选图..." : "生成中..."}</span>
           </div>
         </div>
       )}
@@ -121,21 +149,27 @@ export function ImageConfigCard({
         isError ? "bg-[#c0392b]" : "bg-[var(--brand-500)]",
       )} />
 
-      {/* Header */}
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
-        <div className="space-y-1">
+      {/* Header - 简洁布局 */}
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-3 active:cursor-grabbing">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">图片配置</h3>
+            <h3 className="text-base font-semibold text-[var(--ink-950)]">图片配置</h3>
             {isDone && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#27ae60] text-white text-[10px]">{"\u2713"}</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-700)] text-[10px] text-white">
+                ✓
+              </span>
+            )}
+            {isError && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-700)] text-[10px] text-white">
+                ✕
+              </span>
             )}
           </div>
-          <p className="line-clamp-1 max-w-[200px] text-[11px] text-[var(--ink-400)]">
+          <p className="mt-1 line-clamp-2 max-w-[200px] text-[10px] text-[var(--ink-500)]" title={copyText}>
             {copyText}
           </p>
         </div>
-        <Badge tone="brand">配置</Badge>
+        <Badge tone="brand" size="sm" className="shrink-0">配置</Badge>
       </div>
 
       {/* Error message */}
@@ -197,19 +231,21 @@ export function ImageConfigCard({
         />
       </ImageConfigForm>
 
-      {/* Helper text */}
-      <p className="mt-3 text-center text-[11px] text-[var(--ink-400)]">
-        {showIpAssetSelector
-          ? `将使用 ${ipRole} 的 IP 参考图，并在描述中注入角色形象约束`
-          : isIpMode
-            ? "IP 风格下图片风格自动锁定，若选择 IP 形象将保持角色长相和整体风格一致"
-            : "排版、构图、色彩由 AI 自动匹配"}
-      </p>
+      {/* Helper text - 优化提示文本展示 */}
+      <div className="mt-3 rounded-2xl bg-[var(--surface-1)] px-3 py-2">
+        <p className="text-center text-[11px] text-[var(--ink-600)]">
+          {showIpAssetSelector
+            ? `将使用 ${ipRole} 的 IP 参考图，并在描述中注入角色形象约束`
+            : isIpMode
+              ? "IP 风格下图片风格自动锁定，若选择 IP 形象将保持角色长相和整体风格一致"
+              : "排版、构图、色彩由 AI 自动匹配"}
+        </p>
+      </div>
 
       {/* Divider */}
-      <div className="my-3 h-px bg-[var(--line-soft)]" />
+      <div className="my-2.5 h-px bg-[var(--line-soft)]" />
 
-      {/* Generate button */}
+      {/* Generate button - 优化按钮样式 */}
       <Button
         variant="primary"
         className="w-full text-sm"
@@ -220,6 +256,7 @@ export function ImageConfigCard({
           try {
             const result = await saveImageConfigAndGenerate({
               copyId,
+              imageConfigId: data.imageConfigId,
               aspectRatio,
               styleMode,
               imageStyle: resolveImageStyleForMode(styleMode, imageStyle),
@@ -229,6 +266,9 @@ export function ImageConfigCard({
               referenceImageUrl: showIpAssetSelector ? null : referenceImageUrl || null,
             });
             if (!result.ok) {
+              if (result.configSaved) {
+                dispatchWorkspaceInvalidated();
+              }
               throw new Error(result.error ?? "图片生成失败");
             }
 
@@ -240,7 +280,11 @@ export function ImageConfigCard({
           }
         }}
       >
-        {isSubmitting ? "生成中..." : "\u26A1"} 生成候选图（{count}套）
+        {isSubmitting ? (
+          <><span className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
+        ) : (
+          <><span className="mr-1.5">⚡</span> 生成候选图（{count}套）</>
+        )}
       </Button>
     </div>
   );

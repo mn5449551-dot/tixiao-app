@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 
+import {
+  finishGenerationRun,
+  GenerationConflictError,
+  GenerationLimitError,
+  startGenerationRun,
+} from "@/lib/generation-runs";
 import { appendDirectionSmart, generateDirectionsSmart } from "@/lib/project-data";
 import { createSseResponse } from "@/lib/sse";
 
@@ -7,6 +13,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  let runId: string | null = null;
+  let runFinished = false;
+
   try {
     const { id } = await context.params;
     const body = (await request.json()) as {
@@ -16,6 +25,13 @@ export async function POST(
       use_ai?: boolean;
       append?: boolean;
     };
+
+    runId = startGenerationRun({
+      projectId: id,
+      kind: "direction",
+      resourceType: "project-directions",
+      resourceId: id,
+    }).id;
 
     if (body.append) {
       const direction = await appendDirectionSmart(
@@ -30,6 +46,8 @@ export async function POST(
         return NextResponse.json({ error: "方向追加失败" }, { status: 500 });
       }
 
+      finishGenerationRun(runId, { status: "done" });
+      runFinished = true;
       return createSseResponse([
         { event: "direction_created", direction },
         { event: "done", direction_ids: [direction.id] },
@@ -44,11 +62,44 @@ export async function POST(
       body.use_ai ?? false,
     );
 
+    finishGenerationRun(runId, { status: "done" });
+    runFinished = true;
     return createSseResponse([
       ...created.map((direction) => ({ event: "direction_created", direction })),
       { event: "done", direction_ids: created.map((item) => item.id) },
     ]);
   } catch (error) {
+    if (runId && !runFinished) {
+      finishGenerationRun(runId, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "方向生成失败",
+      });
+    }
+
+    if (error instanceof GenerationConflictError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          resource_type: error.resourceType,
+          resource_id: error.resourceId,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (error instanceof GenerationLimitError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          limit: error.limit,
+          active_count: error.activeCount,
+        },
+        { status: 429 },
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "方向生成失败" },
       { status: 500 },

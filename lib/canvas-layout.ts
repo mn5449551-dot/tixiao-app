@@ -5,6 +5,10 @@ export type LayoutNode = {
   type?: string;
   position: Position;
   data?: Record<string, unknown>;
+  measured?: {
+    width?: number;
+    height?: number;
+  };
 };
 
 const COLUMN_X_BY_TYPE: Record<string, number> = {
@@ -108,6 +112,10 @@ export function mergeGraphNodes<T extends LayoutNode>(
 }
 
 function estimateNodeHeight(node: LayoutNode) {
+  if (typeof node.measured?.height === "number" && node.measured.height > 0) {
+    return node.measured.height;
+  }
+
   switch (node.type) {
     case "requirementCard":
       return 760;

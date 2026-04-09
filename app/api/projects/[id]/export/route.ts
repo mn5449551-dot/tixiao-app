@@ -15,7 +15,6 @@ import {
   sanitizeExportSegment,
 } from "@/lib/export/utils";
 import { zipAndCleanupDirectory } from "@/lib/export/zip";
-import { getLogoAssetPath } from "@/lib/logo-assets";
 import { exportRecords } from "@/lib/schema";
 import { getStorageRoot, writeExportImage } from "@/lib/storage";
 
@@ -37,7 +36,7 @@ export async function POST(
     if (!exportContext) {
       return NextResponse.json({ error: "项目不存在" }, { status: 404 });
     }
-    const { project, configMap, images } = exportContext;
+    const { project, configMap, groupMap, images } = exportContext;
     if (images.length === 0) {
       return NextResponse.json({ error: "请先选定稿" }, { status: 422 });
     }
@@ -60,11 +59,7 @@ export async function POST(
     for (const slotSpec of slotSpecs) {
       for (const image of images) {
         const config = configMap.get(image.imageConfigId);
-        const logoKey = config?.logo;
-        const logoPath =
-          logoKey === "onion" || logoKey === "onion_app"
-            ? getLogoAssetPath(logoKey)
-            : null;
+        const group = groupMap.get(image.imageGroupId);
         const slotSize = parseSlotSize(slotSpec.size);
         const outputPath = path.join(exportDir, buildExportFileName({
           projectTitle: project.title,
@@ -77,12 +72,11 @@ export async function POST(
 
         await writeExportImage({
           sourcePath: image.filePath!,
-          logoPath,
           outputPath,
           format,
           targetWidth: slotSize?.width,
           targetHeight: slotSize?.height,
-          adaptationMode: classifyExportAdaptation(config?.aspectRatio ?? "1:1", slotSpec.ratio),
+          adaptationMode: classifyExportAdaptation(group?.aspectRatio ?? config?.aspectRatio ?? "1:1", slotSpec.ratio),
         });
         index += 1;
       }

@@ -1,5 +1,6 @@
 import type { CandidatePoolCardData } from "@/components/cards/candidate-pool-card";
 import type { getCanvasData, getGenerationStatusData } from "@/lib/project-data";
+import { toVersionedFileUrl } from "@/lib/utils";
 
 type CanvasData = NonNullable<ReturnType<typeof getCanvasData>>;
 type GenerationStatusData = NonNullable<ReturnType<typeof getGenerationStatusData>>;
@@ -47,8 +48,9 @@ export function mergeGenerationStatusesIntoGraph(
               if (!nextImage) return image;
               return {
                 ...image,
-                fileUrl: nextImage.fileUrl,
+                fileUrl: toVersionedFileUrl(nextImage.fileUrl, nextImage.updatedAt),
                 status: nextImage.status as CandidateImageStatus,
+                updatedAt: nextImage.updatedAt,
               };
             }),
           })),

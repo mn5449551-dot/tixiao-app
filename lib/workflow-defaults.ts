@@ -27,5 +27,6 @@ export function shouldShowImageStyleField(styleMode: string) {
 }
 
 export function shouldShowIpAssetSelector(styleMode: string, useIp: boolean) {
-  return styleMode === "ip" || useIp;
+  void useIp;
+  return styleMode === "ip";
 }

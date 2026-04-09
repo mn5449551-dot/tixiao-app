@@ -33,7 +33,9 @@ export function CandidateGroupCard({
       <div className="mb-3 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套</p>
-          <p className="mt-1 text-[11px] text-[var(--ink-400)]">{displayMode === "double" ? "双图" : "三图"}</p>
+          <p className="mt-1 text-[11px] text-[var(--ink-400)]">
+            {displayMode === "double" ? "双图" : "三图"} · {group.aspectRatio} · {group.imageStyle}
+          </p>
         </div>
         <Badge tone={group.isConfirmed ? "success" : groupHasGenerating ? "brand" : "neutral"}>
           {group.isConfirmed ? "已定稿" : groupHasGenerating ? "生成中" : "候选中"}

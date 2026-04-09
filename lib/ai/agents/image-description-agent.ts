@@ -32,7 +32,7 @@ export async function generateImageDescription(input: {
 }) {
   const rules = rulesContent
     ? `以下是画面描述生成规则，请严格遵守：\n\n${rulesContent}`
-    : "画面描述需包含场景氛围、画面构图、IP动作与位置（如有）、目标人群特征、文案融入方式，以及左上角Logo真实露出要求。";
+    : "画面描述需包含场景氛围、画面构图、IP动作与位置（如有）、目标人群特征、文案融入方式，以及左上角Logo真实露出要求，并强调 Logo 与参考完全一致，不得改字改形。";
 
   const systemPrompt = `你是广告画面描述专家。根据方向上下文、文案和图片配置，生成一段自然语言画面描述。
 ${rules}
@@ -43,6 +43,7 @@ ${rules}
 3. 如涉及IP，必须包含IP形象的动作与位置描述
 3.1 如涉及IP，必须保持角色长相、服装、发型、整体风格与参考图一致
 4. 如启用 Logo，必须提及 Logo 真实出现在左上角，而不是只留白
+4.1 Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计
 5. 风格必须匹配用户选择的图片风格
 6. 文案文字必须清晰可读，位置合理
 7. 不要生成JSON或其他格式，只输出纯文本描述`;
@@ -68,7 +69,7 @@ ${input.copyTitleExtra ? `- 第三图文案：${input.copyTitleExtra}` : ""}
 ${input.ipRole ? `- IP角色：${input.ipRole}` : ""}
 ${input.ipDescription ? `- IP角色描述：${input.ipDescription}` : ""}
 ${input.ipPromptKeywords ? `- IP关键词：${input.ipPromptKeywords}` : ""}
-- Logo：${input.logo === "onion" ? "洋葱学园（候选图阶段也要真实出现）" : input.logo === "onion_app" ? "洋葱学园+APP（候选图阶段也要真实出现）" : "不使用"}
+- Logo：${input.logo === "onion" ? "洋葱学园（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : input.logo === "onion_app" ? "洋葱学园+APP（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : "不使用"}
 
 额外约束：
 ${input.imageForm === "single" ? "单图时，文案可以整体进入同一张图。" : "多图时，此处只描述整套画面的统一风格、人物、场景和Logo要求，不要把整套文案同时塞进同一张图；具体每一张图承载哪句文案，由后续分图规则决定。"}
@@ -114,5 +115,5 @@ function buildFallbackDescription(input: {
     ? `画面中央出现${input.ipRole}角色，姿态亲切自然，目光看向观众，角色设定为${input.ipDescription ?? input.ipRole}，关键词包含${input.ipPromptKeywords ?? ""}，长相和整体风格必须与参考图一致`
     : `画面主体为一名目标人群代表（${input.targetAudience}）`;
 
-  return `${style}。${ipText}，站在明亮舒适的学习环境中。背景氛围体现"学习、成长、突破"的主题，色调温馨积极。画面构图采用${input.aspectRatio}竖版/横版布局，主体人物位于画面中右侧，左上角必须真实出现品牌Logo。文案"${input.copyTitleMain}"${input.copyTitleSub ? `和"${input.copyTitleSub}"` : ""}以清晰可读的字体排布在画面下方或侧边，不遮挡主体。整体传达"高效、陪伴、成长"的情绪。`;
+  return `${style}。${ipText}，站在明亮舒适的学习环境中。背景氛围体现"学习、成长、突破"的主题，色调温馨积极。画面构图采用${input.aspectRatio}竖版/横版布局，主体人物位于画面中右侧，左上角必须真实出现品牌Logo，且必须与参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。文案"${input.copyTitleMain}"${input.copyTitleSub ? `和"${input.copyTitleSub}"` : ""}以清晰可读的字体排布在画面下方或侧边，不遮挡主体。整体传达"高效、陪伴、成长"的情绪。`;
 }

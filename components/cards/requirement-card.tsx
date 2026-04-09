@@ -9,6 +9,7 @@ import { Handle, Position } from "@xyflow/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { apiFetch } from "@/lib/api-fetch";
 import { getDefaultDirectionGenerationInput } from "@/lib/workflow-defaults";
 import { cn } from "@/lib/utils";
 import { FEATURE_LIBRARY } from "@/lib/constants";
@@ -143,10 +144,9 @@ export function RequirementCard({
           throw new Error("项目信息缺失");
         }
 
-        const requirementResponse = await fetch(`/api/projects/${data.projectId}/requirement`, {
+        await apiFetch(`/api/projects/${data.projectId}/requirement`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             business_goal: businessGoal,
             target_audience: targetAudience,
             format_type: formatType,
@@ -154,26 +154,19 @@ export function RequirementCard({
             selling_points: sellingPoints,
             time_node: timeNode,
             direction_count: Number(directionCount),
-          }),
+          },
         });
-        if (!requirementResponse.ok) {
-          throw new Error("需求卡保存失败");
-        }
 
         const defaults = getDefaultDirectionGenerationInput(targetAudience);
-        const directionResponse = await fetch(`/api/projects/${data.projectId}/directions/generate`, {
+        await apiFetch(`/api/projects/${data.projectId}/directions/generate`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             channel: defaults.channel,
             image_form: defaults.imageForm,
             copy_generation_count: 3,
             use_ai: true,
-          }),
+          },
         });
-        if (!directionResponse.ok) {
-          throw new Error("方向生成失败");
-        }
 
         dispatchWorkspaceInvalidated();
         setStatus("done");
@@ -206,7 +199,7 @@ export function RequirementCard({
           ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
           : "border-[var(--line-soft)]",
       )}
-      style={{ width: 420 } satisfies CSSProperties}
+      style={{ width: 400 } satisfies CSSProperties}
     >
       {/* Top color bar */}
       <div
@@ -234,31 +227,28 @@ export function RequirementCard({
         type="source"
       />
 
-      {/* Header */}
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
-        <div className="space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--ink-400)]">
-            REQUIREMENT
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">需求卡</h3>
-          </div>
+      {/* Header - 简洁布局 */}
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-3 active:cursor-grabbing">
+        <div>
+          <h3 className="text-base font-semibold text-[var(--ink-950)]">需求卡</h3>
+          <p className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[var(--ink-400)]">REQUIREMENT</p>
         </div>
-        <Badge tone={currentStatus.tone}>{currentStatus.label}</Badge>
+        <Badge tone={currentStatus.tone} size="sm">{currentStatus.label}</Badge>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="space-y-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      {/* Form - 美化表单布局 */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-3">
           {/* 业务目标 (disabled) */}
-          <Field label="业务目标">
-            <Input value="APP（本期固定）" disabled />
-          </Field>
+          <div className="rounded-xl bg-[var(--surface-1)] p-3">
+            <Field label="业务目标">
+              <Input value="APP（本期固定）" disabled className="bg-transparent" />
+            </Field>
+          </div>
 
           {/* 目标人群 (required) */}
           <Field label="目标人群" hint="必填">
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { value: "parent", label: "家长" },
                 { value: "student", label: "学生" },
@@ -268,10 +258,10 @@ export function RequirementCard({
                   type="button"
                   onClick={() => setTargetAudience(opt.value)}
                   className={cn(
-                    "flex-1 rounded-2xl border px-3 py-2.5 text-sm font-medium transition",
+                    "rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-150",
                     targetAudience === opt.value
-                      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-500)]"
-                      : "border-[var(--line-strong)] bg-[var(--surface-0)] text-[var(--ink-500)] hover:border-[var(--brand-300)]",
+                      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                      : "border-[var(--line-strong)] bg-white text-[var(--ink-600)] hover:border-[var(--brand-300)]"
                   )}
                 >
                   {opt.label}
@@ -281,17 +271,20 @@ export function RequirementCard({
           </Field>
 
           {/* 形式 (disabled) */}
-          <Field label="形式">
-            <Input value="图文（本期固定）" disabled />
-          </Field>
+          <div className="rounded-xl bg-[var(--surface-1)] p-3">
+            <Field label="形式">
+              <Input value="图文（本期固定）" disabled className="bg-transparent" />
+            </Field>
+          </div>
 
           {/* 功能 (required) */}
           <Field label="功能" hint="必填">
             <Textarea
               value={feature}
               onChange={(e) => setFeature(e.target.value)}
-              minRows={1}
+              minRows={2}
               placeholder="例如：拍题精学"
+              className="resize-none"
             />
           </Field>
 
@@ -300,30 +293,40 @@ export function RequirementCard({
             <Textarea
               value={sellingPointsText}
               onChange={(e) => setSellingPointsText(e.target.value)}
-              minRows={2}
-              placeholder={"例如：10 秒出解析\n像老师边写边讲"}
+              minRows={3}
+              placeholder="例如：10 秒出解析&#10;像老师边写边讲"
+              className="resize-none"
             />
           </Field>
 
           {/* 时间节点 (required) */}
           <Field label="时间节点" hint="必填">
-            <Textarea
+            <Input
               value={timeNode}
               onChange={(e) => setTimeNode(e.target.value)}
-              minRows={1}
               placeholder="例如：期中考试"
             />
           </Field>
 
           {/* 生成方向数量 */}
-          <Field label="生成方向数量">
-            <Input
-              type="number"
-              min={1}
-              max={5}
-              value={directionCount}
-              onChange={(e) => setDirectionCount(e.target.value)}
-            />
+          <Field label="生成方向数量" hint="1-5个">
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setDirectionCount(String(num))}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl text-sm font-medium transition-all duration-150",
+                    directionCount === String(num)
+                      ? "bg-[var(--brand-500)] text-white shadow-md"
+                      : "bg-[var(--surface-1)] text-[var(--ink-600)] hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
+                  )}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
           </Field>
         </div>
 
@@ -332,35 +335,15 @@ export function RequirementCard({
           type="submit"
           variant="primary"
           disabled={!isFormValid || status === "loading"}
-          className="w-full"
+          className="w-full py-3 text-base font-semibold"
         >
           {status === "loading" ? (
             <span className="flex items-center gap-2">
-              <svg
-                className="h-4 w-4 animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  className="opacity-30"
-                />
-                <path
-                  d="M12 2a10 10 0 0 1 10 10"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               生成中...
             </span>
           ) : (
-            "\u26A1 生成"
+            "⚡ 生成方向"
           )}
         </Button>
       </form>

@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
 
 import { createProject, listProjects } from "@/lib/project-data";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
-  return NextResponse.json({ projects: listProjects() });
+  noStore();
+
+  return NextResponse.json(
+    { projects: listProjects() },
+    { headers: { "Cache-Control": "no-store, max-age=0" } },
+  );
 }
 
 export async function POST(request: Request) {

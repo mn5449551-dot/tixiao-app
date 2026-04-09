@@ -5,7 +5,9 @@ import fs from "node:fs/promises";
 import { eq } from "drizzle-orm";
 
 import { createSolidPlaceholder, saveImageBuffer } from "../storage";
+import * as projectData from "../project-data";
 import {
+  appendCopyToCardSmart,
   appendDirectionSmart,
   createProject,
   generateFinalizedVariants,
@@ -17,7 +19,7 @@ import {
   upsertRequirement,
 } from "../project-data";
 import { getDb } from "../db";
-import { copies, directions, generatedImages, imageConfigs, imageGroups } from "../schema";
+import { copies, copyCards, directions, generatedImages, imageConfigs, imageGroups } from "../schema";
 
 test("regenerateCopy replaces copy text and clears downstream generated assets", async () => {
   const project = createProject(`regenerate-copy-${Date.now()}`);
@@ -208,6 +210,47 @@ test("appendDirectionSmart preserves existing directions and appends one more", 
   assert.equal(projectRows.length, 3);
 });
 
+test("appendCopyToCardSmart appends a new copy into the selected existing copy card instead of creating a new card", async () => {
+  const project = createProject(`append-copy-into-card-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "double", 1);
+  assert.ok(direction);
+
+  const card = generateCopyCard(direction.id, 2);
+  assert.ok(card);
+  assert.equal(card?.copies.length, 2);
+
+  const appended = await appendCopyToCardSmart(card!.id, false);
+  assert.ok(appended);
+  assert.equal(appended?.id, card!.id);
+  assert.equal(appended?.copies.length, 3);
+
+  const db = getDb();
+  const cardRows = db.select().from(copyCards).where(eq(copyCards.directionId, direction.id)).all();
+  assert.equal(cardRows.length, 1);
+
+  const copyRows = db
+    .select()
+    .from(copies)
+    .where(eq(copies.copyCardId, card!.id))
+    .all()
+    .sort((left, right) => left.variantIndex - right.variantIndex);
+
+  assert.equal(copyRows.length, 3);
+  assert.equal(copyRows[0]?.variantIndex, 1);
+  assert.equal(copyRows[1]?.variantIndex, 2);
+  assert.equal(copyRows[2]?.variantIndex, 3);
+});
+
 test("generateFinalizedVariants creates derived finalized groups for mismatched export ratios", async () => {
   const project = createProject(`finalized-variants-${Date.now()}`);
   assert.ok(project);
@@ -319,4 +362,152 @@ test("saveImageConfig append mode preserves existing groups and adds new ones", 
 
   const allGroups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, second!.id)).all();
   assert.equal(allGroups.length, 2);
+});
+
+test("saveImageConfig append mode preserves per-group generation snapshots when config changes", async () => {
+  const project = createProject(`append-group-snapshots-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "double", 1);
+  const card = generateCopyCard(direction.id, 1);
+  const copy = card?.copies[0];
+  assert.ok(copy);
+
+  const first = await saveImageConfig(copy!.id, {
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+  });
+  assert.ok(first);
+
+  const second = await saveImageConfig(copy!.id, {
+    aspectRatio: "1:1",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "animation",
+    count: 2,
+    append: true,
+  });
+  assert.ok(second);
+
+  const db = getDb();
+  const allGroups = db
+    .select()
+    .from(imageGroups)
+    .where(eq(imageGroups.imageConfigId, second!.id))
+    .all()
+    .sort((left, right) => left.variantIndex - right.variantIndex);
+
+  assert.equal(allGroups.length, 3);
+  assert.equal(allGroups[0]?.aspectRatio, "3:2");
+  assert.equal(allGroups[0]?.styleMode, "normal");
+  assert.equal(allGroups[0]?.imageStyle, "realistic");
+  assert.equal(allGroups[1]?.aspectRatio, "1:1");
+  assert.equal(allGroups[1]?.imageStyle, "animation");
+  assert.equal(allGroups[2]?.aspectRatio, "1:1");
+  assert.equal(allGroups[2]?.imageStyle, "animation");
+});
+
+test("appendImageConfigGroup adds exactly one new candidate group for an existing multi-image config", async () => {
+  const project = createProject(`append-image-group-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "double", 1);
+  const card = generateCopyCard(direction.id, 1);
+  const copy = card?.copies[0];
+  assert.ok(copy);
+
+  const config = await saveImageConfig(copy!.id, {
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 2,
+  });
+  assert.ok(config);
+
+  const appendImageConfigGroup = Reflect.get(projectData, "appendImageConfigGroup");
+  assert.equal(typeof appendImageConfigGroup, "function");
+
+  const appended = await appendImageConfigGroup(config!.id);
+  assert.ok(appended);
+
+  const db = getDb();
+  const allGroups = db
+    .select()
+    .from(imageGroups)
+    .where(eq(imageGroups.imageConfigId, config!.id))
+    .all()
+    .sort((left, right) => left.variantIndex - right.variantIndex);
+
+  assert.equal(allGroups.length, 3);
+  assert.equal(allGroups[0]?.variantIndex, 1);
+  assert.equal(allGroups[1]?.variantIndex, 2);
+  assert.equal(allGroups[2]?.variantIndex, 3);
+  assert.equal(allGroups[2]?.groupType, "candidate");
+  assert.equal(allGroups[2]?.slotCount, 2);
+
+  const newImages = db
+    .select()
+    .from(generatedImages)
+    .where(eq(generatedImages.imageGroupId, allGroups[2]!.id))
+    .all()
+    .sort((left, right) => left.slotIndex - right.slotIndex);
+
+  assert.equal(newImages.length, 2);
+  assert.equal(newImages[0]?.slotIndex, 1);
+  assert.equal(newImages[1]?.slotIndex, 2);
+});
+
+test("saveImageConfig can create a draft config without immediately creating candidate groups", async () => {
+  const project = createProject(`draft-image-config-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 1,
+  });
+
+  const [direction] = generateDirections(project!.id, "应用商店", "double", 1);
+  const card = generateCopyCard(direction.id, 1);
+  const copy = card?.copies[0];
+  assert.ok(copy);
+
+  const config = await saveImageConfig(copy!.id, {
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+    createGroups: false,
+  });
+  assert.ok(config);
+
+  const db = getDb();
+  const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config!.id)).all();
+  const images = db.select().from(generatedImages).where(eq(generatedImages.imageConfigId, config!.id)).all();
+
+  assert.equal(groups.length, 0);
+  assert.equal(images.length, 0);
 });

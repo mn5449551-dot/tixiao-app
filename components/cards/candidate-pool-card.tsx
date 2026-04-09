@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import dynamic from "next/dynamic";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -11,7 +10,6 @@ import { Handle, Position } from "@xyflow/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  appendCandidateGeneration,
   confirmCandidateGroup,
   deleteCandidateGroup,
   deleteCandidateImage,
@@ -19,8 +17,9 @@ import {
 } from "@/components/cards/candidate-pool/candidate-pool-actions";
 import { CandidateGroupCard } from "@/components/cards/candidate-pool/candidate-group-card";
 import { CandidateImageCard } from "@/components/cards/candidate-pool/candidate-image-card";
+import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
-import { cn, toCssAspectRatio } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 const ImagePreviewModal = dynamic(
@@ -39,6 +38,7 @@ export type CandidateImage = {
   status: "pending" | "generating" | "done" | "failed";
   slotIndex: number;
   aspectRatio?: string;
+  updatedAt?: number;
 };
 
 export type CandidateGroup = {
@@ -46,6 +46,9 @@ export type CandidateGroup = {
   variantIndex: number;
   slotCount: number;
   isConfirmed: boolean;
+  aspectRatio: string;
+  styleMode: string;
+  imageStyle: string;
   images: CandidateImage[];
 };
 
@@ -76,6 +79,7 @@ export function CandidatePoolCard({
   const [inpaintImageId, setInpaintImageId] = useState<string | null>(null);
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const images = useMemo(() => groups.flatMap((group) => group.images), [groups]);
   const isError = status === "error";
@@ -108,11 +112,12 @@ export function CandidatePoolCard({
 
   const handleDeleteImage = useCallback(async (imageId: string) => {
     try {
+      setActionError(null);
       setActionLoading(imageId);
-      const ok = await deleteCandidateImage(imageId);
-      if (ok) {
-        dispatchWorkspaceInvalidated();
-      }
+      await deleteCandidateImage(imageId);
+      dispatchWorkspaceInvalidated();
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "删除图片失败");
     } finally {
       setActionLoading(null);
     }
@@ -120,11 +125,12 @@ export function CandidatePoolCard({
 
   const handleDeleteGroup = useCallback(async (groupId: string) => {
     try {
+      setActionError(null);
       setActionLoading(groupId);
-      const ok = await deleteCandidateGroup(groupId);
-      if (ok) {
-        dispatchWorkspaceInvalidated();
-      }
+      await deleteCandidateGroup(groupId);
+      dispatchWorkspaceInvalidated();
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "删除候选组失败");
     } finally {
       setActionLoading(null);
     }
@@ -132,11 +138,12 @@ export function CandidatePoolCard({
 
   const handleRegenerateImage = useCallback(async (imageId: string) => {
     try {
+      setActionError(null);
       setActionLoading(imageId);
-      const ok = await regenerateCandidateImage(imageId);
-      if (ok) {
-        dispatchWorkspaceInvalidated();
-      }
+      await regenerateCandidateImage(imageId);
+      dispatchWorkspaceInvalidated();
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "重生成失败");
     } finally {
       setActionLoading(null);
     }
@@ -144,12 +151,13 @@ export function CandidatePoolCard({
 
   const handleConfirmGroup = useCallback(async (groupId: string, confirmed: boolean, targetNodeId?: string) => {
     try {
+      setActionError(null);
       setActionLoading(groupId);
-      const ok = await confirmCandidateGroup(groupId, confirmed);
-      if (ok) {
-        void targetNodeId;
-        dispatchWorkspaceInvalidated();
-      }
+      await confirmCandidateGroup(groupId, confirmed);
+      void targetNodeId;
+      dispatchWorkspaceInvalidated();
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "更新定稿状态失败");
     } finally {
       setActionLoading(null);
     }
@@ -200,6 +208,11 @@ export function CandidatePoolCard({
           部分图片生成失败，请重试
         </div>
       )}
+      {actionError ? (
+        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+          {actionError}
+        </div>
+      ) : null}
 
       <div className="space-y-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         {displayMode === "single"
@@ -260,28 +273,6 @@ export function CandidatePoolCard({
               />
             ))}
       </div>
-
-      <div className="my-3 h-px bg-[var(--line-soft)]" />
-
-      {data.imageConfigId && (
-        <div className="mb-2 flex justify-end">
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              try {
-                if (!data.imageConfigId) return;
-                await appendCandidateGeneration({ imageConfigId: data.imageConfigId });
-                dispatchWorkspaceInvalidated();
-              } catch (error) {
-                console.error("Failed to append generate:", error);
-              }
-            }}
-            className="text-xs"
-          >
-            {displayMode === "single" ? "＋ 追加生成一张" : "＋ 追加生成一套"}
-          </Button>
-        </div>
-      )}
 
       {displayMode === "single" ? (
         <div className="flex items-center gap-2">
