@@ -124,6 +124,7 @@ function bootstrap(connection: Database.Database) {
       negative_prompt TEXT,
       reference_image_url TEXT,
       logo TEXT,
+      shared_base_snapshot TEXT,
       is_confirmed INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -140,6 +141,10 @@ function bootstrap(connection: Database.Database) {
       status TEXT NOT NULL DEFAULT 'pending',
       inpaint_parent_id TEXT,
       error_message TEXT,
+      slot_prompt_snapshot TEXT,
+      slot_negative_prompt TEXT,
+      reference_plan_snapshot TEXT,
+      prompt_summary_text TEXT,
       seed INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -271,6 +276,30 @@ function bootstrap(connection: Database.Database) {
 
   if (!imageGroupColumns.some((column) => column.name === "logo")) {
     connection.exec("ALTER TABLE image_groups ADD COLUMN logo TEXT;");
+  }
+
+  if (!imageGroupColumns.some((column) => column.name === "shared_base_snapshot")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN shared_base_snapshot TEXT;");
+  }
+
+  const generatedImageColumns = connection
+    .prepare("PRAGMA table_info(generated_images)")
+    .all() as Array<{ name: string }>;
+
+  if (!generatedImageColumns.some((column) => column.name === "slot_prompt_snapshot")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN slot_prompt_snapshot TEXT;");
+  }
+
+  if (!generatedImageColumns.some((column) => column.name === "slot_negative_prompt")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN slot_negative_prompt TEXT;");
+  }
+
+  if (!generatedImageColumns.some((column) => column.name === "reference_plan_snapshot")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN reference_plan_snapshot TEXT;");
+  }
+
+  if (!generatedImageColumns.some((column) => column.name === "prompt_summary_text")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN prompt_summary_text TEXT;");
   }
 
   const exportRecordColumns = connection

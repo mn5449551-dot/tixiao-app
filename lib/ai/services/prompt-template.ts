@@ -1,5 +1,9 @@
 import { IMAGE_STYLE_DESCRIPTIONS } from "@/lib/constants";
-import type { ImageDescriptionPayload } from "@/lib/ai/agents/image-description-agent";
+import type { ImageDescriptionPayload, SlotPromptPayload } from "@/lib/ai/agents/image-description-agent";
+
+function isSlotPromptPayload(value: unknown): value is SlotPromptPayload {
+  return typeof value === "object" && value !== null && (value as { schemaVersion?: unknown }).schemaVersion === "v2-slot-prompt";
+}
 
 export function buildImagePrompt(input: {
   directionTitle: string;
@@ -19,11 +23,47 @@ export function buildImagePrompt(input: {
   channel?: string;
   ctaEnabled?: boolean;
   ctaText?: string | null;
-  descriptionPayload?: string | ImageDescriptionPayload;
+  descriptionPayload?: string | ImageDescriptionPayload | SlotPromptPayload;
 }): string {
   const parsedDescription = typeof input.descriptionPayload === "string"
     ? JSON.parse(input.descriptionPayload) as Record<string, unknown>
     : input.descriptionPayload ?? null;
+
+  if (isSlotPromptPayload(parsedDescription)) {
+    const isSingleImage = parsedDescription.slotMeta.imageForm === "single";
+    const textOverlay = isSingleImage
+      ? {
+          main_title: input.copyTitleMain,
+          sub_title: input.copyTitleSub ?? null,
+          extra_title: input.copyTitleExtra ?? null,
+        }
+      : {
+          main_title: parsedDescription.slotMeta.currentSlotText,
+          sub_title: null,
+          extra_title: null,
+        };
+    const referenceImages = parsedDescription.referencePlan.referenceImages.map((reference, index) => ({
+      index: index + 1,
+      role: reference.role,
+      usage: reference.usage,
+    }));
+
+    return JSON.stringify({
+      aspect_ratio: parsedDescription.finalPromptObject.aspect_ratio,
+      prompt_core: parsedDescription.finalPromptObject.prompt_core,
+      subject: parsedDescription.finalPromptObject.subject,
+      scene: parsedDescription.finalPromptObject.scene,
+      composition: parsedDescription.finalPromptObject.composition,
+      text_instruction: parsedDescription.finalPromptObject.text_instruction,
+      brand_constraints: parsedDescription.finalPromptObject.brand_constraints,
+      slot_instruction: parsedDescription.finalPromptObject.slot_instruction,
+      cta: parsedDescription.finalPromptObject.cta,
+      text_overlay: textOverlay,
+      negative_prompt: parsedDescription.negativePrompt,
+      reference_images: referenceImages,
+    });
+  }
+
   const descriptionVisualConcept =
     parsedDescription && typeof parsedDescription.visualConcept === "object" && parsedDescription.visualConcept
       ? parsedDescription.visualConcept as Record<string, unknown>

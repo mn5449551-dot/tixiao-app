@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { buildImagePrompt, buildImageSlotPrompt, mergeImagePromptWithSlot } from "../ai/services/prompt-template";
+import type { SlotPromptPayload } from "../ai/agents/image-description-agent";
 
 test("buildImagePrompt injects selected IP description and consistency guardrails", () => {
   const prompt = buildImagePrompt({
@@ -495,4 +496,155 @@ test("buildImageSlotPrompt omits logo instructions when logo is disabled", () =>
 
   assert.doesNotMatch(slotPrompt, /Logo 在左上角可见/);
   assert.doesNotMatch(slotPrompt, /参考 Logo/);
+});
+
+test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
+  const payload: SlotPromptPayload = {
+    schemaVersion: "v2-slot-prompt",
+    slotMeta: {
+      slotIndex: 1,
+      slotCount: 2,
+      imageForm: "double",
+      copyType: "因果",
+      currentSlotText: "图一文案",
+      slotRole: "pain_or_cause",
+    },
+    sharedConsistency: {
+      characterConsistency: "人物一致",
+      sceneConsistency: "场景一致",
+      brandConsistency: "品牌一致",
+      styleConsistency: "风格一致",
+    },
+    referencePlan: {
+      referenceImages: [{ role: "logo", usage: "左上角真实露出" }],
+    },
+    finalPromptObject: {
+      prompt_version: "v2-slot",
+      aspect_ratio: "3:2",
+      prompt_core: "核心提示词",
+      subject: "主体描述",
+      scene: "场景描述",
+      composition: "构图描述",
+      text_instruction: "图一文案必须出现",
+      brand_constraints: "Logo 左上角",
+      slot_instruction: "本图承担痛点角色",
+      cta: null,
+    },
+    negativePrompt: "bad anatomy",
+    summaryText: "摘要",
+  };
+
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "图一文案",
+    aspectRatio: "3:2",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "double",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: false,
+    ctaText: null,
+    descriptionPayload: payload,
+  });
+
+  const parsed = JSON.parse(prompt) as Record<string, unknown>;
+  assert.equal(parsed.prompt_version, undefined);
+  assert.equal(parsed.slot_prompt, undefined);
+  assert.equal(parsed.aspect_ratio, "3:2");
+  assert.equal(parsed.prompt_core, "核心提示词");
+  assert.equal(parsed.negative_prompt, "bad anatomy");
+  assert.deepEqual(parsed.reference_images, [
+    { index: 1, role: "logo", usage: "左上角真实露出" },
+  ]);
+  assert.deepEqual(parsed.text_overlay, {
+    main_title: "图一文案",
+    sub_title: null,
+    extra_title: null,
+  });
+  assert.equal(parsed.slot_meta, undefined);
+  assert.equal(parsed.summary_text, undefined);
+  assert.equal(parsed.reference_plan, undefined);
+  assert.match(String(parsed.brand_constraints), /Logo 左上角/);
+});
+
+test("buildImagePrompt preserves single-image main/sub title fields in v2 payload mapping", () => {
+  const payload: SlotPromptPayload = {
+    schemaVersion: "v2-slot-prompt",
+    slotMeta: {
+      slotIndex: 1,
+      slotCount: 1,
+      imageForm: "single",
+      copyType: "单图主副标题",
+      currentSlotText: "拍一下就会 / 10秒出解析",
+      slotRole: "complete_message",
+    },
+    sharedConsistency: {
+      characterConsistency: "人物一致",
+      sceneConsistency: "场景一致",
+      brandConsistency: "品牌一致",
+      styleConsistency: "风格一致",
+    },
+    referencePlan: {
+      referenceImages: [
+        { role: "ip", usage: "保持角色长相一致" },
+        { role: "logo", usage: "左上角真实露出" },
+      ],
+    },
+    finalPromptObject: {
+      prompt_version: "v2-slot",
+      aspect_ratio: "16:9",
+      prompt_core: "核心提示词",
+      subject: "中国初中生，与豆包角色同框，年龄感明确，不要过成熟",
+      scene: "卡题场景",
+      composition: "单图完整承载主副标题，并预留 CTA 区域",
+      text_instruction: "主标题和副标题都要出现",
+      brand_constraints: "Logo 左上角",
+      slot_instruction: "当前图承担 complete_message 角色",
+      cta: {
+        text: "立即下载",
+        instruction: "在信息流单图中加入 CTA 按钮",
+      },
+    },
+    negativePrompt: "bad anatomy",
+    summaryText: "摘要",
+  };
+
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍一下就会",
+    copyTitleSub: "10秒出解析",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "onion",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "信息流（广点通）",
+    ctaEnabled: true,
+    ctaText: "立即下载",
+    descriptionPayload: payload,
+  });
+
+  const parsed = JSON.parse(prompt) as {
+    text_overlay?: {
+      main_title: string;
+      sub_title: string | null;
+      extra_title: string | null;
+    };
+    reference_images?: Array<{ index: number; role: string; usage: string }>;
+  };
+
+  assert.deepEqual(parsed.text_overlay, {
+    main_title: "拍一下就会",
+    sub_title: "10秒出解析",
+    extra_title: null,
+  });
+  assert.deepEqual(parsed.reference_images, [
+    { index: 1, role: "ip", usage: "保持角色长相一致" },
+    { index: 2, role: "logo", usage: "左上角真实露出" },
+  ]);
 });

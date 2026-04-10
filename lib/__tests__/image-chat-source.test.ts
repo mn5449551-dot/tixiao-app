@@ -35,3 +35,11 @@ test("image chat source maps transport failures to specific timeout and network 
   assert.match(source, /shouldRetryImageRequestError/);
   assert.match(source, /Connection": "close"|Connection:\s*"close"/);
 });
+
+test("text client supports multimodal content parts for Gemini prompt generation", async () => {
+  const source = await readFile(new URL("../ai/client.ts", import.meta.url), "utf8");
+
+  assert.match(source, /type:\s*"image_url"/);
+  assert.match(source, /createMultimodalChatCompletion/);
+  assert.match(source, /model:\s*options\.model/);
+});

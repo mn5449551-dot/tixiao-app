@@ -13,7 +13,7 @@ import { getIpAssetMetadata } from "@/lib/ip-assets";
 import { readLogoAssetAsDataUrl } from "@/lib/logo-assets";
 import { generatedImages, imageConfigs, directions, copies, imageGroups } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
-import { buildImagePrompt, buildImageSlotPrompt, mergeImagePromptWithSlot } from "@/lib/ai/services/prompt-template";
+import { buildImagePrompt } from "@/lib/ai/services/prompt-template";
 import sharp from "sharp";
 
 export async function GET(
@@ -213,34 +213,62 @@ async function regenerateSingleImage(input: {
   try {
     const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
     const group = db.select().from(imageGroups).where(eq(imageGroups.id, image.imageGroupId)).get();
-    // Get copy for prompt building
     const copy = db.select().from(copies).where(eq(copies.id, config.copyId)).get();
 
     if (!copy) {
       throw new Error("文案不存在");
     }
 
-    // Use existing prompt if available, otherwise build new one
-    const promptEn = group?.promptEn || config.promptEn || buildImagePrompt({
-      directionTitle: direction.title,
-      scenarioProblem: direction.scenarioProblem,
-      copyTitleMain: copy.titleMain,
-      copyTitleSub: copy.titleSub,
-      copyTitleExtra: copy.titleExtra,
-      aspectRatio: group?.aspectRatio ?? config.aspectRatio,
-      styleMode: group?.styleMode ?? config.styleMode,
-      imageStyle: group?.imageStyle ?? config.imageStyle,
-      ipRole: config.ipRole,
-      ipDescription: ipMetadata?.description ?? null,
-      ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-      logo: group?.logo ?? config.logo ?? "none",
-      imageForm: direction.imageForm ?? "single",
-      referenceImageUrl: group?.referenceImageUrl ?? config.referenceImageUrl,
-      channel: direction.channel,
-      ctaEnabled: config.ctaEnabled === 1,
-      ctaText: config.ctaText,
-      descriptionPayload: group?.promptZh ?? config.promptZh ?? undefined,
-    });
+    let slotPromptPayload: unknown = null;
+    if (image.slotPromptSnapshot) {
+      try {
+        slotPromptPayload = JSON.parse(image.slotPromptSnapshot);
+      } catch {
+        slotPromptPayload = null;
+      }
+    }
+
+    const promptEn = slotPromptPayload
+      ? buildImagePrompt({
+          directionTitle: direction.title,
+          scenarioProblem: direction.scenarioProblem,
+          copyTitleMain: copy.titleMain,
+          copyTitleSub: copy.titleSub,
+          copyTitleExtra: copy.titleExtra,
+          aspectRatio: group?.aspectRatio ?? config.aspectRatio,
+          styleMode: group?.styleMode ?? config.styleMode,
+          imageStyle: group?.imageStyle ?? config.imageStyle,
+          ipRole: config.ipRole,
+          ipDescription: ipMetadata?.description ?? null,
+          ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
+          logo: group?.logo ?? config.logo ?? "none",
+          imageForm: direction.imageForm ?? "single",
+          referenceImageUrl: group?.referenceImageUrl ?? config.referenceImageUrl,
+          channel: direction.channel,
+          ctaEnabled: config.ctaEnabled === 1,
+          ctaText: config.ctaText,
+          descriptionPayload: slotPromptPayload as never,
+        })
+      : group?.promptEn || config.promptEn || buildImagePrompt({
+          directionTitle: direction.title,
+          scenarioProblem: direction.scenarioProblem,
+          copyTitleMain: copy.titleMain,
+          copyTitleSub: copy.titleSub,
+          copyTitleExtra: copy.titleExtra,
+          aspectRatio: group?.aspectRatio ?? config.aspectRatio,
+          styleMode: group?.styleMode ?? config.styleMode,
+          imageStyle: group?.imageStyle ?? config.imageStyle,
+          ipRole: config.ipRole,
+          ipDescription: ipMetadata?.description ?? null,
+          ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
+          logo: group?.logo ?? config.logo ?? "none",
+          imageForm: direction.imageForm ?? "single",
+          referenceImageUrl: group?.referenceImageUrl ?? config.referenceImageUrl,
+          channel: direction.channel,
+          ctaEnabled: config.ctaEnabled === 1,
+          ctaText: config.ctaText,
+          descriptionPayload: group?.promptZh ?? config.promptZh ?? undefined,
+        });
 
     const referenceImageUrls = [
       group?.referenceImageUrl ?? config.referenceImageUrl ?? null,
@@ -249,18 +277,7 @@ async function regenerateSingleImage(input: {
         : null,
     ].filter(Boolean) as string[];
 
-    // Generate image
-    const slotPrompt = buildImageSlotPrompt({
-      imageForm: direction.imageForm ?? "single",
-      slotIndex: image.slotIndex,
-      slotCount: direction.imageForm === "triple" ? 3 : direction.imageForm === "double" ? 2 : 1,
-      copyType: copy.copyType,
-      copyTitleMain: copy.titleMain,
-      copyTitleSub: copy.titleSub,
-      copyTitleExtra: copy.titleExtra,
-      logo: group?.logo ?? config.logo ?? "none",
-    });
-    const fullPrompt = mergeImagePromptWithSlot(promptEn, slotPrompt);
+    const fullPrompt = promptEn;
     const binaries = referenceImageUrls.length > 0
       ? await generateImageFromReference({
           instruction: fullPrompt,

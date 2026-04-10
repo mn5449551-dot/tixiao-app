@@ -26,13 +26,13 @@ test("image generation routes pass aspect ratio through the shared OpenAI-compat
   assert.match(referenceSource, /aspectRatio:\s*body\.aspect_ratio/);
 });
 
-test("single-image regenerate preserves slot prompt for both reference and prompt generation paths", async () => {
+test("single-image regenerate prefers slot prompt snapshots over rebuilding group prompt", async () => {
   const regenerateSource = await readFile(regenerateRoutePath, "utf8");
 
-  assert.match(regenerateSource, /const slotPrompt = buildImageSlotPrompt/);
-  assert.match(regenerateSource, /const fullPrompt = mergeImagePromptWithSlot/);
+  assert.match(regenerateSource, /slotPromptSnapshot|slot_prompt_snapshot/);
   assert.match(regenerateSource, /instruction:\s*fullPrompt/);
   assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt/);
+  assert.doesNotMatch(regenerateSource, /mergeImagePromptWithSlot\(/);
 });
 
 test("logo remains part of the reference image inputs for both initial generation and regenerate", async () => {
@@ -69,18 +69,19 @@ test("image append route uses the shared image generation service instead of cal
   assert.match(appendSource, /@\/lib\/image-generation-service/);
 });
 
-test("image generation service snapshots prompt payloads onto image groups and regenerate prefers group snapshots", async () => {
+test("image generation service snapshots shared-base and slot prompt payloads for multimodal slot generation", async () => {
   const [generateSource, regenerateSource] = await Promise.all([
     readFile(generationServicePath, "utf8"),
     readFile(regenerateRoutePath, "utf8"),
   ]);
 
   assert.match(generateSource, /db\.update\(imageGroups\)/);
-  assert.match(generateSource, /promptZh,/);
-  assert.match(generateSource, /promptEn,/);
-  assert.match(generateSource, /negativePrompt,/);
-  assert.match(generateSource, /referenceImageUrl:/);
-  assert.match(generateSource, /logo:/);
+  assert.match(generateSource, /generateSlotImagePrompt/);
+  assert.match(generateSource, /Promise\.all/);
+  assert.match(generateSource, /sharedBaseSnapshot|shared_base_snapshot/);
+  assert.match(generateSource, /slotPromptSnapshot|slot_prompt_snapshot/);
+  assert.match(generateSource, /referencePlanSnapshot|reference_plan_snapshot/);
+  assert.match(generateSource, /promptSummaryText|prompt_summary_text/);
   assert.match(regenerateSource, /group\?\.promptEn \|\| config\.promptEn/);
   assert.match(regenerateSource, /group\?\.promptZh \?\? config\.promptZh/);
 });
