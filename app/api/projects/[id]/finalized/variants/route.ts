@@ -9,11 +9,13 @@ export async function POST(
   try {
     const { id } = await context.params;
     const body = (await request.json()) as {
+      target_group_ids?: string[];
       target_channels?: string[];
       target_slots?: string[];
     };
 
     const groups = await generateFinalizedVariants(id, {
+      targetGroupIds: body.target_group_ids,
       targetChannels: body.target_channels,
       targetSlots: body.target_slots,
     });

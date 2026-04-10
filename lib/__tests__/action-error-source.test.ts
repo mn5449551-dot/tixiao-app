@@ -28,4 +28,5 @@ test("finalized pool actions use the shared api-fetch helper", async () => {
 
   assert.match(source, /@\/lib\/api-fetch/);
   assert.doesNotMatch(source, /await fetch\(/);
+  assert.match(source, /target_group_ids/);
 });

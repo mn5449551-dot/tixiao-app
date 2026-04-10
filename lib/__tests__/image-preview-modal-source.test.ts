@@ -15,7 +15,6 @@ test("image preview modal behaves like an interactive viewer instead of a static
   assert.match(source, /getInitialScale/);
   assert.match(source, /isPortrait/);
   assert.match(source, /zoom/);
-  assert.match(source, /onWheel/);
   assert.match(source, /onMouseDown/);
   assert.match(source, /translate3d/);
   assert.match(source, /bg-black\//);
@@ -24,4 +23,12 @@ test("image preview modal behaves like an interactive viewer instead of a static
   assert.doesNotMatch(source, /className="fixed inset-0 z-50/);
   assert.match(source, /window\.addEventListener\("keydown"/);
   assert.doesNotMatch(source, /max-w-\[min\(92vw,1400px\)\]/);
+});
+
+test("image preview modal uses a non-passive native wheel listener for zooming", async () => {
+  const source = await readFile(imagePreviewModalPath, "utf8");
+
+  assert.match(source, /addEventListener\("wheel"/);
+  assert.match(source, /passive:\s*false/);
+  assert.doesNotMatch(source, /onWheel=\{/);
 });

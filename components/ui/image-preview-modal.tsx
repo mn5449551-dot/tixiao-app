@@ -206,6 +206,22 @@ function PreviewSurface({
     };
   }, [isDragging, naturalSize, stageSize, zoom]);
 
+  useEffect(() => {
+    if (!stageRef.current) return;
+
+    const stage = stageRef.current;
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      updateZoom(zoom * direction);
+    };
+
+    stage.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      stage.removeEventListener("wheel", handleWheel);
+    };
+  }, [zoom, naturalSize, stageSize, pan, baseFitScale]);
+
   const canPan = Boolean(
     naturalSize &&
     stageSize.width &&
@@ -235,14 +251,20 @@ function PreviewSurface({
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/88 pointer-events-auto" onClick={onClose}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="absolute inset-0 z-50 bg-black/90 backdrop-blur-sm pointer-events-auto animate-fade-in"
+      onClick={onClose}
+    >
       <button
         type="button"
         onClick={(event) => {
           event.stopPropagation();
           onClose();
         }}
-        className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-medium text-white transition hover:bg-black/72"
+        className="absolute right-6 top-6 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/10 text-2xl font-light text-white transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95"
         title="关闭预览"
       >
         ×
@@ -252,11 +274,6 @@ function PreviewSurface({
         ref={stageRef}
         className="absolute inset-0 overflow-hidden"
         onClick={(event) => event.stopPropagation()}
-        onWheel={(event) => {
-          event.preventDefault();
-          const direction = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-          updateZoom(zoom * direction);
-        }}
       >
         <div className="absolute inset-0">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -295,7 +312,8 @@ function PreviewSurface({
                 maxHeight: naturalSize ? "none" : "min(72vh, 900px)",
                 transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
                 transformOrigin: "center center",
-                boxShadow: "0 32px 120px rgba(0,0,0,0.35)",
+                boxShadow: "0 40px 160px rgba(0,0,0,0.5)",
+                borderRadius: "4px",
               }}
             />
           </div>
@@ -303,27 +321,27 @@ function PreviewSurface({
       </div>
 
       <div
-        className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/12 bg-black/60 px-4 py-3 text-white shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur"
+        className="absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/15 bg-black/70 px-5 py-3 text-white shadow-[0_16px_64px_rgba(0,0,0,0.4)] backdrop-blur-md"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
-          className="rounded-full border border-white/12 px-3 py-1.5 text-sm transition hover:bg-white/10"
+          className="rounded-full border border-white/15 px-3 py-1.5 text-sm font-medium transition-all hover:bg-white/15 active:scale-95"
           onClick={() => updateZoom(zoom / ZOOM_STEP)}
         >
           缩小
         </button>
-        <span className="min-w-16 text-center text-sm font-medium">{Math.round(zoom * 100)}%</span>
+        <span className="min-w-16 text-center text-sm font-medium tabular-nums">{Math.round(zoom * 100)}%</span>
         <button
           type="button"
-          className="rounded-full border border-white/12 px-3 py-1.5 text-sm transition hover:bg-white/10"
+          className="rounded-full border border-white/15 px-3 py-1.5 text-sm font-medium transition-all hover:bg-white/15 active:scale-95"
           onClick={() => updateZoom(zoom * ZOOM_STEP)}
         >
           放大
         </button>
         <button
           type="button"
-          className="rounded-full border border-white/12 px-3 py-1.5 text-sm transition hover:bg-white/10"
+          className="rounded-full border border-white/15 px-3 py-1.5 text-sm font-medium transition-all hover:bg-white/15 active:scale-95"
           onClick={() => {
             setZoom(baseFitScale);
             setPan({ x: 0, y: 0 });

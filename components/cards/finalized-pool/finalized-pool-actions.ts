@@ -6,6 +6,7 @@ export async function deleteDerivedGroup(groupId: string) {
 
 export async function generateFinalizedVariants(input: {
   projectId: string;
+  selectedGroupIds: string[];
   selectedChannels: string[];
   slotNames: string[];
 }) {
@@ -15,6 +16,7 @@ export async function generateFinalizedVariants(input: {
       {
         method: "POST",
         body: {
+          target_group_ids: input.selectedGroupIds,
           target_channels: input.selectedChannels,
           target_slots: input.slotNames,
         },
@@ -37,6 +39,7 @@ export async function generateFinalizedVariants(input: {
 
 export async function exportFinalizedImages(input: {
   projectId: string;
+  selectedGroupIds: string[];
   selectedChannels: string[];
   slotNames: string[];
   fileFormat: "jpg" | "png" | "webp";
@@ -46,6 +49,7 @@ export async function exportFinalizedImages(input: {
     const blob = await apiFetchBlob(`/api/projects/${input.projectId}/export`, {
       method: "POST",
       body: {
+        target_group_ids: input.selectedGroupIds,
         target_channels: input.selectedChannels,
         target_slots: input.slotNames,
         file_format: input.fileFormat,

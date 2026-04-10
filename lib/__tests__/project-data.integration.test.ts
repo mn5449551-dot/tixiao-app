@@ -18,6 +18,7 @@ import {
   generateCopyCardSmart,
   generateDirections,
   getCanvasData,
+  getProjectExportContext,
   getProjectById,
   regenerateCopy,
   saveImageConfig,
@@ -443,6 +444,159 @@ test("generateFinalizedVariants creates derived finalized groups for mismatched 
   const derivedImages = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, created[0].id)).all();
   assert.equal(derivedImages.length, 1);
   assert.ok(derivedImages[0].filePath);
+});
+
+test("generateFinalizedVariants only processes selected finalized groups", async () => {
+  const project = createProject(`finalized-variants-filter-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 2,
+  });
+
+  const directions = generateDirections(project!.id, "应用商店", "single", 1);
+  assert.equal(directions.length, 2);
+
+  const placeholders = await Promise.all([
+    createSolidPlaceholder({ text: "g1", width: 640, height: 640 }),
+    createSolidPlaceholder({ text: "g2", width: 640, height: 640 }),
+  ]);
+
+  const db = getDb();
+  const finalizedGroupIds: string[] = [];
+
+  for (const [index, direction] of directions.entries()) {
+    const card = generateCopyCard(direction.id, 1);
+    const copy = card?.copies[0];
+    assert.ok(copy);
+
+    const config = await saveImageConfig(copy!.id, {
+      aspectRatio: "1:1",
+      styleMode: "normal",
+      logo: "none",
+      imageStyle: "realistic",
+      count: 1,
+    });
+    assert.ok(config);
+
+    const group = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config!.id)).get();
+    const image = db.select().from(generatedImages).where(eq(generatedImages.imageConfigId, config!.id)).get();
+    assert.ok(group);
+    assert.ok(image);
+
+    const saved = await saveImageBuffer({
+      projectId: project!.id,
+      imageId: image!.id,
+      buffer: placeholders[index]!,
+      extension: "png",
+    });
+
+    db.update(generatedImages)
+      .set({
+        filePath: saved.filePath,
+        fileUrl: saved.fileUrl,
+        status: "done",
+        updatedAt: Date.now(),
+      })
+      .where(eq(generatedImages.id, image!.id))
+      .run();
+
+    db.update(imageGroups)
+      .set({ isConfirmed: 1, groupType: "finalized", updatedAt: Date.now() })
+      .where(eq(imageGroups.id, group!.id))
+      .run();
+
+    finalizedGroupIds.push(group!.id);
+  }
+
+  const created = await generateFinalizedVariants(project!.id, {
+    targetChannels: ["OPPO"],
+    targetSlots: ["富媒体-横版大图"],
+    targetGroupIds: [finalizedGroupIds[0]!],
+  });
+
+  assert.equal(created.length, 1);
+  assert.match(created[0]!.groupType, new RegExp(`^derived\\|${finalizedGroupIds[0]}\\|`));
+});
+
+test("getProjectExportContext filters images by selected finalized groups", async () => {
+  const project = createProject(`export-context-filter-${Date.now()}`);
+  assert.ok(project);
+
+  upsertRequirement(project!.id, {
+    targetAudience: "parent",
+    feature: "拍题精学",
+    sellingPoints: ["10 秒出解析"],
+    timeNode: "期中考试",
+    directionCount: 2,
+  });
+
+  const directions = generateDirections(project!.id, "应用商店", "single", 1);
+  assert.equal(directions.length, 2);
+
+  const db = getDb();
+  const finalizedGroupIds: string[] = [];
+
+  for (const direction of directions) {
+    const card = generateCopyCard(direction.id, 1);
+    const copy = card?.copies[0];
+    assert.ok(copy);
+
+    const config = await saveImageConfig(copy!.id, {
+      aspectRatio: "16:9",
+      styleMode: "normal",
+      logo: "none",
+      imageStyle: "realistic",
+      count: 1,
+    });
+    assert.ok(config);
+
+    const group = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config!.id)).get();
+    const image = db.select().from(generatedImages).where(eq(generatedImages.imageConfigId, config!.id)).get();
+    assert.ok(group);
+    assert.ok(image);
+
+    const placeholder = await createSolidPlaceholder({
+      text: group!.id,
+      width: 1280,
+      height: 720,
+    });
+    const saved = await saveImageBuffer({
+      projectId: project!.id,
+      imageId: image!.id,
+      buffer: placeholder,
+      extension: "png",
+    });
+
+    db.update(generatedImages)
+      .set({
+        filePath: saved.filePath,
+        fileUrl: saved.fileUrl,
+        status: "done",
+        updatedAt: Date.now(),
+      })
+      .where(eq(generatedImages.id, image!.id))
+      .run();
+
+    db.update(imageGroups)
+      .set({ isConfirmed: 1, groupType: "finalized", updatedAt: Date.now() })
+      .where(eq(imageGroups.id, group!.id))
+      .run();
+
+    finalizedGroupIds.push(group!.id);
+  }
+
+  const exportContext = getProjectExportContext(project!.id, {
+    targetGroupIds: [finalizedGroupIds[1]!],
+  });
+
+  assert.ok(exportContext);
+  assert.equal(exportContext!.images.length, 1);
+  assert.equal(exportContext!.images[0]!.imageGroupId, finalizedGroupIds[1]);
 });
 
 test("saveImageConfig append mode preserves existing groups and adds new ones", async () => {

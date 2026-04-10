@@ -24,6 +24,7 @@ export async function POST(
   try {
     const { id } = (await context.params) as { id: string };
     const body = (await request.json()) as {
+      target_group_ids?: string[];
       target_channels?: string[];
       target_slots?: string[];
       file_format?: "jpg" | "png" | "webp";
@@ -31,7 +32,9 @@ export async function POST(
     };
 
     const db = getDb();
-    const exportContext = getProjectExportContext(id);
+    const exportContext = getProjectExportContext(id, {
+      targetGroupIds: body.target_group_ids,
+    });
     if (!exportContext) {
       return NextResponse.json({ error: "项目不存在" }, { status: 404 });
     }

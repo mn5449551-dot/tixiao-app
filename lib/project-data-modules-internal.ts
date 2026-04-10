@@ -1207,11 +1207,13 @@ export async function appendImageConfigGroup(imageConfigId: string) {
 export async function generateFinalizedVariants(
   projectId: string,
   input: {
+    targetGroupIds?: string[];
     targetChannels?: string[];
     targetSlots?: string[];
   },
 ) {
   const db = getDb();
+  const selectedGroupIds = new Set(input.targetGroupIds ?? []);
   const slotSpecs = resolveExportSlotSpecs(input);
   const ratioSpecs = new Map(
     slotSpecs.map((slot) => [slot.ratio, slot]),
@@ -1228,7 +1230,12 @@ export async function generateFinalizedVariants(
         if (!config) continue;
 
         const groups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all();
-        const finalizedGroups = groups.filter((group) => group.isConfirmed === 1 && !group.groupType.startsWith("derived|"));
+        const finalizedGroups = groups.filter(
+          (group) =>
+            group.isConfirmed === 1 &&
+            !group.groupType.startsWith("derived|") &&
+            (selectedGroupIds.size === 0 || selectedGroupIds.has(group.id)),
+        );
 
         for (const group of finalizedGroups) {
           const sourceImages = db
@@ -1655,13 +1662,17 @@ export function getGenerationStatusData(projectId: string) {
   };
 }
 
-export function getProjectExportContext(projectId: string) {
+export function getProjectExportContext(projectId: string, input?: { targetGroupIds?: string[] }) {
   const project = getProjectById(projectId);
   if (!project) return null;
 
   const { configRows, groupRows, imageRows } = listProjectGraphRows(projectId);
+  const selectedGroupIds = new Set(input?.targetGroupIds ?? []);
   const confirmedGroupIds = new Set(
-    groupRows.filter((group) => group.isConfirmed === 1).map((group) => group.id),
+    groupRows
+      .filter((group) => group.isConfirmed === 1)
+      .filter((group) => selectedGroupIds.size === 0 || selectedGroupIds.has(group.id))
+      .map((group) => group.id),
   );
 
   return {

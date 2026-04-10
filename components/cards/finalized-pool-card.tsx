@@ -71,6 +71,7 @@ export function FinalizedPoolCard({
   selected,
 }: NodeProps<FinalizedPoolCardNode>) {
   const { displayMode, groups, groupLabel, projectId } = data;
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(() => new Set());
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [fileFormat, setFileFormat] = useState<"jpg" | "png" | "webp">("jpg");
@@ -118,6 +119,23 @@ export function FinalizedPoolCard({
   }, []);
 
   const exportCount = displayMode === "single" ? confirmedImages.length : groups.length;
+  const selectedGroupCount = selectedGroupIds.size;
+
+  const toggleGroupSelection = useCallback((groupId: string) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAllGroups = useCallback(() => {
+    setSelectedGroupIds((prev) => {
+      if (prev.size === groups.length) return new Set();
+      return new Set(groups.map((group) => group.id));
+    });
+  }, [groups]);
 
   return (
     <div
@@ -144,6 +162,7 @@ export function FinalizedPoolCard({
           </div>
           <p className="text-[11px] text-[var(--ink-400)]">
             {displayMode === "single" ? `共 ${confirmedImages.length} 张已定稿` : `共 ${groups.length} 套已定稿`}
+            {selectedGroupCount > 0 ? ` · 已选 ${selectedGroupCount}` : ""}
           </p>
         </div>
         {groupLabel ? <Badge tone="success">{groupLabel}</Badge> : null}
@@ -155,16 +174,48 @@ export function FinalizedPoolCard({
         </div>
       ) : null}
 
+      <div className="mb-3 flex items-center gap-2">
+        <Button variant="secondary" onClick={toggleSelectAllGroups} className="shrink-0 text-xs">
+          {selectedGroupIds.size === groups.length ? "全不选" : "全选"}
+        </Button>
+        <span className="flex-1 text-center text-xs text-[var(--ink-500)]">
+          已选 {selectedGroupIds.size}/{groups.length}
+        </span>
+      </div>
+
       <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">已定稿预览</p>
         {displayMode === "single" ? (
           <div className="space-y-3">
             {groups.map((group) => (
-              <div key={group.id} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
+              <div
+                key={group.id}
+                className={cn(
+                  "rounded-xl border bg-white p-3",
+                  selectedGroupIds.has(group.id)
+                    ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]"
+                    : "border-[var(--line-soft)]",
+                )}
+              >
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-medium text-[var(--ink-800)]">
-                    {isDerivedGroup(group) ? "适配版本" : `第 ${group.variantIndex} 组`}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex h-5 w-5 items-center justify-center rounded border text-[10px]",
+                        selectedGroupIds.has(group.id)
+                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                          : "border-[var(--line-soft)] bg-white text-transparent",
+                      )}
+                      onClick={() => toggleGroupSelection(group.id)}
+                      aria-label={selectedGroupIds.has(group.id) ? "取消选择定稿组" : "选择定稿组"}
+                    >
+                      ✓
+                    </button>
+                    <p className="text-xs font-medium text-[var(--ink-800)]">
+                      {isDerivedGroup(group) ? "适配版本" : `第 ${group.variantIndex} 组`}
+                    </p>
+                  </div>
                   {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : <Badge tone="success">原始定稿</Badge>}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -200,9 +251,32 @@ export function FinalizedPoolCard({
         ) : (
           <div className="space-y-3">
             {groups.map((group) => (
-              <div key={group.id} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
+              <div
+                key={group.id}
+                className={cn(
+                  "rounded-xl border bg-white p-3",
+                  selectedGroupIds.has(group.id)
+                    ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]"
+                    : "border-[var(--line-soft)]",
+                )}
+              >
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-medium text-[var(--ink-800)]">第 {group.variantIndex} 套</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex h-5 w-5 items-center justify-center rounded border text-[10px]",
+                        selectedGroupIds.has(group.id)
+                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                          : "border-[var(--line-soft)] bg-white text-transparent",
+                      )}
+                      onClick={() => toggleGroupSelection(group.id)}
+                      aria-label={selectedGroupIds.has(group.id) ? "取消选择定稿组" : "选择定稿组"}
+                    >
+                      ✓
+                    </button>
+                    <p className="text-xs font-medium text-[var(--ink-800)]">第 {group.variantIndex} 套</p>
+                  </div>
                   <div className="flex items-center gap-2">
                     {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : null}
                     <Badge tone="success">{group.slotCount} 图</Badge>
@@ -327,7 +401,7 @@ export function FinalizedPoolCard({
         <Button
           variant="secondary"
           className="shrink-0 text-xs"
-          disabled={isGeneratingVariants || selectedSlotSpecs.length === 0 || !projectId}
+          disabled={isGeneratingVariants || selectedSlotSpecs.length === 0 || selectedGroupIds.size === 0 || !projectId}
           onClick={async () => {
             if (!projectId) return;
             setIsGeneratingVariants(true);
@@ -335,6 +409,7 @@ export function FinalizedPoolCard({
             try {
               const result = await generateFinalizedVariants({
                 projectId,
+                selectedGroupIds: [...selectedGroupIds],
                 selectedChannels,
                 slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
               });
@@ -361,12 +436,13 @@ export function FinalizedPoolCard({
         variant="primary"
         className="w-full text-xs"
         onClick={async () => {
-          if (groups.length === 0 || selectedChannels.length === 0 || !projectId) return;
+          if (selectedGroupIds.size === 0 || selectedChannels.length === 0 || !projectId) return;
           setIsExporting(true);
           setFeedback(null);
           try {
             const result = await exportFinalizedImages({
               projectId,
+              selectedGroupIds: [...selectedGroupIds],
               selectedChannels,
               slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
               fileFormat,
@@ -381,7 +457,7 @@ export function FinalizedPoolCard({
             setIsExporting(false);
           }
         }}
-        disabled={isExporting}
+        disabled={isExporting || selectedGroupIds.size === 0 || selectedChannels.length === 0 || selectedSlotSpecs.length === 0}
       >
         {isExporting ? "导出中..." : "确认导出"}
       </Button>
