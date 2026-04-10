@@ -12,10 +12,10 @@ import { cn } from "@/lib/utils";
 
 export function Field({ label, hint, children }: PropsWithChildren<{ label: string; hint?: string }>) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm text-[var(--ink-700)]">
+    <label className="flex flex-col gap-2 text-sm text-[var(--ink-700)]">
       <span className="flex items-center justify-between gap-2">
-        <span className="font-medium text-[var(--ink-900)]">{label}</span>
-        {hint ? <span className="text-[11px] text-[var(--ink-500)]">{hint}</span> : null}
+        <span className="text-sm font-medium text-[var(--ink-900)]">{label}</span>
+        {hint ? <span className="text-xs text-[var(--ink-500)]">{hint}</span> : null}
       </span>
       {children}
     </label>
@@ -23,20 +23,31 @@ export function Field({ label, hint, children }: PropsWithChildren<{ label: stri
 }
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={inputControlClassName} {...props} />;
+  return <input className={cn(inputControlClassName, props.className)} {...props} />;
 }
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={inputControlClassName} {...props} />;
+  return (
+    <div className="relative">
+      <select className={cn(inputControlClassName, "pr-8 appearance-none")} {...props} />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-400)]">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 5L6 8L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    </div>
+  );
 }
 
 type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   minRows?: number;
+  maxRows?: number;
 };
 
 export function Textarea({
   className,
   minRows = 3,
+  maxRows = 6,
   onInput,
   value,
   ...props
@@ -48,8 +59,11 @@ export function Textarea({
     if (!element) return;
 
     element.style.height = "0px";
-    element.style.height = `${element.scrollHeight}px`;
-  }, []);
+    const scrollHeight = element.scrollHeight;
+    const lineHeight = parseInt(getComputedStyle(element).lineHeight || "20");
+    const maxHeight = maxRows * lineHeight;
+    element.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+  }, [maxRows]);
 
   useLayoutEffect(() => {
     resize();
@@ -71,7 +85,7 @@ export function Textarea({
 }
 
 const inputControlClassName =
-  "nodrag nopan h-10 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 text-sm text-[var(--ink-900)] outline-none transition-all duration-150 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
+  "nodrag nopan h-10 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 text-sm text-[var(--ink-900)] outline-none transition-all duration-250 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
 
 const textareaControlClassName =
-  "nodrag nopan min-h-10 w-full resize-none overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 py-2.5 text-sm text-[var(--ink-900)] outline-none transition-all duration-150 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
+  "nodrag nopan min-h-10 w-full resize-none overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 py-3 text-sm text-[var(--ink-900)] outline-none transition-all duration-250 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";

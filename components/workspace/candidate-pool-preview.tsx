@@ -66,7 +66,7 @@ export function CandidatePoolPreview({ workspace }: { workspace: WorkspaceData }
               >
                 <div>
                   <p className="text-sm font-medium text-[var(--ink-900)]">{entry.directionTitle}</p>
-                  <p className="mt-1 text-xs text-[var(--ink-500)] line-clamp-2">{entry.copyTitle}</p>
+                  <p className="mt-1 text-xs text-[var(--ink-500)] line-clamp-2" title={entry.copyTitle}>{entry.copyTitle}</p>
                 </div>
                 <div className="grid gap-3">
                   {entry.groups.map((group) => (

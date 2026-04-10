@@ -49,12 +49,12 @@ export function CandidateImageCard({
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-30" />
               <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
-            <span className="text-[10px] text-[var(--ink-400)]">生成中</span>
+            <span className="text-xs text-[var(--ink-400)]">生成中</span>
           </div>
         ) : isFailed ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1">
             <span className="text-lg text-[#c0392b]">{"\u2716"}</span>
-            <span className="text-[10px] font-medium text-[#c0392b]">生成失败</span>
+            <span className="text-xs font-medium text-[#c0392b]">生成失败</span>
           </div>
         ) : null}
 
@@ -69,9 +69,9 @@ export function CandidateImageCard({
           </label>
         ) : null}
       </button>
-      <div className="space-y-2 p-2.5">
+      <div className="space-y-2 p-3">
         {footer}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>
             重绘
           </Button>

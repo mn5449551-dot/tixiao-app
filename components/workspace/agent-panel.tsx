@@ -161,7 +161,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="rounded-lg p-1.5 text-[var(--ink-400)] transition-all duration-150 hover:bg-[var(--surface-1)] hover:text-[var(--ink-700)]"
+            className="rounded-lg p-1.5 text-[var(--ink-400)] transition-all duration-200 hover:bg-[var(--surface-1)] hover:text-[var(--ink-700)]"
             title="收起"
           >
             <span className="text-xs">&#9654;</span>
@@ -229,7 +229,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               ) : null}
               
               {/* 消息气泡 */}
-              <div className={`max-w-[280px] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+              <div className={`max-w-sm rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                 msg.role === "user"
                   ? "bg-gradient-to-br from-[var(--brand-50)] to-[var(--brand-100)] text-[var(--brand-800)]"
                   : msg.role === "system"
@@ -352,7 +352,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               onClick={handleConversationSend}
             >
               {assistantLoading ? (
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-2">
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   发送中...
                 </span>

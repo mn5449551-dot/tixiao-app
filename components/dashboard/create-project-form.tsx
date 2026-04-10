@@ -46,9 +46,9 @@ export function CreateProjectForm() {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-[28px] border border-[var(--line-soft)] bg-white/90 p-4 shadow-[var(--shadow-card)] backdrop-blur transition-all duration-200 hover:shadow-[var(--shadow-panel)]">
+    <div className="flex flex-col gap-4 rounded-3xl border border-[var(--line-soft)] bg-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur-sm transition-all duration-300 hover:shadow-[var(--shadow-panel)]">
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-[var(--ink-900)]">新建项目</p>
+        <p className="text-sm font-semibold text-[var(--ink-900)]">新建项目</p>
         <p className="text-xs text-[var(--ink-500)]">代码位于新目录 tixiao-app，文档与实现分离。</p>
       </div>
       <div className="flex gap-3">
@@ -63,14 +63,14 @@ export function CreateProjectForm() {
             }
           }}
         />
-        <Button 
-          disabled={isPending} 
+        <Button
+          disabled={isPending}
           onClick={handleSubmit}
-          className="shrink-0"
+          className="shrink-0 whitespace-nowrap"
         >
           {isPending ? (
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/60 border-t-white" />
               创建中...
             </span>
           ) : (
@@ -79,7 +79,7 @@ export function CreateProjectForm() {
         </Button>
       </div>
       {error && (
-        <div className="rounded-lg bg-[var(--danger-soft)] px-3 py-2">
+        <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-2.5">
           <p className="text-xs text-[var(--danger-700)]">{error}</p>
         </div>
       )}

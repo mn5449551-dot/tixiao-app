@@ -6,46 +6,57 @@ type ButtonProps = PropsWithChildren<
   ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: "primary" | "secondary" | "ghost" | "danger";
     size?: "sm" | "md" | "lg";
+    isLoading?: boolean;
   }
 >;
 
 const variantClassMap: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-[var(--brand-500)] text-white shadow-[0_10px_30px_rgba(242,110,36,0.28)] hover:bg-[var(--brand-600)] hover:shadow-[0_14px_40px_rgba(242,110,36,0.35)] active:scale-[0.97]",
+    "bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-[0_6px_20px_rgba(230,126,58,0.25)] hover:shadow-[0_10px_28px_rgba(230,126,58,0.35)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
   secondary:
-    "bg-white text-[var(--ink-900)] ring-1 ring-[var(--line-soft)] hover:bg-[var(--surface-2)] hover:ring-[var(--brand-300)] active:scale-[0.97]",
-  ghost: "bg-transparent text-[var(--ink-700)] hover:bg-[var(--surface-2)] active:scale-[0.97]",
-  danger: "bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[var(--danger-soft-hover)] active:scale-[0.97]",
+    "bg-white text-[var(--ink-800)] ring-1 ring-[var(--line-medium)] hover:bg-[var(--surface-1)] hover:ring-[var(--brand-300)] hover:text-[var(--ink-900)] active:scale-[0.98]",
+  ghost: "bg-transparent text-[var(--ink-600)] hover:bg-[var(--surface-1)] hover:text-[var(--ink-800)] active:scale-[0.98]",
+  danger: "bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[var(--danger-soft-hover)] hover:-translate-y-0.5 active:scale-[0.98]",
 };
 
 const sizeClassMap: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-8 px-3 text-xs rounded-xl",
-  md: "h-10 px-4 text-sm rounded-2xl",
-  lg: "h-12 px-6 text-base rounded-2xl",
+  md: "h-10 px-5 text-sm rounded-2xl",
+  lg: "h-12 px-7 text-base rounded-2xl font-medium",
 };
 
 export function Button({
   children,
   className,
   disabled,
+  isLoading,
   type = "button",
   variant = "primary",
   size = "md",
   ...props
 }: ButtonProps) {
+  const effectiveDisabled = disabled || isLoading;
+
   return (
     <button
       className={cn(
-        "nodrag nopan inline-flex items-center justify-center font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 disabled:pointer-events-none",
+        "nodrag nopan inline-flex items-center justify-center font-medium transition-all duration-250 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0",
         variantClassMap[variant],
         sizeClassMap[size],
         className,
       )}
-      disabled={disabled}
+      disabled={effectiveDisabled}
       type={type}
       {...props}
     >
-      {children}
+      {isLoading ? (
+        <>
+          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-white" />
+          {children}
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

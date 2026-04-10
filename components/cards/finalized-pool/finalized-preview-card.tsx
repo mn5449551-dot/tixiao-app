@@ -28,8 +28,8 @@ export function FinalizedPreviewCard({
         ) : null}
       </button>
       <div className="mt-1.5">
-        <p className="text-[10px] font-medium text-[var(--ink-700)]">{image.groupLabel ?? image.id}</p>
-        <p className="text-[10px] text-[var(--ink-400)]">比例 {image.aspectRatio}</p>
+        <p className="text-xs font-medium text-[var(--ink-700)]">{image.groupLabel ?? image.id}</p>
+        <p className="text-xs text-[var(--ink-400)]">比例 {image.aspectRatio}</p>
       </div>
     </div>
   );

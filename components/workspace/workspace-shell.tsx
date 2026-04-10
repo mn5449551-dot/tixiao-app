@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
+import { Spinner } from "@/components/ui/spinner";
+
 const AgentPanel = dynamic(
   () => import("@/components/workspace/agent-panel").then((mod) => mod.AgentPanel),
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center border-l border-[var(--line-soft)] bg-[var(--panel-strong)]">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--brand-500)] border-t-transparent" />
-          <span className="text-xs text-[var(--ink-500)]">加载中...</span>
+      <div className="flex h-full items-center justify-center border-l border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="md" />
+          <span className="text-xs text-[var(--ink-500)]">助手加载中...</span>
         </div>
       </div>
     ),
@@ -23,10 +25,10 @@ const ProjectTreePanel = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center border-r border-[var(--line-soft)] bg-[var(--panel-strong)]">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--brand-500)] border-t-transparent" />
-          <span className="text-xs text-[var(--ink-500)]">加载中...</span>
+      <div className="flex h-full items-center justify-center border-r border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="md" />
+          <span className="text-xs text-[var(--ink-500)]">目录加载中...</span>
         </div>
       </div>
     ),
@@ -38,9 +40,9 @@ const WorkflowCanvasPanel = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.94),rgba(247,243,239,0.98))]">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-[var(--brand-500)] border-t-transparent" />
+      <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(250,247,244,0.98))]">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
           <span className="text-sm text-[var(--ink-500)]">画布加载中...</span>
         </div>
       </div>
@@ -84,7 +86,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps) {
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--background)]">
       {/* Left Panel */}
-      <div 
+      <div
         className="transition-all duration-300 ease-in-out"
         style={{ width: leftWidth, flexShrink: 0 }}
       >
@@ -101,7 +103,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps) {
       </div>
 
       {/* Right Panel */}
-      <div 
+      <div
         className="transition-all duration-300 ease-in-out"
         style={{ width: rightWidth, flexShrink: 0 }}
       >

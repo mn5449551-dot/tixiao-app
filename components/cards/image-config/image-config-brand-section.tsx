@@ -65,15 +65,15 @@ export function ImageConfigBrandSection({
                       <span className={cn("text-xs font-medium", isActive ? "text-[var(--brand-600)]" : "text-[var(--ink-800)]")}>
                         {option.label}
                       </span>
-                      {isActive ? <span className="text-[10px] text-[var(--brand-500)]">已选</span> : null}
+                      {isActive ? <span className="text-xs text-[var(--brand-500)]">已选</span> : null}
                     </div>
-                    <p className="line-clamp-2 text-[10px] text-[var(--ink-500)]">{option.description}</p>
+                    <p className="line-clamp-2 text-xs text-[var(--ink-500)]">{option.description}</p>
                   </div>
                 </button>
               );
             })}
           </div>
-          <p className="text-[10px] text-[var(--ink-400)]">（生成阶段会纳入画面，导出阶段不再重复叠加）</p>
+          <p className="text-xs text-[var(--ink-400)]">（生成阶段会纳入画面，导出阶段不再重复叠加）</p>
         </div>
       ) : null}
 
@@ -111,9 +111,9 @@ export function ImageConfigBrandSection({
                       <span className={cn("text-xs font-medium", isActive ? "text-[var(--brand-600)]" : "text-[var(--ink-800)]")}>
                         {option.role}
                       </span>
-                      {isActive ? <span className="text-[10px] text-[var(--brand-500)]">已选</span> : null}
+                      {isActive ? <span className="text-xs text-[var(--brand-500)]">已选</span> : null}
                     </div>
-                    <p className="line-clamp-2 text-[10px] text-[var(--ink-500)]">{option.description}</p>
+                    <p className="line-clamp-2 text-xs text-[var(--ink-500)]">{option.description}</p>
                   </div>
                 </button>
               );

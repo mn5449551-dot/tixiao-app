@@ -55,7 +55,7 @@ export function DirectionItemRow({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[var(--ink-900)]">方向 #{index + 1}</span>
+            <span className="text-sm font-medium text-[var(--ink-900)]">方向 {index + 1}</span>
             <span className="truncate text-xs text-[var(--ink-500)]" title={item.title}>
               {item.title}
             </span>
@@ -65,8 +65,9 @@ export function DirectionItemRow({
           <button
             type="button"
             title={editing ? "保存" : "编辑"}
+            aria-label="编辑"
             className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition-colors",
+              "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]",
               editing
                 ? "bg-[var(--brand-50)] text-[var(--brand-600)]"
                 : "text-[var(--ink-500)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]",
@@ -78,7 +79,8 @@ export function DirectionItemRow({
           <button
             type="button"
             title={deleteHint ?? "删除"}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)] disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="删除"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
             onClick={onDelete}
             disabled={deleteDisabled}
           >

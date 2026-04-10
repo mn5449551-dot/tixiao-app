@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Noto_Sans_SC } from "next/font/google";
+import { IBM_Plex_Mono, Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
 import "./globals.css";
 
 const sans = Noto_Sans_SC({
   variable: "--font-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const serif = Noto_Serif_SC({
+  variable: "--font-serif",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -15,8 +21,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "图文提效工作流",
-  description: "洋葱学园图文链路工作台，使用 Next.js + React Flow + SQLite 构建。",
+  title: "图文提效工作流 · 洋葱学园",
+  description: "面向运营同学的 AI 图文生产控制台 — 项目列表、三栏工作区、需求卡、方向卡、文案卡与图片配置。",
 };
 
 export default function RootLayout({
@@ -25,8 +31,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={`${sans.variable} ${mono.variable}`}>
-      <body>{children}</body>
+    <html lang="zh-CN" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
+      <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-5 focus:py-3 focus:text-sm focus:font-medium focus:text-[var(--brand-700)] focus:shadow-[var(--shadow-elevated)] focus:outline-2 focus:outline-[var(--brand-400)] focus:outline-offset-2"
+        >
+          跳转到主要内容
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

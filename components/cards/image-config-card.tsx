@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -11,6 +11,7 @@ import { ImageConfigBrandSection } from "@/components/cards/image-config/image-c
 import { ImageConfigForm } from "@/components/cards/image-config/image-config-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { IP_ASSET_OPTIONS } from "@/lib/ip-asset-metadata";
 import {
   resolveImageStyleForMode,
@@ -107,7 +108,7 @@ export function ImageConfigCard({
   ]);
 
   const borderColorClass = isError
-    ? "border-[#c0392b]"
+    ? "border-[var(--danger-500)]"
     : selected
       ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
       : "border-[var(--line-soft)]";
@@ -115,59 +116,56 @@ export function ImageConfigCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
+        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 380 } satisfies CSSProperties}
+      style={{ width: 400, maxWidth: '100%' } satisfies CSSProperties}
     >
       {/* Loading overlay */}
       {(isLoading || isSubmitting) && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[28px] bg-white/60">
-          <div className="flex flex-col items-center gap-2">
-            <svg className="h-8 w-8 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-30" />
-              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner size="lg" />
             <span className="text-xs font-medium text-[var(--brand-600)]">{isSubmitting ? "正在生成候选图..." : "生成中..."}</span>
           </div>
         </div>
       )}
 
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
         position={Position.Right}
         type="source"
       />
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-[4px]",
-        isError ? "bg-[#c0392b]" : "bg-[var(--brand-500)]",
+        "absolute inset-x-0 top-0 h-1",
+        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]",
       )} />
 
-      {/* Header - 简洁布局 */}
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-3 active:cursor-grabbing">
+      {/* Header */}
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-[var(--ink-950)]">图片配置</h3>
+            <h3 className="text-lg font-semibold text-[var(--ink-950)]">图片配置</h3>
             {isDone && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-700)] text-[10px] text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--success-500)] text-[10px] text-white shadow-sm">
                 ✓
               </span>
             )}
             {isError && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-700)] text-[10px] text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--danger-500)] text-[10px] text-white shadow-sm">
                 ✕
               </span>
             )}
           </div>
-          <p className="mt-1 line-clamp-2 max-w-[200px] text-[10px] text-[var(--ink-500)]" title={copyText}>
+          <p className="mt-1 line-clamp-2 max-w-[260px] text-xs text-[var(--ink-500)]" title={copyText}>
             {copyText}
           </p>
         </div>
@@ -176,18 +174,18 @@ export function ImageConfigCard({
 
       {/* Error message */}
       {isError && (
-        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
           图片生成失败，请重试
         </div>
       )}
       {submitError ? (
-        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
           {submitError}
         </div>
       ) : null}
 
       {/* Copy text preview */}
-      <div className="mb-3 rounded-[22px] border border-[var(--line-soft)] bg-[var(--surface-1)] p-3">
+      <div className="mb-4 rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] p-4">
         <p className="text-xs leading-relaxed text-[var(--ink-700)]">{copyText}</p>
       </div>
 
@@ -236,8 +234,8 @@ export function ImageConfigCard({
         />
       </ImageConfigForm>
 
-      {/* Helper text - 优化提示文本展示 */}
-      <div className="mt-3 rounded-2xl bg-[var(--surface-1)] px-3 py-2">
+      {/* Helper text */}
+      <div className="mt-4 rounded-2xl bg-[var(--surface-1)] px-4 py-3">
         <p className="text-center text-[11px] text-[var(--ink-600)]">
           {showIpAssetSelector
             ? `将使用 ${ipRole} 的 IP 参考图，并在描述中注入角色形象约束`
@@ -248,12 +246,12 @@ export function ImageConfigCard({
       </div>
 
       {/* Divider */}
-      <div className="my-2.5 h-px bg-[var(--line-soft)]" />
+      <div className="my-4 h-px bg-[var(--line-soft)]" />
 
-      {/* Generate button - 优化按钮样式 */}
+      {/* Generate button */}
       <Button
         variant="primary"
-        className="w-full text-sm"
+        className="w-full py-3 text-sm font-semibold"
         disabled={isSubmitting}
         onClick={async () => {
           setIsSubmitting(true);
@@ -288,9 +286,9 @@ export function ImageConfigCard({
         }}
       >
         {isSubmitting ? (
-          <><span className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> 生成中...</>
+          <><span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/60 border-t-white" /> 生成中...</>
         ) : (
-          <><span className="mr-1.5">⚡</span> 生成候选图（{count}套）</>
+          <><span className="mr-2">⚡</span> 生成候选图（{count}套）</>
         )}
       </Button>
     </div>

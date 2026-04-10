@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/field";
 
 interface InpaintModalProps {
@@ -198,10 +199,7 @@ export function InpaintModal({ imageUrl, onClose }: InpaintModalProps) {
             {result === "loading" && (
               <div className="mt-6 rounded-xl border border-[var(--brand-200)] bg-[var(--brand-50)] p-4">
                 <div className="flex items-center gap-3">
-                  <svg className="h-6 w-6 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-30" />
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" className="opacity-80" />
-                  </svg>
+                  <Spinner size="sm" />
                   <span className="text-sm text-[var(--brand-700)]">生成中...</span>
                 </div>
               </div>

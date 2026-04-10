@@ -213,58 +213,58 @@ export function RequirementCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
+        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
         selected
-          ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
+          ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)] shadow-[var(--shadow-card-hover)]"
           : "border-[var(--line-soft)]",
       )}
-      style={{ width: 400 } satisfies CSSProperties}
+      style={{ width: 420 } satisfies CSSProperties}
     >
       {/* Top color bar */}
       <div
         className={cn(
-          "absolute inset-x-0 top-0 h-[4px] transition-colors",
+          "absolute inset-x-0 top-0 h-1 transition-colors",
           status === "loading"
-            ? "bg-[var(--brand-500)]"
+            ? "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]"
             : status === "done"
-              ? "bg-[#6b8e23]"
+              ? "bg-gradient-to-r from-[var(--success-500)] to-[var(--success-700)]"
               : status === "error"
-                ? "bg-[#c0392b]"
-                : "bg-[#b0a89a]",
+                ? "bg-gradient-to-r from-[var(--danger-500)] to-[var(--danger-700)]"
+                : "bg-gradient-to-r from-[var(--ink-300)] to-[var(--ink-400)]",
         )}
       />
 
       {/* Handles */}
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
         position={Position.Right}
         type="source"
       />
 
-      {/* Header - 简洁布局 */}
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-3 active:cursor-grabbing">
+      {/* Header */}
+      <div className="workflow-drag-handle mb-5 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
         <div>
-          <h3 className="text-base font-semibold text-[var(--ink-950)]">需求卡</h3>
-          <p className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[var(--ink-400)]">REQUIREMENT</p>
+          <h3 className="text-lg font-semibold text-[var(--ink-950)]">需求卡</h3>
+          <p className="mt-0.5 text-[10px] uppercase tracking-[0.22em] text-[var(--ink-400)]">REQUIREMENT</p>
         </div>
         <Badge tone={currentStatus.tone} size="sm">{currentStatus.label}</Badge>
       </div>
 
-      {/* Form - 美化表单布局 */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-5">
         {errorMessage ? (
-          <div className="rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+          <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
             {errorMessage}
           </div>
         ) : null}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* 业务目标 (disabled) */}
-          <div className="rounded-xl bg-[var(--surface-1)] p-3">
+          <div className="rounded-2xl bg-[var(--surface-1)] p-4">
             <Field label="业务目标">
               <Input value="APP（本期固定）" disabled className="bg-transparent" />
             </Field>
@@ -272,7 +272,7 @@ export function RequirementCard({
 
           {/* 目标人群 (required) */}
           <Field label="目标人群" hint="必填">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {[
                 { value: "parent", label: "家长" },
                 { value: "student", label: "学生" },
@@ -282,10 +282,10 @@ export function RequirementCard({
                   type="button"
                   onClick={() => setTargetAudience(opt.value)}
                   className={cn(
-                    "rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                    "rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97]",
                     targetAudience === opt.value
-                      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                      : "border-[var(--line-strong)] bg-white text-[var(--ink-600)] hover:border-[var(--brand-300)]"
+                      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)] shadow-sm"
+                      : "border-[var(--line-strong)] bg-white text-[var(--ink-600)] hover:border-[var(--brand-300)] hover:bg-[var(--brand-50)]"
                   )}
                 >
                   {opt.label}
@@ -295,7 +295,7 @@ export function RequirementCard({
           </Field>
 
           {/* 形式 (disabled) */}
-          <div className="rounded-xl bg-[var(--surface-1)] p-3">
+          <div className="rounded-2xl bg-[var(--surface-1)] p-4">
             <Field label="形式">
               <Input value="图文（本期固定）" disabled className="bg-transparent" />
             </Field>
@@ -334,16 +334,16 @@ export function RequirementCard({
 
           {/* 生成方向数量 */}
           <Field label="生成方向数量" hint="1-5个">
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               {[1, 2, 3, 4, 5].map((num) => (
                 <button
                   key={num}
                   type="button"
                   onClick={() => setDirectionCount(String(num))}
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl text-sm font-medium transition-all duration-150",
+                    "flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.95]",
                     directionCount === String(num)
-                      ? "bg-[var(--brand-500)] text-white shadow-md"
+                      ? "bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-[0_4px_12px_rgba(230,126,58,0.3)]"
                       : "bg-[var(--surface-1)] text-[var(--ink-600)] hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
                   )}
                 >
@@ -359,15 +359,15 @@ export function RequirementCard({
           type="submit"
           variant="primary"
           disabled={!isFormValid || status === "loading"}
-          className="w-full py-3 text-base font-semibold"
+          className="w-full py-3.5 text-base font-semibold"
         >
           {status === "loading" ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-white" />
               生成中...
             </span>
           ) : (
-            "\u26A1 保存并生成方向"
+            <><span className="mr-1.5">⚡</span> 保存并生成方向</>
           )}
         </Button>
       </form>

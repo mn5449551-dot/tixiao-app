@@ -26,10 +26,10 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
   if (projects.length === 0) {
     return (
       <Card className="flex min-h-[320px] items-center justify-center bg-white/88 p-10 text-center">
-        <div className="max-w-md space-y-4">
-          <p className="text-xs uppercase tracking-[0.28em] text-[var(--ink-400)]">Dashboard Empty</p>
+        <div className="max-w-md space-y-5">
+          <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[var(--ink-400)]">Dashboard Empty</p>
           <h3 className="text-2xl font-semibold text-[var(--ink-900)]">还没有项目</h3>
-          <p className="text-sm leading-6 text-[var(--ink-600)]">
+          <p className="text-sm leading-7 text-[var(--ink-600)]">
             还没有项目，点击右上角新建一个。
           </p>
         </div>
@@ -42,13 +42,13 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
       {projects.map((project, index) => (
         <div
           key={project.id}
-          className="group flex items-center gap-3 rounded-[20px] border border-[var(--line-soft)] bg-white/92 px-5 py-4 shadow-[var(--shadow-card)] transition-all duration-200 hover:border-[var(--brand-300)] hover:bg-[var(--brand-50)] hover:shadow-[0_20px_50px_rgba(77,49,18,0.1)] animate-fade-in"
+          className="group flex items-center gap-3 rounded-2xl border border-[var(--line-soft)] bg-white/90 px-5 py-4 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--brand-300)] hover:bg-[var(--brand-50)] hover:shadow-[0_20px_50px_rgba(77,49,18,0.1)] animate-fade-in"
           style={{ animationDelay: `${index * 50}ms` }}
         >
           <Link href={`/projects/${project.id}`} className="flex-1">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <h3 className="text-base font-semibold text-[var(--ink-950)] group-hover:text-[var(--brand-700)] transition-colors">
+                <h3 className="text-base font-semibold text-[var(--ink-950)] transition-colors group-hover:text-[var(--brand-700)]">
                   {project.title}
                 </h3>
                 <Badge tone={project.status === "draft" ? "neutral" : "brand"} size="sm">
@@ -61,11 +61,13 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-3">
-            <span className="text-xs text-[var(--ink-400)]">{formatRelativeDate(project.updatedAt)}</span>
+            <span className="text-xs text-[var(--ink-400)] border-l border-[var(--line-soft)] pl-3">
+              {formatRelativeDate(project.updatedAt)}
+            </span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-[var(--ink-400)] hover:text-[var(--danger-700)] hover:bg-[var(--danger-soft)]"
+              className="h-8 px-3 text-xs text-[var(--ink-400)] hover:text-[var(--danger-700)] hover:bg-[var(--danger-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
               disabled={isPending}
               onClick={() => {
                 if (!confirm(`确定删除项目「${project.title}」吗？此操作不可恢复。`)) return;
@@ -81,10 +83,11 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
             </Button>
             <Link
               href={`/projects/${project.id}`}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--ink-400)] transition-all group-hover:bg-[var(--brand-500)] group-hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-1)] text-[var(--ink-400)] transition-all group-hover:bg-[var(--brand-500)] group-hover:text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
               title="进入项目"
+              aria-label="进入项目"
             >
-              {"\u2192"}
+              {'>'}
             </Link>
           </div>
         </div>
