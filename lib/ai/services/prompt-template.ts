@@ -59,7 +59,7 @@ export function buildImagePrompt(input: {
       slot_instruction: parsedDescription.finalPromptObject.slot_instruction,
       cta: parsedDescription.finalPromptObject.cta,
       text_overlay: textOverlay,
-      typography_plan: parsedDescription.typographyPlan,
+      typography_intent: parsedDescription.typographyIntent,
       negative_prompt: parsedDescription.negativePrompt,
       reference_images: referenceImages,
     });

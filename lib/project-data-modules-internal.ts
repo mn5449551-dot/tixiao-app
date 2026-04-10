@@ -347,7 +347,29 @@ function normalizeDirectionIdeas(payload: unknown, count: number) {
   return ideas.length >= count ? ideas.slice(0, count) : null;
 }
 
-function normalizeCopyIdeas(payload: unknown, count: number, imageForm: string) {
+function getTextLength(value: string) {
+  return Array.from(value.trim()).length;
+}
+
+function isSingleCopyWithinLimits(idea: CopyIdea) {
+  const mainLength = getTextLength(idea.titleMain);
+  const subLength = getTextLength(idea.titleSub ?? "");
+  return mainLength >= 6 && mainLength <= 22 && subLength >= 7 && subLength <= 31;
+}
+
+function isMultiCopyWithinLimits(idea: CopyIdea, imageForm: string) {
+  const titles = [idea.titleMain, idea.titleSub ?? ""];
+  if (imageForm === "triple") {
+    titles.push(idea.titleExtra ?? "");
+  }
+
+  return titles.every((title) => {
+    const length = getTextLength(title);
+    return length >= 4 && length <= 10;
+  });
+}
+
+export function normalizeCopyIdeas(payload: unknown, count: number, imageForm: string) {
   const array = Array.isArray(payload)
     ? payload
     : payload && typeof payload === "object"
@@ -363,12 +385,20 @@ function normalizeCopyIdeas(payload: unknown, count: number, imageForm: string) 
       const idea = item as Partial<CopyIdea>;
       if (!idea.titleMain) return null;
       if (imageForm !== "single" && !idea.titleSub) return null;
-      return {
+      if (imageForm === "triple" && !idea.titleExtra) return null;
+
+      const normalized = {
         titleMain: idea.titleMain,
         titleSub: idea.titleSub ?? null,
         titleExtra: imageForm === "triple" ? (idea.titleExtra ?? null) : null,
         copyType: idea.copyType ?? (imageForm === "single" ? "单图主副标题" : imageForm === "double" ? "双图因果" : "三图递进"),
       } satisfies CopyIdea;
+
+      if (imageForm === "single") {
+        return isSingleCopyWithinLimits(normalized) ? normalized : null;
+      }
+
+      return isMultiCopyWithinLimits(normalized, imageForm) ? normalized : null;
     })
     .filter(Boolean) as CopyIdea[];
 

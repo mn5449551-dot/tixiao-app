@@ -280,6 +280,8 @@ test("normalizeSlotPromptPayload returns a v2 slot prompt object with non-empty 
   assert.ok(payload.finalPromptObject.prompt_core.length > 0);
   assert.match(payload.finalPromptObject.subject, /初中生/);
   assert.match(payload.finalPromptObject.subject, /年龄感明确|不要过成熟/);
+  assert.match(payload.finalPromptObject.subject, /IP风格|动画风格|不要出现真人写实质感/);
+  assert.doesNotMatch(payload.finalPromptObject.subject, /同框/);
   assert.match(payload.finalPromptObject.prompt_core, /拍题拆解/);
   assert.match(payload.finalPromptObject.prompt_core, /解决动作|结果状态/);
   assert.match(payload.finalPromptObject.prompt_core, /Logo左上角|Logo 必须真实出现在左上角/);
@@ -689,6 +691,24 @@ test("normalizeSlotPromptPayload preserves required v2 guardrails even when mode
   assert.doesNotMatch(payload.finalPromptObject.prompt_core, /不要展示当前文案|Logo可以自由变化|不用区分图位职责/);
 });
 
+test("normalizeSlotPromptPayload adds hand-ownership guardrails to prevent extra or floating hands", () => {
+  const payload = normalizeSlotPromptPayload(
+    {
+      sharedBase: sharedBaseFixture,
+      slot: {
+        ...slotFixture,
+        currentSlotText: "拍题解析看不懂？",
+        layoutExpectation: "人物手持平板，突出交互界面。",
+      },
+    },
+    {},
+  );
+
+  assert.match(payload.finalPromptObject.composition, /所有可见手和手臂都必须明确属于画面中的主体人物/);
+  assert.match(payload.finalPromptObject.composition, /不允许画外手|悬空手|额外手/);
+  assert.match(payload.finalPromptObject.prompt_core, /所有可见手和手臂都必须明确属于画面中的主体人物/);
+});
+
 test("normalizeSlotPromptPayload keeps aspect ratio caller-owned instead of accepting model drift", () => {
   const payload = normalizeSlotPromptPayload(
     {
@@ -714,7 +734,7 @@ test("normalizeSlotPromptPayload keeps aspect ratio caller-owned instead of acce
   assert.equal(payload.finalPromptObject.aspect_ratio, "3:2");
 });
 
-test("normalizeSlotPromptPayload adds typography plan for information-flow single-image slots", () => {
+test("normalizeSlotPromptPayload adds soft typography intent for information-flow single-image slots", () => {
   const payload = normalizeSlotPromptPayload(
     {
       sharedBase: buildSharedBaseFixture({
@@ -740,13 +760,13 @@ test("normalizeSlotPromptPayload adds typography plan for information-flow singl
     {},
   );
 
-  assert.equal(payload.typographyPlan.layoutPattern, "left_hero_title");
-  assert.equal(payload.typographyPlan.mainTitleStyle.tone, "explosive");
-  assert.equal(payload.typographyPlan.mainTitleStyle.outline, "thick_white");
-  assert.equal(payload.typographyPlan.ctaStyle?.shape, "pill");
-  assert.equal(payload.typographyPlan.ctaStyle?.fill, "warm_orange");
-  assert.equal(payload.typographyPlan.backgroundSupport.textAreaSupport, "clean_space");
-  assert.ok(payload.typographyPlan.emphasisWords.some((item) => item.text.includes("看不懂")));
+  assert.equal(payload.typographyIntent.headlineImpact, "high");
+  assert.equal(payload.typographyIntent.readabilityPriority, "high");
+  assert.equal(payload.typographyIntent.emphasisStrategy, "allow_strong_key_phrase_emphasis");
+  assert.equal(payload.typographyIntent.ctaPresenceStyle, "strong_button_if_allowed");
+  assert.equal(payload.typographyIntent.textAreaCleanliness, "keep_text_area_clean");
+  assert.equal(payload.typographyIntent.layoutFreedom, "model_decides_within_clear_text_area");
+  assert.equal(payload.typographyIntent.overallFeel, "bold_and_scroll_stopping");
 });
 
 test("normalizeSlotPromptPayload forces no-logo brand constraints when logo is disabled even if model hallucinates logo rules", () => {

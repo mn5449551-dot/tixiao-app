@@ -157,43 +157,15 @@ export type SlotPromptPayload = {
       usage: string;
     }>;
   };
-  typographyPlan: {
-    layoutPattern: string;
-    mainTitleStyle: {
-      tone: string;
-      weight: string;
-      outline: string;
-      shadow: string;
-      tilt: string;
-      maxLines: number;
-    };
-    subTitleStyle: {
-      tone: string;
-      weight: string;
-      outline: string;
-      shadow: string;
-      container: string;
-      maxLines: number;
-    };
-    emphasisWords: Array<{
-      text: string;
-      style: string;
-    }>;
-    badges: Array<{
-      text: string;
-      style: string;
-      placement: string;
-    }>;
-    ctaStyle: null | {
-      shape: string;
-      fill: string;
-      outline: string;
-      depth: string;
-    };
-    backgroundSupport: {
-      textAreaSupport: string;
-      complexityBehindText: string;
-    };
+  typographyIntent: {
+    headlineImpact: string;
+    readabilityPriority: string;
+    emphasisStrategy: string;
+    supportingTextStyle: string;
+    ctaPresenceStyle: string;
+    textAreaCleanliness: string;
+    layoutFreedom: string;
+    overallFeel: string;
   };
   finalPromptObject: {
     prompt_version: "v2-slot";
@@ -270,17 +242,26 @@ function normalizePositiveNumber(value: unknown, fallback: number) {
 function buildAudienceSubject(input: SharedBaseContext) {
   const audience = input.direction.targetAudience;
   if (audience.includes("家长")) {
+    if (input.config.styleMode === "ip") {
+      return "中国家长角色，整体人物视觉必须完全服从当前IP风格，不要出现真人写实质感";
+    }
     return input.ip.ipRole
       ? `中国家长形象，与${input.ip.ipRole}角色同框，家庭教育场景气质自然可信`
       : "中国家长形象，家庭教育场景气质自然可信";
   }
 
   if (audience.includes("初中") || audience.includes("学生")) {
+    if (input.config.styleMode === "ip") {
+      return "中国初中生，年龄感明确，不要过成熟，整体人物视觉必须完全服从当前IP风格，不要出现真人写实质感";
+    }
     return input.ip.ipRole
       ? `中国初中生，与${input.ip.ipRole}角色同框，年龄感明确，不要过成熟`
       : "中国初中生，年龄感明确，不要过成熟";
   }
 
+  if (input.config.styleMode === "ip") {
+    return "中国学生或家长代表，整体人物视觉必须完全服从当前IP风格，不要出现真人写实质感";
+  }
   return input.ip.ipRole
     ? `中国学生或家长代表，与${input.ip.ipRole}角色同框，人物身份需与学习场景匹配`
     : "中国学生或家长代表，人物身份需与学习场景匹配";
@@ -313,110 +294,53 @@ function extractEmphasisWords(text: string, channel: string) {
   return matches;
 }
 
-function buildTypographyPlan(input: {
+function buildTypographyIntent(input: {
   sharedBase: SharedBaseContext;
   slot: SlotSpecificContext;
-}): SlotPromptPayload["typographyPlan"] {
+}): SlotPromptPayload["typographyIntent"] {
   const channel = input.sharedBase.direction.channel;
-  const isSingleImage = input.sharedBase.config.imageForm === "single";
   const isInformationFlow = channel.includes("信息流");
   const isLearningMachine = channel.includes("学习机");
 
   if (isInformationFlow) {
     return {
-      layoutPattern: "left_hero_title",
-      mainTitleStyle: {
-        tone: "explosive",
-        weight: "heavy",
-        outline: "thick_white",
-        shadow: "strong",
-        tilt: "slight",
-        maxLines: 2,
-      },
-      subTitleStyle: {
-        tone: "supportive",
-        weight: "semibold",
-        outline: "none",
-        shadow: "medium",
-        container: "rounded_bar",
-        maxLines: 2,
-      },
-      emphasisWords: extractEmphasisWords(input.slot.currentSlotText, channel),
-      badges: isSingleImage ? [{ text: "试试洋葱！", style: "sticker", placement: "near_title" }] : [],
-      ctaStyle: input.sharedBase.config.ctaEnabled
-        ? {
-            shape: "pill",
-            fill: "warm_orange",
-            outline: "none",
-            depth: "raised",
-          }
-        : null,
-      backgroundSupport: {
-        textAreaSupport: "clean_space",
-        complexityBehindText: "low",
-      },
+      headlineImpact: "high",
+      readabilityPriority: "high",
+      emphasisStrategy: extractEmphasisWords(input.slot.currentSlotText, channel).length > 0
+        ? "allow_strong_key_phrase_emphasis"
+        : "allow_moderate_emphasis",
+      supportingTextStyle: "clear_secondary_support",
+      ctaPresenceStyle: input.sharedBase.config.ctaEnabled ? "strong_button_if_allowed" : "none",
+      textAreaCleanliness: "keep_text_area_clean",
+      layoutFreedom: "model_decides_within_clear_text_area",
+      overallFeel: "bold_and_scroll_stopping",
     };
   }
 
   if (isLearningMachine) {
     return {
-      layoutPattern: "stacked_center",
-      mainTitleStyle: {
-        tone: "academic_poster",
-        weight: "heavy",
-        outline: "thick_white",
-        shadow: "medium",
-        tilt: "none",
-        maxLines: 2,
-      },
-      subTitleStyle: {
-        tone: "explanatory",
-        weight: "semibold",
-        outline: "none",
-        shadow: "none",
-        container: "rounded_bar",
-        maxLines: 2,
-      },
-      emphasisWords: extractEmphasisWords(input.slot.currentSlotText, channel),
-      badges: [],
-      ctaStyle: {
-        shape: "pill",
-        fill: "brand_blue",
-        outline: "none",
-        depth: "raised",
-      },
-      backgroundSupport: {
-        textAreaSupport: "soft_glow",
-        complexityBehindText: "low",
-      },
+      headlineImpact: "medium_high",
+      readabilityPriority: "high",
+      emphasisStrategy: "poster_like_emphasis",
+      supportingTextStyle: "clear_secondary_support",
+      ctaPresenceStyle: "large_clear_button",
+      textAreaCleanliness: "keep_text_area_clean",
+      layoutFreedom: "model_decides_within_balanced_poster_layout",
+      overallFeel: "poster_like",
     };
   }
 
   return {
-    layoutPattern: "title_plus_badges",
-    mainTitleStyle: {
-      tone: "bold_clean",
-      weight: "heavy",
-      outline: "thick_dark",
-      shadow: "medium",
-      tilt: "none",
-      maxLines: 2,
-    },
-    subTitleStyle: {
-      tone: "supportive",
-      weight: "semibold",
-      outline: "none",
-      shadow: "none",
-      container: "none",
-      maxLines: 2,
-    },
-    emphasisWords: extractEmphasisWords(input.slot.currentSlotText, channel),
-    badges: [],
-    ctaStyle: null,
-    backgroundSupport: {
-      textAreaSupport: "blurred_panel",
-      complexityBehindText: "medium",
-    },
+    headlineImpact: "medium",
+    readabilityPriority: "high",
+    emphasisStrategy: extractEmphasisWords(input.slot.currentSlotText, channel).length > 0
+      ? "moderate_feature_emphasis"
+      : "subtle_feature_emphasis",
+    supportingTextStyle: "clear_secondary_support",
+    ctaPresenceStyle: input.sharedBase.config.ctaEnabled ? "button_if_allowed" : "subtle_or_none",
+    textAreaCleanliness: "keep_text_area_readable",
+    layoutFreedom: "model_decides_within_structured_layout",
+    overallFeel: "clean_and_feature_focused",
   };
 }
 
@@ -674,14 +598,14 @@ export function buildSlotImageDescriptionMessages(input: {
 核心任务：
 1. 继承整组图共享的人物、场景、品牌、风格一致性。
 2. 只为当前 slot 生成一份可直接用于后续生图组装的 JSON。
-3. 明确 referencePlan、slot_instruction、text_instruction、brand_constraints 和 typographyPlan。
+3. 明确 referencePlan、slot_instruction、text_instruction、brand_constraints 和 typographyIntent。
 
 输出要求：
 - 只输出合法 JSON
 - schemaVersion 固定为 v2-slot-prompt
 - finalPromptObject.prompt_core 必须非空
 - slotRole、mustNotRepeat、layoutExpectation 必须体现在结果中
-- typographyPlan 必须体现标题冲击力、重点词高亮、CTA样式或文字区支撑方式`;
+- typographyIntent 必须体现标题冲击力、可读性优先级、重点词强调策略和整体版式气质`;
 
   const userText = `sharedBase:
 - direction.title: ${input.sharedBase.direction.title}
@@ -743,7 +667,7 @@ export function normalizeSlotPromptPayload(
   raw: Partial<SlotPromptPayload> = {},
 ): SlotPromptPayload {
   const sharedConsistencyFallback = buildSharedConsistency(input.sharedBase);
-  const typographyPlan = buildTypographyPlan(input);
+  const typographyIntent = buildTypographyIntent(input);
   const fallbackSubject = buildAudienceSubject(input.sharedBase);
   const fallbackScene =
     [input.sharedBase.direction.scenarioProblem, input.sharedBase.direction.differentiation].filter(Boolean).join("，")
@@ -758,7 +682,8 @@ export function normalizeSlotPromptPayload(
   };
   const subject = fallbackSubject;
   const scene = fallbackScene;
-  const composition = input.slot.layoutExpectation || "构图聚焦当前图位职责";
+  const handOwnershipConstraint = "所有可见手和手臂都必须明确属于画面中的主体人物，不允许画外手、悬空手或额外手。";
+  const composition = `${input.slot.layoutExpectation || "构图聚焦当前图位职责"}；${handOwnershipConstraint}`;
   const textInstruction = `${normalizedSlotMeta.currentSlotText}必须清晰可读，采用${input.slot.mustShowTextMode}承载。`;
   const brandConstraints = input.sharedBase.config.logo === "none"
     ? "无 Logo 强制露出。"
@@ -785,7 +710,7 @@ export function normalizeSlotPromptPayload(
     referencePlan: {
       referenceImages: normalizeReferenceImages(input.sharedBase, raw.referencePlan?.referenceImages),
     },
-    typographyPlan,
+    typographyIntent,
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: input.sharedBase.config.aspectRatio,
@@ -800,7 +725,7 @@ export function normalizeSlotPromptPayload(
     },
     negativePrompt: normalizeNonEmptyString(
       raw.negativePrompt,
-      "避免低清晰度、文字不可读、Logo变形、人物崩坏、与其他图位职责重复。",
+      "避免低清晰度、文字不可读、Logo变形、人物崩坏、与其他图位职责重复。避免 extra hand, disembodied hand, floating hand, extra arm, extra limbs, pov hand, viewer hand。",
     ),
     summaryText: normalizeNonEmptyString(
       raw.summaryText,

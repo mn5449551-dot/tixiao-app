@@ -518,31 +518,15 @@ test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
     referencePlan: {
       referenceImages: [{ role: "logo", usage: "左上角真实露出" }],
     },
-    typographyPlan: {
-      layoutPattern: "title_plus_badges",
-      mainTitleStyle: {
-        tone: "bold_clean",
-        weight: "heavy",
-        outline: "thick_dark",
-        shadow: "medium",
-        tilt: "none",
-        maxLines: 2,
-      },
-      subTitleStyle: {
-        tone: "supportive",
-        weight: "semibold",
-        outline: "none",
-        shadow: "none",
-        container: "none",
-        maxLines: 2,
-      },
-      emphasisWords: [{ text: "图一", style: "contrast_outline" }],
-      badges: [],
-      ctaStyle: null,
-      backgroundSupport: {
-        textAreaSupport: "blurred_panel",
-        complexityBehindText: "medium",
-      },
+    typographyIntent: {
+      headlineImpact: "medium",
+      readabilityPriority: "high",
+      emphasisStrategy: "moderate_feature_emphasis",
+      supportingTextStyle: "clear_secondary_support",
+      ctaPresenceStyle: "subtle_or_none",
+      textAreaCleanliness: "keep_text_area_readable",
+      layoutFreedom: "model_decides_within_structured_layout",
+      overallFeel: "clean_and_feature_focused",
     },
     finalPromptObject: {
       prompt_version: "v2-slot",
@@ -585,7 +569,7 @@ test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
   assert.deepEqual(parsed.reference_images, [
     { index: 1, role: "logo", usage: "左上角真实露出" },
   ]);
-  assert.deepEqual(parsed.typography_plan, payload.typographyPlan);
+  assert.deepEqual(parsed.typography_intent, payload.typographyIntent);
   assert.deepEqual(parsed.text_overlay, {
     main_title: "图一文案",
     sub_title: null,
@@ -620,42 +604,21 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
         { role: "logo", usage: "左上角真实露出" },
       ],
     },
-    typographyPlan: {
-      layoutPattern: "left_hero_title",
-      mainTitleStyle: {
-        tone: "explosive",
-        weight: "heavy",
-        outline: "thick_white",
-        shadow: "strong",
-        tilt: "slight",
-        maxLines: 2,
-      },
-      subTitleStyle: {
-        tone: "supportive",
-        weight: "semibold",
-        outline: "none",
-        shadow: "medium",
-        container: "rounded_bar",
-        maxLines: 2,
-      },
-      emphasisWords: [{ text: "拍一下", style: "highlight_fill_yellow" }],
-      badges: [{ text: "试试洋葱！", style: "sticker", placement: "near_title" }],
-      ctaStyle: {
-        shape: "pill",
-        fill: "warm_orange",
-        outline: "none",
-        depth: "raised",
-      },
-      backgroundSupport: {
-        textAreaSupport: "clean_space",
-        complexityBehindText: "low",
-      },
+    typographyIntent: {
+      headlineImpact: "high",
+      readabilityPriority: "high",
+      emphasisStrategy: "allow_strong_key_phrase_emphasis",
+      supportingTextStyle: "clear_secondary_support",
+      ctaPresenceStyle: "strong_button_if_allowed",
+      textAreaCleanliness: "keep_text_area_clean",
+      layoutFreedom: "model_decides_within_clear_text_area",
+      overallFeel: "bold_and_scroll_stopping",
     },
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: "16:9",
       prompt_core: "核心提示词",
-      subject: "中国初中生，与豆包角色同框，年龄感明确，不要过成熟",
+      subject: "中国初中生，年龄感明确，不要过成熟，整体人物视觉必须完全服从当前IP风格，不要出现真人写实质感",
       scene: "卡题场景",
       composition: "单图完整承载主副标题，并预留 CTA 区域",
       text_instruction: "主标题和副标题都要出现",
@@ -694,6 +657,7 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
       extra_title: string | null;
     };
     reference_images?: Array<{ index: number; role: string; usage: string }>;
+    typography_intent?: unknown;
   };
 
   assert.deepEqual(parsed.text_overlay, {
@@ -705,5 +669,76 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
     { index: 1, role: "ip", usage: "保持角色长相一致" },
     { index: 2, role: "logo", usage: "左上角真实露出" },
   ]);
-  assert.deepEqual((parsed as { typography_plan?: unknown }).typography_plan, payload.typographyPlan);
+  assert.deepEqual(parsed.typography_intent, payload.typographyIntent);
+});
+
+test("buildImagePrompt preserves hand-ownership guardrails and stronger limb negative prompts in v2 payload mapping", () => {
+  const payload: SlotPromptPayload = {
+    schemaVersion: "v2-slot-prompt",
+    slotMeta: {
+      slotIndex: 1,
+      slotCount: 1,
+      imageForm: "single",
+      copyType: "单图主副标题",
+      currentSlotText: "拍题解析看不懂？",
+      slotRole: "complete_message",
+    },
+    sharedConsistency: {
+      characterConsistency: "人物一致",
+      sceneConsistency: "场景一致",
+      brandConsistency: "品牌一致",
+      styleConsistency: "风格一致",
+    },
+    referencePlan: {
+      referenceImages: [],
+    },
+    typographyIntent: {
+      headlineImpact: "high",
+      readabilityPriority: "high",
+      emphasisStrategy: "allow_strong_key_phrase_emphasis",
+      supportingTextStyle: "clear_secondary_support",
+      ctaPresenceStyle: "none",
+      textAreaCleanliness: "keep_text_area_clean",
+      layoutFreedom: "model_decides_within_clear_text_area",
+      overallFeel: "bold_and_scroll_stopping",
+    },
+    finalPromptObject: {
+      prompt_version: "v2-slot",
+      aspect_ratio: "16:9",
+      prompt_core: "中国初中生，年龄感明确，不要过成熟；人物手持平板，突出交互界面。；所有可见手和手臂都必须明确属于画面中的主体人物，不允许画外手、悬空手或额外手。",
+      subject: "中国初中生，年龄感明确，不要过成熟",
+      scene: "拍题解析看不懂的学习场景",
+      composition: "人物手持平板，突出交互界面。所有可见手和手臂都必须明确属于画面中的主体人物，不允许画外手、悬空手或额外手。",
+      text_instruction: "主标题必须清晰可读",
+      brand_constraints: "无 Logo 强制露出。",
+      slot_instruction: "当前图完整表达主信息。",
+      cta: null,
+    },
+    negativePrompt: "extra hand, disembodied hand, floating hand, extra arm, extra limbs, pov hand, viewer hand, bad anatomy",
+    summaryText: "摘要",
+  };
+
+  const prompt = buildImagePrompt({
+    directionTitle: "方向1",
+    scenarioProblem: "孩子做题卡住",
+    copyTitleMain: "拍题解析看不懂？",
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    imageStyle: "realistic",
+    logo: "none",
+    imageForm: "single",
+    referenceImageUrl: null,
+    channel: "应用商店",
+    ctaEnabled: false,
+    ctaText: null,
+    descriptionPayload: payload,
+  });
+
+  const parsed = JSON.parse(prompt) as { composition: string; negative_prompt: string };
+  assert.match(parsed.composition, /所有可见手和手臂都必须明确属于画面中的主体人物/);
+  assert.match(parsed.composition, /不允许画外手|悬空手|额外手/);
+  assert.match(parsed.negative_prompt, /extra hand/);
+  assert.match(parsed.negative_prompt, /disembodied hand/);
+  assert.match(parsed.negative_prompt, /floating hand/);
+  assert.match(parsed.negative_prompt, /pov hand|viewer hand/);
 });

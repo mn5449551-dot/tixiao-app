@@ -26,6 +26,10 @@ test("buildCopyAgentMessages uses full direction context and channel format cons
   assert.match(messages[0]?.content ?? "", /不能只看方向标题/);
   assert.match(messages[0]?.content ?? "", /双图/);
   assert.match(messages[0]?.content ?? "", /图间关系/);
+  assert.match(messages[0]?.content ?? "", /titleMain.*6~22 字|长度 6~22 字/);
+  assert.match(messages[0]?.content ?? "", /titleSub.*7~31 字|长度 7~31 字/);
+  assert.match(messages[0]?.content ?? "", /4~10 字内|每句.*4~10 字/);
+  assert.match(messages[0]?.content ?? "", /口语化|顺口|不拗口/);
   assert.match(messages[1]?.content ?? "", /场景问题/);
   assert.match(messages[1]?.content ?? "", /差异化解法/);
   assert.match(messages[1]?.content ?? "", /奇效/);
