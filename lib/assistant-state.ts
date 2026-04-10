@@ -59,7 +59,8 @@ type PersistedAssistantDraft = AssistantDraft & {
   __confirmation?: AssistantConfirmation | null;
 };
 
-const INITIAL_AI_MESSAGE = "今天想做什么素材？你可以直接描述需求，我会逐项帮你整理，确认后再一次性填充到需求卡。";
+const INITIAL_AI_MESSAGE =
+  "这次想做什么素材？你可以直接把需求告诉我，不用想得特别正式。比如这次主要给谁看、想推什么功能、核心卖点是什么、适合什么时间节点、先出几个方向。像“这次想做给家长看的，主推拍题精学，重点是 10 秒出解析，适合期中考试，先来 3 个方向”这样说就可以，我会边聊边帮你整理，确认后再统一填进需求卡。";
 
 function stripPersistedDraft(input: PersistedAssistantDraft | AssistantDraft): AssistantDraft {
   return {
