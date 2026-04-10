@@ -157,6 +157,44 @@ export type SlotPromptPayload = {
       usage: string;
     }>;
   };
+  typographyPlan: {
+    layoutPattern: string;
+    mainTitleStyle: {
+      tone: string;
+      weight: string;
+      outline: string;
+      shadow: string;
+      tilt: string;
+      maxLines: number;
+    };
+    subTitleStyle: {
+      tone: string;
+      weight: string;
+      outline: string;
+      shadow: string;
+      container: string;
+      maxLines: number;
+    };
+    emphasisWords: Array<{
+      text: string;
+      style: string;
+    }>;
+    badges: Array<{
+      text: string;
+      style: string;
+      placement: string;
+    }>;
+    ctaStyle: null | {
+      shape: string;
+      fill: string;
+      outline: string;
+      depth: string;
+    };
+    backgroundSupport: {
+      textAreaSupport: string;
+      complexityBehindText: string;
+    };
+  };
   finalPromptObject: {
     prompt_version: "v2-slot";
     aspect_ratio: string;
@@ -246,6 +284,140 @@ function buildAudienceSubject(input: SharedBaseContext) {
   return input.ip.ipRole
     ? `中国学生或家长代表，与${input.ip.ipRole}角色同框，人物身份需与学习场景匹配`
     : "中国学生或家长代表，人物身份需与学习场景匹配";
+}
+
+function extractEmphasisWords(text: string, channel: string) {
+  const candidates = [
+    "看不懂",
+    "扣分",
+    "卡壳",
+    "秒会",
+    "满分",
+    "拆解",
+    "得分点",
+    "讲透",
+    "冲刺",
+    "备考",
+    "拍一下",
+    "立即下载",
+  ];
+
+  const matches = candidates
+    .filter((candidate) => text.includes(candidate))
+    .slice(0, 2)
+    .map((candidate) => ({
+      text: candidate,
+      style: channel.includes("信息流") ? "highlight_fill_yellow" : "contrast_outline",
+    }));
+
+  return matches;
+}
+
+function buildTypographyPlan(input: {
+  sharedBase: SharedBaseContext;
+  slot: SlotSpecificContext;
+}): SlotPromptPayload["typographyPlan"] {
+  const channel = input.sharedBase.direction.channel;
+  const isSingleImage = input.sharedBase.config.imageForm === "single";
+  const isInformationFlow = channel.includes("信息流");
+  const isLearningMachine = channel.includes("学习机");
+
+  if (isInformationFlow) {
+    return {
+      layoutPattern: "left_hero_title",
+      mainTitleStyle: {
+        tone: "explosive",
+        weight: "heavy",
+        outline: "thick_white",
+        shadow: "strong",
+        tilt: "slight",
+        maxLines: 2,
+      },
+      subTitleStyle: {
+        tone: "supportive",
+        weight: "semibold",
+        outline: "none",
+        shadow: "medium",
+        container: "rounded_bar",
+        maxLines: 2,
+      },
+      emphasisWords: extractEmphasisWords(input.slot.currentSlotText, channel),
+      badges: isSingleImage ? [{ text: "试试洋葱！", style: "sticker", placement: "near_title" }] : [],
+      ctaStyle: input.sharedBase.config.ctaEnabled
+        ? {
+            shape: "pill",
+            fill: "warm_orange",
+            outline: "none",
+            depth: "raised",
+          }
+        : null,
+      backgroundSupport: {
+        textAreaSupport: "clean_space",
+        complexityBehindText: "low",
+      },
+    };
+  }
+
+  if (isLearningMachine) {
+    return {
+      layoutPattern: "stacked_center",
+      mainTitleStyle: {
+        tone: "academic_poster",
+        weight: "heavy",
+        outline: "thick_white",
+        shadow: "medium",
+        tilt: "none",
+        maxLines: 2,
+      },
+      subTitleStyle: {
+        tone: "explanatory",
+        weight: "semibold",
+        outline: "none",
+        shadow: "none",
+        container: "rounded_bar",
+        maxLines: 2,
+      },
+      emphasisWords: extractEmphasisWords(input.slot.currentSlotText, channel),
+      badges: [],
+      ctaStyle: {
+        shape: "pill",
+        fill: "brand_blue",
+        outline: "none",
+        depth: "raised",
+      },
+      backgroundSupport: {
+        textAreaSupport: "soft_glow",
+        complexityBehindText: "low",
+      },
+    };
+  }
+
+  return {
+    layoutPattern: "title_plus_badges",
+    mainTitleStyle: {
+      tone: "bold_clean",
+      weight: "heavy",
+      outline: "thick_dark",
+      shadow: "medium",
+      tilt: "none",
+      maxLines: 2,
+    },
+    subTitleStyle: {
+      tone: "supportive",
+      weight: "semibold",
+      outline: "none",
+      shadow: "none",
+      container: "none",
+      maxLines: 2,
+    },
+    emphasisWords: extractEmphasisWords(input.slot.currentSlotText, channel),
+    badges: [],
+    ctaStyle: null,
+    backgroundSupport: {
+      textAreaSupport: "blurred_panel",
+      complexityBehindText: "medium",
+    },
+  };
 }
 
 function describeSlotRole(slotRole: string) {
@@ -502,13 +674,14 @@ export function buildSlotImageDescriptionMessages(input: {
 核心任务：
 1. 继承整组图共享的人物、场景、品牌、风格一致性。
 2. 只为当前 slot 生成一份可直接用于后续生图组装的 JSON。
-3. 明确 referencePlan、slot_instruction、text_instruction 和 brand_constraints。
+3. 明确 referencePlan、slot_instruction、text_instruction、brand_constraints 和 typographyPlan。
 
 输出要求：
 - 只输出合法 JSON
 - schemaVersion 固定为 v2-slot-prompt
 - finalPromptObject.prompt_core 必须非空
-- slotRole、mustNotRepeat、layoutExpectation 必须体现在结果中`;
+- slotRole、mustNotRepeat、layoutExpectation 必须体现在结果中
+- typographyPlan 必须体现标题冲击力、重点词高亮、CTA样式或文字区支撑方式`;
 
   const userText = `sharedBase:
 - direction.title: ${input.sharedBase.direction.title}
@@ -570,6 +743,7 @@ export function normalizeSlotPromptPayload(
   raw: Partial<SlotPromptPayload> = {},
 ): SlotPromptPayload {
   const sharedConsistencyFallback = buildSharedConsistency(input.sharedBase);
+  const typographyPlan = buildTypographyPlan(input);
   const fallbackSubject = buildAudienceSubject(input.sharedBase);
   const fallbackScene =
     [input.sharedBase.direction.scenarioProblem, input.sharedBase.direction.differentiation].filter(Boolean).join("，")
@@ -611,6 +785,7 @@ export function normalizeSlotPromptPayload(
     referencePlan: {
       referenceImages: normalizeReferenceImages(input.sharedBase, raw.referencePlan?.referenceImages),
     },
+    typographyPlan,
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: input.sharedBase.config.aspectRatio,

@@ -714,6 +714,41 @@ test("normalizeSlotPromptPayload keeps aspect ratio caller-owned instead of acce
   assert.equal(payload.finalPromptObject.aspect_ratio, "3:2");
 });
 
+test("normalizeSlotPromptPayload adds typography plan for information-flow single-image slots", () => {
+  const payload = normalizeSlotPromptPayload(
+    {
+      sharedBase: buildSharedBaseFixture({
+        direction: {
+          channel: "信息流（广点通）",
+        },
+        config: {
+          imageForm: "single",
+          ctaEnabled: true,
+          ctaText: "立即下载",
+        },
+      }),
+      slot: {
+        ...slotFixture,
+        slotIndex: 1,
+        slotCount: 1,
+        currentSlotText: "拍题解析看不懂？",
+        slotRole: "complete_message",
+        mustShowTextMode: "main_and_sub_same_frame",
+        layoutExpectation: "单图完整承载主副标题，并为 CTA「立即下载」预留清晰区域。",
+      },
+    },
+    {},
+  );
+
+  assert.equal(payload.typographyPlan.layoutPattern, "left_hero_title");
+  assert.equal(payload.typographyPlan.mainTitleStyle.tone, "explosive");
+  assert.equal(payload.typographyPlan.mainTitleStyle.outline, "thick_white");
+  assert.equal(payload.typographyPlan.ctaStyle?.shape, "pill");
+  assert.equal(payload.typographyPlan.ctaStyle?.fill, "warm_orange");
+  assert.equal(payload.typographyPlan.backgroundSupport.textAreaSupport, "clean_space");
+  assert.ok(payload.typographyPlan.emphasisWords.some((item) => item.text.includes("看不懂")));
+});
+
 test("normalizeSlotPromptPayload forces no-logo brand constraints when logo is disabled even if model hallucinates logo rules", () => {
   const payload = normalizeSlotPromptPayload(
     {

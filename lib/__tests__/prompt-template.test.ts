@@ -518,6 +518,32 @@ test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
     referencePlan: {
       referenceImages: [{ role: "logo", usage: "左上角真实露出" }],
     },
+    typographyPlan: {
+      layoutPattern: "title_plus_badges",
+      mainTitleStyle: {
+        tone: "bold_clean",
+        weight: "heavy",
+        outline: "thick_dark",
+        shadow: "medium",
+        tilt: "none",
+        maxLines: 2,
+      },
+      subTitleStyle: {
+        tone: "supportive",
+        weight: "semibold",
+        outline: "none",
+        shadow: "none",
+        container: "none",
+        maxLines: 2,
+      },
+      emphasisWords: [{ text: "图一", style: "contrast_outline" }],
+      badges: [],
+      ctaStyle: null,
+      backgroundSupport: {
+        textAreaSupport: "blurred_panel",
+        complexityBehindText: "medium",
+      },
+    },
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: "3:2",
@@ -559,6 +585,7 @@ test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
   assert.deepEqual(parsed.reference_images, [
     { index: 1, role: "logo", usage: "左上角真实露出" },
   ]);
+  assert.deepEqual(parsed.typography_plan, payload.typographyPlan);
   assert.deepEqual(parsed.text_overlay, {
     main_title: "图一文案",
     sub_title: null,
@@ -592,6 +619,37 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
         { role: "ip", usage: "保持角色长相一致" },
         { role: "logo", usage: "左上角真实露出" },
       ],
+    },
+    typographyPlan: {
+      layoutPattern: "left_hero_title",
+      mainTitleStyle: {
+        tone: "explosive",
+        weight: "heavy",
+        outline: "thick_white",
+        shadow: "strong",
+        tilt: "slight",
+        maxLines: 2,
+      },
+      subTitleStyle: {
+        tone: "supportive",
+        weight: "semibold",
+        outline: "none",
+        shadow: "medium",
+        container: "rounded_bar",
+        maxLines: 2,
+      },
+      emphasisWords: [{ text: "拍一下", style: "highlight_fill_yellow" }],
+      badges: [{ text: "试试洋葱！", style: "sticker", placement: "near_title" }],
+      ctaStyle: {
+        shape: "pill",
+        fill: "warm_orange",
+        outline: "none",
+        depth: "raised",
+      },
+      backgroundSupport: {
+        textAreaSupport: "clean_space",
+        complexityBehindText: "low",
+      },
     },
     finalPromptObject: {
       prompt_version: "v2-slot",
@@ -647,4 +705,5 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
     { index: 1, role: "ip", usage: "保持角色长相一致" },
     { index: 2, role: "logo", usage: "左上角真实露出" },
   ]);
+  assert.deepEqual((parsed as { typography_plan?: unknown }).typography_plan, payload.typographyPlan);
 });
