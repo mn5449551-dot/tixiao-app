@@ -21,7 +21,6 @@ export async function POST(
     const { id } = await context.params;
     const body = (await request.json()) as {
       count?: number;
-      use_ai?: boolean;
       append?: boolean;
       copy_card_id?: string;
     };
@@ -55,8 +54,8 @@ export async function POST(
       }
 
       const card = body.copy_card_id
-        ? await appendCopyToCardSmart(body.copy_card_id, body.use_ai ?? false)
-        : await generateCopyCardSmart(id, 1, body.use_ai ?? false);
+        ? await appendCopyToCardSmart(body.copy_card_id)
+        : await generateCopyCardSmart(id, 1);
       if (!card) {
         if (runId) {
           finishGenerationRun(runId, {
@@ -91,7 +90,7 @@ export async function POST(
       });
     }
 
-    const card = await generateCopyCardSmart(id, body.count ?? 3, body.use_ai ?? false);
+    const card = await generateCopyCardSmart(id, body.count ?? 3);
 
     if (!card) {
       if (runId) {

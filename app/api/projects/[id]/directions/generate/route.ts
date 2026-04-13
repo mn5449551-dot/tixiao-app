@@ -20,7 +20,6 @@ export async function POST(
       channel?: string;
       image_form?: string;
       copy_generation_count?: number;
-      use_ai?: boolean;
       append?: boolean;
     };
 
@@ -37,7 +36,6 @@ export async function POST(
         body.channel ?? "信息流（广点通）",
         body.image_form ?? "single",
         body.copy_generation_count ?? 3,
-        body.use_ai ?? false,
       );
 
       if (!direction) {
@@ -65,7 +63,6 @@ export async function POST(
       body.channel ?? "信息流（广点通）",
       body.image_form ?? "single",
       body.copy_generation_count ?? 3,
-      body.use_ai ?? false,
     );
 
     if (runId) {

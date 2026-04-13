@@ -16,11 +16,10 @@ export async function PUT(
       title_sub?: string;
       title_extra?: string;
       regenerate?: boolean;
-      use_ai?: boolean;
     };
 
     if (body.regenerate) {
-      const regenerated = await regenerateCopy(id, body.use_ai ?? false);
+      const regenerated = await regenerateCopy(id);
       if (!regenerated) {
         return NextResponse.json({ error: "文案不存在" }, { status: 404 });
       }
