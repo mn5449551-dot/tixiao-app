@@ -116,6 +116,8 @@ function PreviewSurface({
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [baseFitScale, setBaseFitScale] = useState(1);
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -234,14 +236,14 @@ function PreviewSurface({
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
       const direction = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-      updateZoom(zoom * direction);
+      updateZoom(zoomRef.current * direction);
     };
 
     stage.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
       stage.removeEventListener("wheel", handleWheel);
     };
-  }, [updateZoom, zoom]);
+  }, [updateZoom]);
 
   const canPan = Boolean(
     naturalSize &&
@@ -275,48 +277,46 @@ function PreviewSurface({
         className="absolute inset-0 overflow-hidden"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="absolute inset-0">
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt={title}
-              draggable={false}
-              data-aspect-ratio={aspectRatio}
-              onLoad={(event) => {
-                const nextNaturalSize = {
-                  width: event.currentTarget.naturalWidth,
-                  height: event.currentTarget.naturalHeight,
-                };
-                setNaturalSize(nextNaturalSize);
-                setIsDragging(false);
-                dragOriginRef.current = null;
-                updateViewportForSize(nextNaturalSize, stageSize);
-              }}
-              onMouseDown={(event) => {
-                if (!canPan) return;
-                event.preventDefault();
-                dragOriginRef.current = {
-                  startX: event.clientX,
-                  startY: event.clientY,
-                  panX: pan.x,
-                  panY: pan.y,
-                };
-                setIsDragging(true);
-              }}
-              className={canPan ? (isDragging ? "cursor-grabbing select-none" : "cursor-grab select-none") : "select-none"}
-              style={{
-                width: naturalSize ? `${naturalSize.width * zoom}px` : "auto",
-                height: naturalSize ? `${naturalSize.height * zoom}px` : "auto",
-                maxWidth: naturalSize ? "none" : "min(88vw, 1200px)",
-                maxHeight: naturalSize ? "none" : "min(72vh, 900px)",
-                transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
-                transformOrigin: "center center",
-                boxShadow: "0 40px 160px rgba(0,0,0,0.5)",
-                borderRadius: "4px",
-              }}
-            />
-          </div>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={title}
+            draggable={false}
+            data-aspect-ratio={aspectRatio}
+            onLoad={(event) => {
+              const nextNaturalSize = {
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              };
+              setNaturalSize(nextNaturalSize);
+              setIsDragging(false);
+              dragOriginRef.current = null;
+              updateViewportForSize(nextNaturalSize, stageSize);
+            }}
+            onMouseDown={(event) => {
+              if (!canPan) return;
+              event.preventDefault();
+              dragOriginRef.current = {
+                startX: event.clientX,
+                startY: event.clientY,
+                panX: pan.x,
+                panY: pan.y,
+              };
+              setIsDragging(true);
+            }}
+            className={canPan ? (isDragging ? "cursor-grabbing select-none" : "cursor-grab select-none") : "select-none"}
+            style={{
+              width: naturalSize ? `${naturalSize.width * zoom}px` : "auto",
+              height: naturalSize ? `${naturalSize.height * zoom}px` : "auto",
+              maxWidth: naturalSize ? "none" : "min(88vw, 1200px)",
+              maxHeight: naturalSize ? "none" : "min(72vh, 900px)",
+              transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
+              transformOrigin: "center center",
+              boxShadow: "0 40px 160px rgba(0,0,0,0.5)",
+              borderRadius: "4px",
+            }}
+          />
         </div>
       </div>
 

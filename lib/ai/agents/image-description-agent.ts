@@ -153,7 +153,7 @@ function normalizeNonEmptyString(value: unknown, fallback: string) {
 function normalizePromptText(value: unknown) {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
-  const fenceMatch = trimmed.match(/^```(?:text)?\s*([\s\S]*?)\s*```$/i);
+  const fenceMatch = trimmed.match(/^```(?:text)?\s*([\s\S]*?)\s*```$/);
   return (fenceMatch?.[1] ?? trimmed).trim();
 }
 
@@ -835,46 +835,37 @@ export function normalizeSlotPromptPayload(
     .filter(Boolean)
     .join("；");
 
+  const sharedConsistency = normalizeSharedConsistency(raw.sharedConsistency, sharedConsistencyFallback);
+  const referencePlan = {
+    referenceImages: normalizeReferenceImages(input.sharedBase, raw.referencePlan?.referenceImages),
+  };
+  const finalPromptObject = {
+    prompt_version: "v2-slot" as const,
+    aspect_ratio: input.sharedBase.config.aspectRatio,
+    prompt_core: promptCore,
+    subject,
+    scene,
+    composition,
+    text_instruction: textInstruction,
+    brand_constraints: brandConstraints,
+    slot_instruction: slotInstruction,
+    cta: normalizedCta,
+  };
+
   return {
     schemaVersion: "v2-slot-prompt",
     slotMeta: normalizedSlotMeta,
-    sharedConsistency: normalizeSharedConsistency(raw.sharedConsistency, sharedConsistencyFallback),
-    referencePlan: {
-      referenceImages: normalizeReferenceImages(input.sharedBase, raw.referencePlan?.referenceImages),
-    },
+    sharedConsistency,
+    referencePlan,
     typographyIntent,
-    finalPromptObject: {
-      prompt_version: "v2-slot",
-      aspect_ratio: input.sharedBase.config.aspectRatio,
-      prompt_core: promptCore,
-      subject,
-      scene,
-      composition,
-      text_instruction: textInstruction,
-      brand_constraints: brandConstraints,
-      slot_instruction: slotInstruction,
-      cta: normalizedCta,
-    },
+    finalPromptObject,
     finalPrompt: buildFinalSlotPrompt({
       sharedBase: input.sharedBase,
       slot: input.slot,
       slotMeta: normalizedSlotMeta,
-      sharedConsistency: normalizeSharedConsistency(raw.sharedConsistency, sharedConsistencyFallback),
-      referencePlan: {
-        referenceImages: normalizeReferenceImages(input.sharedBase, raw.referencePlan?.referenceImages),
-      },
-      finalPromptObject: {
-        prompt_version: "v2-slot",
-        aspect_ratio: input.sharedBase.config.aspectRatio,
-        prompt_core: promptCore,
-        subject,
-        scene,
-        composition,
-        text_instruction: textInstruction,
-        brand_constraints: brandConstraints,
-        slot_instruction: slotInstruction,
-        cta: normalizedCta,
-      },
+      sharedConsistency,
+      referencePlan,
+      finalPromptObject,
       rawFinalPrompt: raw.finalPrompt,
     }),
     negativePrompt: normalizeNonEmptyString(
