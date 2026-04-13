@@ -4,14 +4,22 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import { ApiError, apiFetch } from "@/lib/api-fetch";
 
 export function CreateProjectForm() {
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setTitle("");
+    setError(null);
+  };
 
   const handleSubmit = () => {
     const trimmedTitle = title.trim();
@@ -35,54 +43,54 @@ export function CreateProjectForm() {
           return;
         }
 
-        setTitle("");
+        handleClose();
         router.push(`/projects/${payload.id}`);
         router.refresh();
       } catch (error) {
         setError(error instanceof ApiError ? error.message : "新建项目失败");
-        return;
       }
     });
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-[var(--line-soft)] bg-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur-sm transition-all duration-300 hover:shadow-[var(--shadow-panel)]">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-[var(--ink-900)]">新建项目</p>
-        <p className="text-xs text-[var(--ink-500)]">代码位于新目录 tixiao-app，文档与实现分离。</p>
-      </div>
-      <div className="flex gap-3">
-        <Textarea
-          minRows={1}
-          placeholder="例如：Q2-期中冲刺拍题精学"
-          value={title}
-          onChange={(event) => {
-            setTitle(event.target.value);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        <Button
-          disabled={isPending}
-          onClick={handleSubmit}
-          className="shrink-0 whitespace-nowrap"
-        >
-          {isPending ? (
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/60 border-t-white" />
-              创建中...
-            </span>
-          ) : (
-            "新建项目"
-          )}
-        </Button>
-      </div>
-      {error && (
-        <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-2.5">
-          <p className="text-xs text-[var(--danger-700)]">{error}</p>
+    <>
+      <Button size="lg" onClick={() => setIsOpen(true)} className="w-full justify-center lg:w-auto">
+        ＋ 新建项目
+      </Button>
+
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="新建项目"
+        description="输入项目名称后即可进入工作台继续编辑。"
+      >
+        <div className="space-y-4">
+          <Input
+            autoFocus
+            placeholder="例如：Q2-期中冲刺拍题精学"
+            value={title}
+            onChange={(event) => {
+              setTitle(event.target.value);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          {error ? (
+            <div className="rounded-2xl bg-[var(--danger-soft)] px-4 py-3">
+              <p className="text-sm text-[var(--danger-700)]">{error}</p>
+            </div>
+          ) : null}
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={handleClose}>
+              取消
+            </Button>
+            <Button disabled={isPending} onClick={handleSubmit}>
+              {isPending ? "创建中..." : "创建项目"}
+            </Button>
+          </div>
         </div>
-      )}
-    </div>
+      </Modal>
+    </>
   );
 }
