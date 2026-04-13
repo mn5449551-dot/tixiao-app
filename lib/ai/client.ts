@@ -1,3 +1,5 @@
+import { getModelSetting, type ModelSettingKey } from "@/lib/project-data";
+
 const DEFAULT_BASE_URL = process.env.NEW_API_BASE_URL ?? "https://ops-ai-gateway.yc345.tv";
 
 type ChatMessage = {
@@ -7,6 +9,7 @@ type ChatMessage = {
 
 type ChatCompletionOptions = {
   model?: string;
+  modelKey?: ModelSettingKey;
   messages: ChatMessage[];
   temperature?: number;
   responseFormat?: { type: "json_object" };
@@ -18,6 +21,8 @@ export async function createChatCompletion(options: ChatCompletionOptions) {
     throw new Error("缺少 NEW_API_KEY，无法调用文本模型");
   }
 
+  const model = options.model ?? (options.modelKey ? getModelSetting(options.modelKey) : "deepseek-v3-2-251201");
+
   const response = await fetch(`${DEFAULT_BASE_URL}/v1/chat/completions`, {
     method: "POST",
     headers: {
@@ -25,7 +30,7 @@ export async function createChatCompletion(options: ChatCompletionOptions) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: options.model ?? (process.env.NEW_API_TEXT_MODEL ?? "deepseek-v3-2-251201"),
+      model,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       response_format: options.responseFormat,
@@ -55,6 +60,7 @@ export type MultimodalChatMessage = {
 
 type MultimodalChatCompletionOptions = {
   model?: string;
+  modelKey?: ModelSettingKey;
   messages: MultimodalChatMessage[];
   temperature?: number;
   responseFormat?: { type: "json_object" };
@@ -66,6 +72,8 @@ export async function createMultimodalChatCompletion(options: MultimodalChatComp
     throw new Error("缺少 NEW_API_KEY，无法调用文本模型");
   }
 
+  const model = options.model ?? (options.modelKey ? getModelSetting(options.modelKey) : "deepseek-v3-2-251201");
+
   const response = await fetch(`${DEFAULT_BASE_URL}/v1/chat/completions`, {
     method: "POST",
     headers: {
@@ -73,7 +81,7 @@ export async function createMultimodalChatCompletion(options: MultimodalChatComp
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: options.model ?? (process.env.NEW_API_TEXT_MODEL ?? "deepseek-v3-2-251201"),
+      model,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       response_format: options.responseFormat,
@@ -94,6 +102,7 @@ export async function createMultimodalChatCompletion(options: MultimodalChatComp
 
 type ImageGenerationOptions = {
   model?: string;
+  modelKey?: ModelSettingKey;
   prompt: string;
   size?: string;
   n?: number;
@@ -105,6 +114,8 @@ export async function createImageGeneration(options: ImageGenerationOptions) {
     throw new Error("缺少 NEW_API_KEY，无法调用图片模型");
   }
 
+  const model = options.model ?? (options.modelKey ? getModelSetting(options.modelKey) : "gpt-image-1.5");
+
   const response = await fetch(`${DEFAULT_BASE_URL}/v1/images/generations`, {
     method: "POST",
     headers: {
@@ -112,7 +123,7 @@ export async function createImageGeneration(options: ImageGenerationOptions) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: options.model ?? "gpt-image-1",
+      model,
       prompt: options.prompt,
       size: options.size ?? "1024x1024",
       n: options.n ?? 1,
