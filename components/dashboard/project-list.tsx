@@ -84,7 +84,7 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
               title="进入项目"
               aria-label="进入项目"
             >
-              进入 >
+              {"进入 >"}
             </Link>
           </div>
         </div>
