@@ -178,7 +178,6 @@ export function RequirementCard({
             channel: defaults.channel,
             image_form: defaults.imageForm,
             copy_generation_count: 3,
-            use_ai: true,
           },
         });
 

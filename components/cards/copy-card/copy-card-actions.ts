@@ -51,7 +51,7 @@ export async function appendCopyGenerationAction(input: {
 }) {
   await apiFetch(`/api/directions/${input.directionId}/copy-cards/generate`, {
     method: "POST",
-    body: { append: true, use_ai: true, copy_card_id: input.copyCardId },
+    body: { append: true, copy_card_id: input.copyCardId },
   });
   return true;
 }
