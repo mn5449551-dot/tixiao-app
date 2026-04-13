@@ -8,6 +8,7 @@ import { Handle, Position } from "@xyflow/react";
 
 import {
   appendDirectionGeneration,
+  deleteDirectionCard,
   deleteDirectionItem,
   generateSelectedDirections,
   saveDirectionItem,
@@ -84,6 +85,7 @@ export function DirectionCard({
   );
   const [isAppending, setIsAppending] = useState(false);
   const [isGeneratingSelected, setIsGeneratingSelected] = useState(false);
+  const [isDeletingCard, setIsDeletingCard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -212,6 +214,34 @@ export function DirectionCard({
               ✕
             </span>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5 text-[var(--ink-500)] hover:text-[var(--danger-600)]"
+            disabled={isDeletingCard || directions.length === 0}
+            onClick={async () => {
+              if (isDeletingCard || !data.projectId) return;
+              if (!confirm(`确定删除整张方向卡（包含 ${totalCount} 条方向）？`)) return;
+              setIsDeletingCard(true);
+              setActionError(null);
+              try {
+                await deleteDirectionCard(data.projectId);
+                dispatchWorkspaceInvalidated();
+              } catch (error) {
+                setActionError(error instanceof Error ? error.message : "删除方向卡失败");
+              } finally {
+                setIsDeletingCard(false);
+              }
+            }}
+          >
+            {isDeletingCard ? (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ink-300)] border-t-[var(--ink-500)]" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            )}
+          </Button>
         </div>
       </div>
 

@@ -39,7 +39,6 @@ export async function appendDirectionGeneration(input: {
       channel: input.channel,
       image_form: input.imageForm,
       copy_generation_count: input.copyGenerationCount,
-      use_ai: true,
     },
   });
   return true;
@@ -68,12 +67,17 @@ export async function generateSelectedDirections(input: {
     try {
       await apiFetch(`/api/directions/${directionId}/copy-cards/generate`, {
       method: "POST",
-      body: { count: input.copyGenerationCount, use_ai: true },
+      body: { count: input.copyGenerationCount },
       });
     } catch {
       return false;
     }
   }
 
+  return true;
+}
+
+export async function deleteDirectionCard(projectId: string) {
+  await apiFetch(`/api/projects/${projectId}/directions-card`, { method: "DELETE" });
   return true;
 }
