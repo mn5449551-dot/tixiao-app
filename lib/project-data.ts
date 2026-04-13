@@ -15,7 +15,6 @@ export {
 } from "@/lib/project-data-modules/project-queries";
 
 export {
-  generateDirections,
   generateDirectionsSmart,
   appendDirectionSmart,
   updateDirection,
@@ -24,7 +23,6 @@ export {
 
 export {
   appendCopyToCardSmart,
-  generateCopyCard,
   generateCopyCardSmart,
   regenerateCopy,
 } from "@/lib/project-data-modules/copy-operations";
@@ -37,3 +35,11 @@ export {
 } from "@/lib/project-data-modules/image-config-operations";
 
 export { getProjectExportContext } from "@/lib/project-data-modules/export-context";
+
+export {
+  getSetting,
+  getModelSetting,
+  getAllModelSettings,
+  upsertSetting,
+  type ModelSettingKey,
+} from "@/lib/project-data-modules/settings-operations";
