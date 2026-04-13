@@ -1,83 +1,8 @@
 import { IMAGE_STYLE_DESCRIPTIONS } from "@/lib/constants";
 import {
-  createChatCompletion,
   createMultimodalChatCompletion,
   type MultimodalChatMessage,
 } from "@/lib/ai/client";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-const rulesPath = resolve(process.cwd(), "../开发文档/知识库/画面描述生成规则.md");
-let rulesContent: string | null = null;
-try {
-  rulesContent = readFileSync(rulesPath, "utf-8");
-} catch {
-  // Rules file not available — proceed with inline defaults.
-}
-
-export type ImageDescriptionPayload = {
-  schemaVersion: "v1";
-  channelPositioning: {
-    channel: string;
-    imageForm: string;
-    aspectRatio: string;
-  };
-  adGoal: {
-    primaryGoal: string;
-  };
-  userState: {
-    audienceType: "student" | "parent";
-    audienceSegment: string;
-    scenarioSummary: string;
-  };
-  coreSellingPoint: {
-    primaryPoint: string;
-  };
-  visualConcept: {
-    mainEvent: string;
-    creativeAxis: string;
-    productAnchor: string;
-  };
-  sceneAtmosphere: {
-    location: string;
-    lighting: string;
-    moodColor: string;
-  };
-  charactersAndProps: {
-    characterMode: "single" | "duo" | "group";
-    characterSummary: string;
-    expression: string;
-    action: string;
-    props: string[];
-    ip: {
-      enabled: boolean;
-      role: string;
-      placement: string;
-      action: string;
-      consistencyRule: string;
-    };
-  };
-  composition: {
-    layoutType: "wide" | "square" | "vertical";
-    subjectPlacement: string;
-    textSafeArea: string;
-    logoSafeArea: "top-left";
-    multiImageConsistency: string;
-  };
-  textOverlay: {
-    currentText: string;
-    textRole: string;
-    ctaText: string | null;
-  };
-  brandConstraints: {
-    brandTone: string;
-    logoPolicy: string;
-  };
-  variationHints: {
-    noveltyFocus: string;
-  };
-  summaryText: string;
-};
 
 export type SharedBaseContext = {
   direction: {
@@ -182,6 +107,7 @@ export type SlotPromptPayload = {
       instruction: string;
     };
   };
+  finalPrompt: string;
   negativePrompt: string;
   summaryText: string;
 };
@@ -224,19 +150,11 @@ function normalizeNonEmptyString(value: unknown, fallback: string) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function normalizePositiveNumber(value: unknown, fallback: number) {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-
-  return fallback;
+function normalizePromptText(value: unknown) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  const fenceMatch = trimmed.match(/^```(?:text)?\s*([\s\S]*?)\s*```$/i);
+  return (fenceMatch?.[1] ?? trimmed).trim();
 }
 
 function buildAudienceSubject(input: SharedBaseContext) {
@@ -439,153 +357,83 @@ function normalizeSlotCta(
   };
 }
 
-export async function generateImageDescription(input: {
-  directionTitle: string;
-  targetAudience: string;
-  scenarioProblem: string;
-  differentiation: string;
-  effect: string;
-  channel: string;
-  copyTitleMain: string;
-  copyTitleSub: string | null;
-  copyTitleExtra: string | null;
-  aspectRatio: string;
-  styleMode: string;
-  ipRole: string | null;
-  ipDescription?: string | null;
-  ipPromptKeywords?: string | null;
-  imageStyle: string;
-  logo: string;
-  imageForm: string;
-  ctaEnabled?: boolean;
-  ctaText?: string | null;
-}) {
-  const messages = buildImageDescriptionMessages(input);
-
-  try {
-    const content = await createChatCompletion({
-      messages,
-      temperature: 0.8,
-      responseFormat: { type: "json_object" },
-    });
-    return normalizeImageDescriptionPayload(input, JSON.parse(content) as Partial<ImageDescriptionPayload>);
-  } catch (error) {
-    // Fallback to rule-based description.
-    void error;
-  }
-
-  // Fallback: rule-based description
-  return buildFallbackImageDescriptionPayload(input);
+function getImageFormLabel(imageForm: SharedBaseContext["config"]["imageForm"]) {
+  if (imageForm === "single") return "单图";
+  if (imageForm === "double") return "双图";
+  return "三图";
 }
 
-export function buildImageDescriptionMessages(input: {
-  directionTitle: string;
-  targetAudience: string;
-  scenarioProblem: string;
-  differentiation: string;
-  effect: string;
-  channel: string;
-  copyTitleMain: string;
-  copyTitleSub: string | null;
-  copyTitleExtra: string | null;
-  aspectRatio: string;
-  styleMode: string;
-  ipRole: string | null;
-  ipDescription?: string | null;
-  ipPromptKeywords?: string | null;
-  imageStyle: string;
-  logo: string;
-  imageForm: string;
-  ctaEnabled?: boolean;
-  ctaText?: string | null;
+function buildFinalSlotPrompt(input: {
+  sharedBase: SharedBaseContext;
+  slot: SlotSpecificContext;
+  slotMeta: SlotPromptPayload["slotMeta"];
+  sharedConsistency: SlotPromptPayload["sharedConsistency"];
+  referencePlan: SlotPromptPayload["referencePlan"];
+  finalPromptObject: SlotPromptPayload["finalPromptObject"];
+  rawFinalPrompt?: unknown;
 }) {
-  const rules = rulesContent
-    ? `以下是画面描述生成规则，请严格遵守：\n\n${rulesContent}`
-    : "画面描述需包含场景氛围、画面构图、IP动作与位置（如有）、目标人群特征、文案融入方式，以及左上角Logo真实露出要求，并强调 Logo 与参考完全一致，不得改字改形。";
+  const normalizedRawFinalPrompt = normalizePromptText(input.rawFinalPrompt);
+  if (normalizedRawFinalPrompt) {
+    return normalizedRawFinalPrompt;
+  }
 
-  const systemPrompt = `角色定位：
-你是广告画面描述专家，也是图文生图链路里的视觉策略师。
+  const styleDescription = IMAGE_STYLE_DESCRIPTIONS[input.sharedBase.config.imageStyle] ?? input.sharedBase.config.imageStyle;
+  const imageFormLabel = getImageFormLabel(input.sharedBase.config.imageForm);
+  const slotRoleDescription = describeSlotRole(input.slotMeta.slotRole);
+  const referenceBlock = input.referencePlan.referenceImages.length > 0
+    ? input.referencePlan.referenceImages
+      .map((reference, index) => `参考图${index + 1}（${getReferenceRoleLabel(reference.role)}）：${reference.usage}`)
+      .join("\n")
+    : "无参考图时，仅根据当前输入完成画面生成。";
 
-业务背景：
-你处在文案卡之后、Prompt 模板引擎之前，负责把方向上下文、文案和图片配置，整理成当前图片任务的自然语言画面描述，再交给后续结构化层继续组装。
+  const overallStyle = [
+    `${styleDescription}`,
+    input.sharedBase.config.styleMode === "ip"
+      ? "整体人物视觉必须完全服从当前IP风格，不要出现真人写实质感。"
+      : "保持广告画面的商业完成度、缩略图识别度和视觉冲击力。",
+    input.sharedConsistency.styleConsistency,
+  ].filter(Boolean).join(" ");
 
-核心任务：
-根据方向上下文、文案和图片配置，生成一个结构化画面描述 JSON，对后续 Prompt 模板引擎提供稳定输入。
-${rules}
-
-可信输入：
-- 方向上下文
-- 当前图位文案
-- 图片配置
-- CTA / Logo / IP / 风格设定
-
-决策规则：
-1. 描述必须包含：场景氛围、画面构图、目标人群特征、文案融入方式。
-2. 如涉及 IP，必须包含 IP 形象的动作与位置描述。
-3. 如涉及 IP，必须保持角色长相、服装、发型、整体风格与参考图一致。
-4. 如启用 Logo，必须提及 Logo 真实出现在左上角，而不是只留白。
-5. 风格必须匹配用户选择的图片风格。
-6. 文案文字必须清晰可读，位置合理。
-7. 若启用 CTA，CTA 只允许以信息流单图中的行动按钮形式出现。
-
-硬性边界：
-- Logo 必须与提供的参考 Logo 完全一致，不得改字，不得改变图形、颜色、比例、布局，不得重新设计。
-- 多图时，此处描述整套共享底座与当前图位职责，不要把整套文案同时塞进同一张图。
-- 不要输出 Markdown、自然语言说明、额外注释。
-
-输出契约：
-- 只输出一个 JSON 对象
-- 必须包含以下顶层字段：
-  - schemaVersion
-  - channelPositioning
-  - adGoal
-  - userState
-  - coreSellingPoint
-  - visualConcept
-  - sceneAtmosphere
-  - charactersAndProps
-  - composition
-  - textOverlay
-  - brandConstraints
-  - variationHints
-  - summaryText
-- schemaVersion 固定为 v1
-- summaryText 是对整张图策略的简洁中文总结`;
-
-  const userPrompt = `方向上下文：
-- 方向名称：${input.directionTitle}
-- 目标人群：${input.targetAudience}
-- 场景问题：${input.scenarioProblem}
-- 差异化解法：${input.differentiation}
-- 奇效：${input.effect}
-- 渠道：${input.channel}
-
-文案内容：
-- 主标题：${input.copyTitleMain}
-${input.copyTitleSub ? `- 副标题：${input.copyTitleSub}` : ""}
-${input.copyTitleExtra ? `- 第三图文案：${input.copyTitleExtra}` : ""}
-
-图片配置：
-- 图片形式：${input.imageForm === "single" ? "单图" : input.imageForm === "double" ? "双图" : "三图"}
-- 比例：${input.aspectRatio}
-- 风格模式：${input.styleMode}
-- 图片风格：${input.imageStyle}
-${input.ipRole ? `- IP角色：${input.ipRole}` : ""}
-${input.ipDescription ? `- IP角色描述：${input.ipDescription}` : ""}
-${input.ipPromptKeywords ? `- IP关键词：${input.ipPromptKeywords}` : ""}
-- Logo：${input.logo === "onion" ? "洋葱学园（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : input.logo === "onion_app" ? "洋葱学园+APP（候选图阶段也要真实出现，且必须与参考 Logo 完全一致，不得改字改形）" : "不使用"}
-${input.ctaEnabled ? `- CTA：${input.ctaText ?? "立即下载"}` : ""}
-
-额外约束：
-${input.imageForm === "single" ? "单图时，文案可以整体进入同一张图。" : "多图时，此处只描述整套画面的统一风格、人物、场景和Logo要求，不要把整套文案同时塞进同一张图；具体每一张图承载哪句文案，由后续分图规则决定。"}
-${input.ctaEnabled ? "当前为信息流单图，需要在画面合适位置保留一个清晰的 CTA 按钮区域，按钮文案为“立即下载”。" : ""}
-
-请严格输出结构化 JSON，不要输出自然语言段落。`;
-
-  return [
-    { role: "system" as const, content: systemPrompt },
-    { role: "user" as const, content: userPrompt },
+  const body = [
+    "【图像任务】",
+    `用于${input.sharedBase.direction.channel}投放的${input.sharedBase.config.aspectRatio}比例${imageFormLabel}广告图，当前图位职责是${slotRoleDescription}，当前图只服务文案“${input.slotMeta.currentSlotText}”，${input.slot.mustNotRepeat}`,
+    "",
+    "【整体风格】",
+    overallStyle,
+    "",
+    "【共享底座继承】",
+    `继承同一角色身份、年龄感、识别特征、品牌系统、Logo规则、场景家族、风格基调和完成度要求。${input.sharedConsistency.characterConsistency} ${input.sharedConsistency.sceneConsistency} ${input.sharedConsistency.brandConsistency} ${input.sharedConsistency.styleConsistency}`,
+    "",
+    "【主体设定】",
+    `${input.finalPromptObject.subject} ${input.sharedConsistency.characterConsistency}`,
+    "",
+    "【场景设定】",
+    `${input.finalPromptObject.scene} ${input.sharedConsistency.sceneConsistency}`,
+    "",
+    "【动作与情绪】",
+    `当前图重点围绕${slotRoleDescription}组织动作和情绪变化，突出“${input.slotMeta.currentSlotText}”对应的解决动作、理解变化或结果状态。`,
+    "",
+    "【构图与镜头】",
+    `${input.finalPromptObject.composition} 保持主体、标题区和品牌区主次清晰，当前图位叙事单一明确。`,
+    "",
+    "【核心功能可视化】",
+    `把“${input.sharedBase.direction.differentiation}”转成可见的产品介入画面，确保手机、产品界面或核心功能点清晰可见。`,
+    "",
+    "【文字系统】",
+    `${input.finalPromptObject.text_instruction} 文字完整、清晰、可读，不乱码、不拆字、不变形。`,
+    "",
+    "【品牌与Logo】",
+    `${input.finalPromptObject.brand_constraints} ${input.sharedConsistency.brandConsistency}`,
+    input.finalPromptObject.cta ? input.finalPromptObject.cta.instruction : null,
+    "",
+    "【参考图使用】",
+    referenceBlock,
+    "",
+    "【质量与限制】",
+    "广告完成度高，元素层级清晰，缩略图识别度强，人物不可崩坏，文字不可变形，不能出现额外手臂、额外手、悬空手、画外手，不能让Logo变形或弱化识别。",
   ];
+
+  return body.filter(Boolean).join("\n");
 }
 
 export function buildSlotImageDescriptionMessages(input: {
@@ -593,19 +441,303 @@ export function buildSlotImageDescriptionMessages(input: {
   slot: SlotSpecificContext;
 }): MultimodalChatMessage[] {
   const systemPrompt = `角色定位：
-你是广告图片描述 Agent，负责基于共享底座与当前 slot 职责，输出当前图位的最终 Prompt JSON。
+你是结构化广告生图提示词 Agent，负责基于共享底座与当前 slot 职责，输出当前图位可直接用于生图模型的最终提示词。
 
-核心任务：
-1. 继承整组图共享的人物、场景、品牌、风格一致性。
-2. 只为当前 slot 生成一份可直接用于后续生图组装的 JSON。
-3. 明确 referencePlan、slot_instruction、text_instruction、brand_constraints 和 typographyIntent。
+你的唯一职责是：基于用户输入的文案、图片风格、品牌信息、角色设定、场景要求、画幅比例、投放用途、文字内容、参考图信息、共享底座信息、当前图位职责、其他补充约束，输出“一份可直接发送给生图模型的结构化最终提示词”。
 
-输出要求：
-- 只输出合法 JSON
-- schemaVersion 固定为 v2-slot-prompt
-- finalPromptObject.prompt_core 必须非空
-- slotRole、mustNotRepeat、layoutExpectation 必须体现在结果中
-- typographyIntent 必须体现标题冲击力、可读性优先级、重点词强调策略和整体版式气质`;
+你的输出不是解释，不是需求分析，不是创意讨论，不是变量表，不是多段结果。
+你的输出只能是：一份完整的、结构化的、可直接用于生图模型生成图片的最终提示词。
+
+--------------------------------
+【核心定位】
+--------------------------------
+你生成的内容必须满足以下条件：
+1. 最终输出只能是“给生图模型看的提示词”，不能有面向人类的解释说明。
+2. 最终输出必须是“结构化表达”，但这种结构化表达本身要服务生图模型，而不是服务需求文档。
+3. 最终输出必须可直接复制使用，不需要用户二次整理。
+4. 最终输出必须只服务当前图位，不替其他图位写内容。
+5. 最终输出必须继承共享底座中的一致性要求。
+6. 文字默认是必须生成的，不需要再判断“是否带文字”，而是直接输出文字系统。
+7. 比例、用途属于已给定输入，你必须直接吸收，不需要自行补默认值。
+8. 如果存在参考图，最终输出的提示词中必须明确写出每张参考图的用途和限制。
+9. 如果存在Logo参考图，最终输出中必须明确该Logo只能参考对应图片，不得改字、改形、重设计。
+10. 你的任务是把“输入信息”翻译成“模型能画出来的画面描述”。
+
+--------------------------------
+【输入理解规则】
+--------------------------------
+你会接收以下信息中的部分或全部：
+- shared base / 共享底座
+- current slot / 当前图位职责
+- 文案
+- 图片风格
+- 画幅比例
+- 投放用途
+- 品牌名 / 产品名
+- 核心卖点
+- 目标人群
+- 主体角色
+- 场景设定
+- 色彩倾向
+- 文字内容
+- 字体字效要求
+- Logo要求
+- 参考图信息
+- 其他补充说明
+
+你必须先在内部识别并整理为：
+1. 共享层：整组图必须一致的内容
+2. 当前图位层：当前slot独有的职责
+3. 内容层：这张图具体画什么
+4. 风格层：这张图画成什么样
+5. 排版层：文字、Logo、品牌区怎么放
+但这些整理过程不要单独输出给用户，而要直接融入最终提示词中。
+
+--------------------------------
+【shared base 与 slot 规则】
+--------------------------------
+你必须严格区分共享底座和当前图位职责。
+
+共享底座通常包括：
+- 同一角色身份
+- 同一年龄感
+- 同一发型、服装、识别特征
+- 同一品牌系统
+- 同一Logo规则
+- 同一世界观 / 场景家族
+- 同一风格基调
+- 同一光感、色调、完成度
+
+当前图位职责通常包括：
+- 当前图重点表达什么
+- 当前图使用哪句文案
+- 当前图是痛点图、产品介入图、结果图、承接图、卖点图、对比图中的哪一种
+- 当前图必须出现哪些文字
+- 当前图需要突出什么动作、情绪、结果
+- 当前图不能重复其他图位的哪些内容
+
+你必须保证：
+- 共享层稳定继承
+- 当前图位职责准确落地
+- 不把共享规则和slot规则原样复述成项目说明
+- 而是把它们翻译成画面描述和限制条件
+
+--------------------------------
+【文案转画面规则】
+--------------------------------
+你必须把文案、卖点、slot职责翻译成具体画面，而不是机械复述输入。
+
+例如：
+- “卡到凌晨” → 深夜、台灯、时钟、草稿纸、疲惫或焦虑状态
+- “秒出解析” → 手机屏幕展示分步骤解析、函数图像、几何图、公式、知识卡片
+- “拍一下就拆懂” → 明确出现拍题动作、解析被拆开、人物理解后的状态变化
+- “像老师一步步讲清” → 屏幕中有层层拆解、逐步讲解、结构清晰的视觉结果
+- “产品介入后的解决动作” → 重点画产品介入后动作和结果，不继续停留在纯痛点状态
+- “结果图” → 强调人物已从焦虑转向理解、轻松、继续学习
+
+你的职责是把卖点转成视觉证据，把抽象利益点转成一眼能看懂的画面锚点。
+
+--------------------------------
+【风格服从规则】
+--------------------------------
+图片风格由用户指定时，必须完全服从，不能擅自改风格，不能混入无关风格。
+
+例如用户输入：
+- 3D商业广告风格
+- 日系二次元插画风格
+- 扁平插画风格
+- 游戏化像素风
+- 潮流海报风
+- 商业摄影风
+
+你只能在该风格内部补足：
+- 材质
+- 光影
+- 色彩
+- 构图
+- 广告感
+- 完成度
+不能替换风格，也不能降低风格一致性。
+
+--------------------------------
+【文字系统规则】
+--------------------------------
+文字默认必须生成，因此每次都要输出完整文字系统。
+
+你必须明确写出：
+- 当前图位允许出现的文字内容
+- 主标题
+- 副标题 / 卖点条（如有）
+- 品牌区文字（如有）
+- 文字位置
+- 承载方式
+- 字体风格
+- 字体粗细
+- 字块感
+- 描边
+- 外发光 / 外描边
+- 配色
+- 高亮词
+- 标点是否放大
+- 字体整体是海报字、综艺字、漫画字、像素字、商业粗黑体还是其他风格
+- 文字清晰、完整、可读，不乱码、不拆字、不变形
+
+你必须遵守：
+- 只生成当前图位允许出现的文字
+- 不混入其他图位文案
+- 文字必须服务当前图位职责
+- 文字不能写成模糊词，如“加醒目标题”“加好看的字体”
+
+--------------------------------
+【构图规则】
+--------------------------------
+你要根据当前图位职责和广告目标，自动组织最合适的构图，并直接写入最终提示词。
+
+优先考虑：
+- 缩略图识别度
+- 当前图位主次关系
+- 视觉锚点明确
+- 标题区有足够空间
+- Logo区不抢主体
+- 产品 / 手机 / 核心功能点清晰可见
+- 当前图位叙事单一明确
+
+常见构图包括：
+- 左主体右标题
+- 左标题右主体
+- 中间主体四周卖点
+- 前景手机 / 产品特写 + 后景人物
+- 单主体居中 + 强文字区
+- 多层前中后景增强广告冲击力
+
+--------------------------------
+【品牌与Logo规则】
+--------------------------------
+如果存在品牌露出或Logo要求，你必须明确写出：
+- 品牌区位置
+- 品牌露出方式
+- Logo是否真实还原
+- Logo参考哪一张参考图
+- Logo不得改字、改形、重绘、替换字体、重新设计
+- Logo不能被主体遮挡，不能弱化识别
+
+--------------------------------
+【参考图规则】
+--------------------------------
+如果存在参考图，你必须在最终输出的提示词中明确写出每张参考图的作用和边界。
+
+写法必须服务生图模型，表达清楚“哪张参考图参考什么”。
+
+例如：
+- 参考图1：用于锁定IP角色的脸型、发型、服装、年龄感和角色识别特征，但不要照搬姿势
+- 参考图2：仅用于左上角Logo真实还原，不得改字改形
+- 参考图3：用于参考整体色调、世界观、场景氛围或广告完成度
+- 参考图4：用于参考标题区字效、信息条形态或版式风格
+
+你必须做到：
+- 写清顺序
+- 写清用途
+- 写清限制
+- 不混淆不同参考图职责
+- 不遗漏Logo参考图的独占性
+
+--------------------------------
+【广告图增强规则】
+--------------------------------
+当用途明确是广告图、投流图、应用商店图、封面图、信息流图时，你要默认强化：
+- 商业广告感
+- 高点击率封面感
+- 高对比
+- 强色彩策略
+- 标题冲击力
+- 缩略图识别度
+- 情绪张力
+- 视觉锚点强
+- 元素层级清晰
+- 当前图位职责突出
+
+在不违背用户输入的前提下，可以加入：
+- 问号
+- 感叹号
+- 速度线
+- 发光粒子
+- 星光
+- 对话框
+- 信息条
+- 图标碎片
+- 游戏化装饰
+但必须服务主题，不能乱加。
+
+--------------------------------
+【最终输出规则】
+--------------------------------
+你的最终输出只能是一份“结构化的最终提示词”，不能有其他多余内容。
+
+这份最终提示词必须采用如下结构组织，但整体仍然是给生图模型使用的提示词内容：
+
+【图像任务】
+写清用途、比例、当前图位任务
+
+【整体风格】
+写清风格、材质、完成度、广告感、世界观一致性
+
+【共享底座继承】
+写清当前图需要继承的角色、品牌、场景家族、风格一致性
+
+【主体设定】
+写清人物 / 产品 / 主体是谁，长什么样，年龄感、服装、识别特征
+
+【场景设定】
+写清环境、时间、道具、空间关系、氛围
+
+【动作与情绪】
+写清主体动作、表情、情绪变化、slot对应的结果状态
+
+【构图与镜头】
+写清主体位置、标题区位置、前中后景关系、视觉锚点、镜头远近
+
+【核心功能可视化】
+写清手机 / 产品 / 核心卖点如何被看见
+
+【文字系统】
+写清所有需要生成的文字内容、位置、字效、承载方式、字体要求
+
+【品牌与Logo】
+写清品牌露出和Logo规则
+
+【参考图使用】
+逐条写清参考图1、参考图2、参考图3分别参考什么
+
+【质量与限制】
+写清广告完成度、层级清晰、文字清晰、Logo不可变形、人物不可崩坏、不可出现额外手臂等限制
+
+你输出时必须直接把以上结构填满，不能输出空标题，不能输出分析说明，不能输出“这里填写”。
+
+--------------------------------
+【语言要求】
+--------------------------------
+1. 最终输出必须是面向生图模型的结构化提示词，不是面向人的方案文档。
+2. 必须具体、自然、连续、可执行。
+3. 不要写空泛词堆砌，不要只复述用户文案。
+4. 不要输出“需求解析”“画面结构”“可替换变量”“负面提示词”等额外区域。
+5. 不要输出Markdown代码块，不要输出JSON，不要输出解释。
+6. 只输出最终提示词本身。
+
+--------------------------------
+【禁止事项】
+--------------------------------
+1. 不要忽略共享底座
+2. 不要忽略当前slot
+3. 不要混入其他图位内容
+4. 不要忽略参考图顺序与用途
+5. 不要忽略Logo不可改字改形要求
+6. 不要把任务说明原样塞进最终提示词
+7. 不要遗漏文字系统
+8. 不要把文字写得模糊
+9. 不要把结果写成非结构化散文
+10. 不要输出除最终提示词之外的任何内容
+
+你的唯一输出，就是一份可直接给生图模型使用的、结构化的最终提示词。`;
 
   const userText = `sharedBase:
 - direction.title: ${input.sharedBase.direction.title}
@@ -636,7 +768,7 @@ slot:
 - mustNotRepeat: ${input.slot.mustNotRepeat}
 - layoutExpectation: ${input.slot.layoutExpectation}
 
-请为当前 slot 输出 v2-slot-prompt JSON，确保 solution chain 明确、品牌约束明确、文字承载清晰。`;
+请直接输出最终提示词本身，不要输出JSON，不要输出解释，不要输出额外区域。`;
 
   return [
     { role: "system", content: systemPrompt },
@@ -723,6 +855,28 @@ export function normalizeSlotPromptPayload(
       slot_instruction: slotInstruction,
       cta: normalizedCta,
     },
+    finalPrompt: buildFinalSlotPrompt({
+      sharedBase: input.sharedBase,
+      slot: input.slot,
+      slotMeta: normalizedSlotMeta,
+      sharedConsistency: normalizeSharedConsistency(raw.sharedConsistency, sharedConsistencyFallback),
+      referencePlan: {
+        referenceImages: normalizeReferenceImages(input.sharedBase, raw.referencePlan?.referenceImages),
+      },
+      finalPromptObject: {
+        prompt_version: "v2-slot",
+        aspect_ratio: input.sharedBase.config.aspectRatio,
+        prompt_core: promptCore,
+        subject,
+        scene,
+        composition,
+        text_instruction: textInstruction,
+        brand_constraints: brandConstraints,
+        slot_instruction: slotInstruction,
+        cta: normalizedCta,
+      },
+      rawFinalPrompt: raw.finalPrompt,
+    }),
     negativePrompt: normalizeNonEmptyString(
       raw.negativePrompt,
       "避免低清晰度、文字不可读、Logo变形、人物崩坏、与其他图位职责重复。避免 extra hand, disembodied hand, floating hand, extra arm, extra limbs, pov hand, viewer hand。",
@@ -742,171 +896,9 @@ export async function generateSlotImagePrompt(input: {
     const content = await createMultimodalChatCompletion({
       model: "gemini-3.1-pro-preview",
       messages: buildSlotImageDescriptionMessages(input),
-      responseFormat: { type: "json_object" },
     });
-    return normalizeSlotPromptPayload(input, JSON.parse(content) as Partial<SlotPromptPayload>);
+    return normalizeSlotPromptPayload(input, { finalPrompt: content });
   } catch {
     return normalizeSlotPromptPayload(input);
   }
-}
-
-export function buildFallbackImageDescriptionPayload(input: {
-  directionTitle: string;
-  targetAudience: string;
-  scenarioProblem: string;
-  differentiation: string;
-  effect: string;
-  channel: string;
-  copyTitleMain: string;
-  copyTitleSub: string | null;
-  copyTitleExtra: string | null;
-  aspectRatio: string;
-  styleMode: string;
-  ipRole: string | null;
-  ipDescription?: string | null;
-  ipPromptKeywords?: string | null;
-  imageStyle: string;
-  logo?: string;
-  imageForm: string;
-  ctaEnabled?: boolean;
-  ctaText?: string | null;
-}, summaryText?: string): ImageDescriptionPayload {
-  const style = IMAGE_STYLE_DESCRIPTIONS[input.imageStyle] ?? "清新明亮的广告风格";
-  const audienceType = input.targetAudience.includes("家长") ? "parent" : "student";
-  const isMultiImage = input.imageForm === "double" || input.imageForm === "triple";
-  const currentText = [input.copyTitleMain, input.copyTitleSub, input.copyTitleExtra].filter(Boolean).join(" / ");
-
-  return {
-    schemaVersion: "v1",
-    channelPositioning: {
-      channel: input.channel,
-      imageForm: input.imageForm,
-      aspectRatio: input.aspectRatio,
-    },
-    adGoal: {
-      primaryGoal: input.channel === "信息流（广点通）" ? "抢停留" : "解释功能",
-    },
-    userState: {
-      audienceType,
-      audienceSegment: input.targetAudience,
-      scenarioSummary: input.scenarioProblem,
-    },
-    coreSellingPoint: {
-      primaryPoint: input.differentiation,
-    },
-    visualConcept: {
-      mainEvent: audienceType === "student" ? "学生正在处理学习问题并获得解决" : "家长在陪伴或观察孩子学习变化",
-      creativeAxis: audienceType === "student" ? "学习突破" : "陪伴成长",
-      productAnchor: input.ipRole ? "IP角色与学习产品共同露出" : "学习产品界面或学习道具露出",
-    },
-    sceneAtmosphere: {
-      location: audienceType === "student" ? "学习场景" : "家庭学习陪伴场景",
-      lighting: "明亮",
-      moodColor: style,
-    },
-    charactersAndProps: {
-      characterMode: isMultiImage ? "single" : "single",
-      characterSummary: input.ipRole ? `${input.ipRole}角色或目标人群代表` : `目标人群代表（${input.targetAudience}）`,
-      expression: "积极专注",
-      action: input.copyTitleMain,
-      props: ["学习道具", "产品锚点"],
-      ip: {
-        enabled: Boolean(input.ipRole),
-        role: input.ipRole ?? "",
-        placement: input.ipRole ? "画面主体区域" : "",
-        action: input.ipRole ? "与学习任务互动" : "",
-        consistencyRule: input.ipRole ? "长相、服装、发型、整体风格与参考图一致" : "",
-      },
-    },
-    composition: {
-      layoutType: input.aspectRatio === "16:9" ? "wide" : input.aspectRatio === "9:16" ? "vertical" : "square",
-      subjectPlacement: "right",
-      textSafeArea: input.aspectRatio === "16:9" ? "left" : "bottom",
-      logoSafeArea: "top-left",
-      multiImageConsistency: isMultiImage ? "多图时人物、风格、品牌元素保持一致，当前图承担自身角色" : "单图完整表达",
-    },
-    textOverlay: {
-      currentText,
-      textRole: isMultiImage ? "slot" : "main",
-      ctaText: input.ctaEnabled ? (input.ctaText ?? "立即下载") : null,
-    },
-    brandConstraints: {
-      brandTone: "教育可信、积极、明亮、成长导向",
-      logoPolicy: input.logo && input.logo !== "none" ? "Logo 保持左上角统一规则" : "不使用Logo",
-    },
-    variationHints: {
-      noveltyFocus: "通过构图、动作和场景细节避免与已有素材重复",
-    },
-    summaryText:
-      summaryText ??
-      `${style}。围绕“${input.directionTitle}”构建学习广告场景，文案“${currentText}”服务当前图位，保持品牌统一与学习语境。`,
-  };
-}
-
-function normalizeImageDescriptionPayload(
-  input: Parameters<typeof buildFallbackImageDescriptionPayload>[0],
-  candidate: Partial<ImageDescriptionPayload>,
-): ImageDescriptionPayload {
-  const base = buildFallbackImageDescriptionPayload(input);
-
-  return {
-    ...base,
-    ...candidate,
-    channelPositioning: {
-      ...base.channelPositioning,
-      ...(candidate.channelPositioning ?? {}),
-    },
-    adGoal: {
-      ...base.adGoal,
-      ...(candidate.adGoal ?? {}),
-    },
-    userState: {
-      ...base.userState,
-      ...(candidate.userState ?? {}),
-    },
-    coreSellingPoint: {
-      ...base.coreSellingPoint,
-      ...(candidate.coreSellingPoint ?? {}),
-    },
-    visualConcept: {
-      ...base.visualConcept,
-      ...(candidate.visualConcept ?? {}),
-    },
-    sceneAtmosphere: {
-      ...base.sceneAtmosphere,
-      ...(candidate.sceneAtmosphere ?? {}),
-    },
-    charactersAndProps: {
-      ...base.charactersAndProps,
-      ...(candidate.charactersAndProps ?? {}),
-      ip: {
-        ...base.charactersAndProps.ip,
-        ...(candidate.charactersAndProps?.ip ?? {}),
-      },
-      props: Array.isArray(candidate.charactersAndProps?.props)
-        ? candidate.charactersAndProps.props
-        : base.charactersAndProps.props,
-    },
-    composition: {
-      ...base.composition,
-      ...(candidate.composition ?? {}),
-    },
-    textOverlay: {
-      ...base.textOverlay,
-      ...(candidate.textOverlay ?? {}),
-    },
-    brandConstraints: {
-      ...base.brandConstraints,
-      ...(candidate.brandConstraints ?? {}),
-    },
-    variationHints: {
-      ...base.variationHints,
-      ...(candidate.variationHints ?? {}),
-    },
-    summaryText:
-      typeof candidate.summaryText === "string" && candidate.summaryText.trim().length > 0
-        ? candidate.summaryText
-        : base.summaryText,
-    schemaVersion: "v1",
-  };
 }

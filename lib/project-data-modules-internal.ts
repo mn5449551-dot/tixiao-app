@@ -296,29 +296,6 @@ function getNextCopyVariantSeed(copy: typeof copies.$inferSelect, imageForm: str
   return currentIndex >= 0 ? currentIndex + 2 : copy.variantIndex + 1;
 }
 
-function parseJsonBlock<T>(content: string): T | null {
-  const trimmed = content.trim();
-  if (!trimmed) return null;
-
-  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fencedMatch?.[1] ?? trimmed;
-
-  try {
-    return JSON.parse(candidate) as T;
-  } catch {
-    const start = candidate.indexOf("{");
-    const end = candidate.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(candidate.slice(start, end + 1)) as T;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
-
 function normalizeDirectionIdeas(payload: unknown, count: number) {
   const array = Array.isArray(payload)
     ? payload

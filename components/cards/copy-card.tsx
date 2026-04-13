@@ -24,7 +24,6 @@ import {
 } from "@/lib/copy-selection";
 import {
   getCopyActionState,
-  getCopyCompactSummary,
   getCopyDisplayRows,
 } from "@/lib/copy-card-presenter";
 import type { CardStatus } from "@/lib/constants";

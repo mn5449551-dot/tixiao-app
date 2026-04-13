@@ -24,7 +24,8 @@ export function getAudienceButtons() {
   return TARGET_AUDIENCES.map((item) => ({ value: item.value, label: item.label }));
 }
 
-export function getFeatureSuggestions(_targetAudience: string | null) {
+export function getFeatureSuggestions(targetAudience: string | null) {
+  void targetAudience;
   return FEATURE_LIBRARY.map((item) => ({ value: item.name, label: item.name }));
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const VIEWER_PADDING_X = 96;
@@ -206,33 +206,10 @@ function PreviewSurface({
     };
   }, [isDragging, naturalSize, stageSize, zoom]);
 
-  useEffect(() => {
-    if (!stageRef.current) return;
-
-    const stage = stageRef.current;
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const direction = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-      updateZoom(zoom * direction);
-    };
-
-    stage.addEventListener("wheel", handleWheel, { passive: false });
-    return () => {
-      stage.removeEventListener("wheel", handleWheel);
-    };
-  }, [zoom, naturalSize, stageSize, pan, baseFitScale]);
-
-  const canPan = Boolean(
-    naturalSize &&
-    stageSize.width &&
-    stageSize.height &&
-    (naturalSize.width * zoom > stageSize.width || naturalSize.height * zoom > stageSize.height),
-  );
-
   const minZoom = Math.max(baseFitScale * 0.75, 0.1);
   const maxZoom = Math.max(baseFitScale * 6, 3);
 
-  const updateZoom = (nextZoom: number) => {
+  const updateZoom = useCallback((nextZoom: number) => {
     if (!naturalSize || !stageSize.width || !stageSize.height) return;
 
     const clampedZoom = clamp(nextZoom, minZoom, maxZoom);
@@ -248,7 +225,30 @@ function PreviewSurface({
 
     setZoom(clampedZoom);
     setPan(nextPan);
-  };
+  }, [maxZoom, minZoom, naturalSize, pan.x, pan.y, stageSize.height, stageSize.width]);
+
+  useEffect(() => {
+    if (!stageRef.current) return;
+
+    const stage = stageRef.current;
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      updateZoom(zoom * direction);
+    };
+
+    stage.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      stage.removeEventListener("wheel", handleWheel);
+    };
+  }, [updateZoom, zoom]);
+
+  const canPan = Boolean(
+    naturalSize &&
+    stageSize.width &&
+    stageSize.height &&
+    (naturalSize.width * zoom > stageSize.width || naturalSize.height * zoom > stageSize.height),
+  );
 
   return (
     <div

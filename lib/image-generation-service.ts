@@ -357,16 +357,8 @@ export async function processPreparedImageGeneration(input: {
         .run();
     }
 
-    const referenceImageUrls = [
-      config.referenceImageUrl ?? null,
-      config.logo && config.logo !== "none"
-        ? await readLogoAssetAsDataUrl(config.logo as "onion" | "onion_app")
-        : null,
-    ].filter(Boolean) as string[];
-
     for (const group of groups) {
       const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-      const groupPromptEn = group.promptEn ?? promptEn;
       const groupReferenceImageUrl = group.referenceImageUrl ?? config.referenceImageUrl ?? null;
       const groupLogo = group.logo ?? config.logo ?? "none";
 

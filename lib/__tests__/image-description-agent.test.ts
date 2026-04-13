@@ -2,8 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  buildFallbackImageDescriptionPayload,
-  buildImageDescriptionMessages,
   buildSlotImageDescriptionMessages,
   generateSlotImagePrompt,
   normalizeSlotPromptPayload,
@@ -102,93 +100,6 @@ function buildSharedBaseFixture(overrides?: SharedBaseFixtureOverrides): SharedB
   };
 }
 
-test("buildFallbackImageDescriptionPayload returns structured payload for information-flow single image with CTA", () => {
-  const payload = buildFallbackImageDescriptionPayload({
-    directionTitle: "作业卡壳秒解决",
-    targetAudience: "初中生，晚间做作业经常卡题",
-    scenarioProblem: "晚间做作业时被一道题卡住半小时",
-    differentiation: "拍一下就能出解析",
-    effect: "从不会写到能继续写下去",
-    channel: "信息流（广点通）",
-    copyTitleMain: "作业卡壳急",
-    copyTitleSub: "拍一下就会",
-    copyTitleExtra: null,
-    aspectRatio: "16:9",
-    styleMode: "normal",
-    ipRole: null,
-    imageStyle: "realistic",
-    logo: "onion",
-    imageForm: "single",
-    ctaEnabled: true,
-    ctaText: "立即下载",
-  });
-
-  assert.equal(payload.schemaVersion, "v1");
-  assert.equal(payload.channelPositioning.channel, "信息流（广点通）");
-  assert.equal(payload.channelPositioning.imageForm, "single");
-  assert.equal(payload.textOverlay.ctaText, "立即下载");
-  assert.equal(payload.composition.logoSafeArea, "top-left");
-});
-
-test("buildFallbackImageDescriptionPayload encodes multi-image shared-base strategy", () => {
-  const payload = buildFallbackImageDescriptionPayload({
-    directionTitle: "看不懂步骤也能学会",
-    targetAudience: "理科薄弱学生",
-    scenarioProblem: "看答案还是看不懂关键步骤",
-    differentiation: "拆解步骤并逐步讲清",
-    effect: "从看不懂到能独立讲出思路",
-    channel: "应用商店",
-    copyTitleMain: "答案看不懂？",
-    copyTitleSub: "每步都拆透",
-    copyTitleExtra: "一遍就懂",
-    aspectRatio: "3:2",
-    styleMode: "normal",
-    ipRole: "豆包",
-    imageStyle: "animation",
-    logo: "onion",
-    imageForm: "triple",
-    ctaEnabled: false,
-    ctaText: null,
-  });
-
-  assert.equal(payload.channelPositioning.imageForm, "triple");
-  assert.equal(payload.charactersAndProps.ip.enabled, true);
-  assert.match(payload.composition.multiImageConsistency, /一致/);
-  assert.equal(payload.textOverlay.ctaText, null);
-});
-
-test("buildImageDescriptionMessages uses layered system prompt framework without changing output shape", () => {
-  const messages = buildImageDescriptionMessages({
-    directionTitle: "作业卡壳秒解决",
-    targetAudience: "初中生，晚间做作业经常卡题",
-    scenarioProblem: "晚间做作业时被一道题卡住半小时",
-    differentiation: "拍一下就能出解析",
-    effect: "从不会写到能继续写下去",
-    channel: "信息流（广点通）",
-    copyTitleMain: "作业卡壳急",
-    copyTitleSub: "拍一下就会",
-    copyTitleExtra: null,
-    aspectRatio: "16:9",
-    styleMode: "normal",
-    ipRole: null,
-    imageStyle: "realistic",
-    logo: "onion",
-    imageForm: "single",
-    ctaEnabled: true,
-    ctaText: "立即下载",
-  });
-
-  assert.equal(messages[0]?.role, "system");
-  assert.match(messages[0]?.content ?? "", /角色定位/);
-  assert.match(messages[0]?.content ?? "", /业务背景/);
-  assert.match(messages[0]?.content ?? "", /核心任务/);
-  assert.match(messages[0]?.content ?? "", /硬性边界/);
-  assert.match(messages[0]?.content ?? "", /输出契约|输出要求/);
-  assert.match(messages[0]?.content ?? "", /只输出一个 JSON 对象/);
-  assert.doesNotMatch(messages[0]?.content ?? "", /只输出纯文本描述/);
-  assert.match(messages[1]?.content ?? "", /CTA：立即下载/);
-});
-
 test("buildSlotImageDescriptionMessages emits a system message and multimodal slot-specific user content", () => {
   const messages = buildSlotImageDescriptionMessages({
     sharedBase: sharedBaseFixture,
@@ -211,6 +122,12 @@ test("buildSlotImageDescriptionMessages emits a system message and multimodal sl
   assert.match(JSON.stringify(messages[1]), /参考图1：IP角色参考图/);
   assert.match(JSON.stringify(messages[1]), /参考图2：Logo参考图/);
   assert.match(JSON.stringify(messages[1]), /solution_or_result/);
+  const systemContent = typeof messages[0]?.content === "string" ? messages[0].content : "";
+  assert.match(systemContent, /只输出最终提示词|唯一输出/);
+  assert.match(systemContent, /【图像任务】/);
+  assert.match(systemContent, /【参考图使用】/);
+  assert.match(systemContent, /【质量与限制】/);
+  assert.doesNotMatch(systemContent, /finalPrompt|negativePrompt|summaryText|只输出合法 JSON/);
 });
 
 test("buildSlotImageDescriptionMessages includes CTA source-of-truth fields for information-flow single-image slots", () => {
@@ -285,6 +202,13 @@ test("normalizeSlotPromptPayload returns a v2 slot prompt object with non-empty 
   assert.match(payload.finalPromptObject.prompt_core, /拍题拆解/);
   assert.match(payload.finalPromptObject.prompt_core, /解决动作|结果状态/);
   assert.match(payload.finalPromptObject.prompt_core, /Logo左上角|Logo 必须真实出现在左上角/);
+  assert.match(payload.finalPrompt, /【图像任务】/);
+  assert.match(payload.finalPrompt, /【主体设定】/);
+  assert.match(payload.finalPrompt, /【参考图使用】/);
+  assert.match(payload.finalPrompt, /参考图1/);
+  assert.match(payload.finalPrompt, /参考图2/);
+  assert.match(payload.finalPrompt, /Logo/);
+  assert.match(payload.finalPrompt, /拍题拆解/);
 });
 
 test("normalizeSlotPromptPayload only includes CTA for information-flow single-image slots", () => {
@@ -311,6 +235,7 @@ test("normalizeSlotPromptPayload only includes CTA for information-flow single-i
   );
 
   assert.equal(payload.finalPromptObject.cta, null);
+  assert.doesNotMatch(payload.finalPrompt, /立即下载/);
 });
 
 test("normalizeSlotPromptPayload normalizes nested fields field-by-field instead of trusting raw model objects", () => {
@@ -376,6 +301,10 @@ test("normalizeSlotPromptPayload normalizes nested fields field-by-field instead
     text: "立即下载",
     instruction: "仅在信息流单图中以按钮形式呈现“立即下载”。",
   });
+  assert.match(payload.finalPrompt, /参考图1/);
+  assert.match(payload.finalPrompt, /保持角色长相一致/);
+  assert.match(payload.finalPrompt, /参考图2/);
+  assert.match(payload.finalPrompt, /左上角真实露出/);
 });
 
 test("normalizeSlotPromptPayload does not allow model CTA text to drift from allowed CTA constraints", () => {
@@ -422,6 +351,8 @@ test("normalizeSlotPromptPayload does not allow model CTA text to drift from all
     instruction: "仅在信息流单图中以按钮形式呈现“立即下载”。",
   });
   assert.match(payload.finalPromptObject.prompt_core, /立即下载/);
+  assert.match(payload.finalPrompt, /立即下载/);
+  assert.doesNotMatch(payload.finalPrompt, /马上体验/);
 });
 
 test("normalizeSlotPromptPayload preserves the full shared-base reference set when model returns only a partial reference list", () => {
@@ -580,6 +511,7 @@ test("normalizeSlotPromptPayload fallback summaryText uses normalized slot metad
   assert.match(payload.summaryText, /第2张图/);
   assert.match(payload.summaryText, /解决动作|结果状态/);
   assert.match(payload.summaryText, /拍题拆解/);
+  assert.match(payload.finalPrompt, /第2张图|当前图位职责/);
 });
 
 test("normalizeSlotPromptPayload fallback prompt fields use normalized slot metadata instead of raw input slot values", () => {
@@ -617,6 +549,8 @@ test("normalizeSlotPromptPayload fallback prompt fields use normalized slot meta
   assert.match(payload.finalPromptObject.prompt_core, /拍题拆解/);
   assert.match(payload.finalPromptObject.prompt_core, /解决动作|结果状态/);
   assert.match(payload.summaryText, /解决动作|结果状态/);
+  assert.match(payload.finalPrompt, /拍题拆解/);
+  assert.match(payload.finalPrompt, /解决动作|结果状态/);
 });
 
 test("normalizeSlotPromptPayload preserves same-index usage fallback when shared references have duplicate roles", () => {
@@ -689,6 +623,9 @@ test("normalizeSlotPromptPayload preserves required v2 guardrails even when mode
   assert.match(payload.finalPromptObject.prompt_core, /完全一致/);
   assert.match(payload.finalPromptObject.prompt_core, /解决动作|结果状态/);
   assert.doesNotMatch(payload.finalPromptObject.prompt_core, /不要展示当前文案|Logo可以自由变化|不用区分图位职责/);
+  assert.match(payload.finalPrompt, /不要重复痛点图/);
+  assert.match(payload.finalPrompt, /参考图1/);
+  assert.match(payload.finalPrompt, /参考图2/);
 });
 
 test("normalizeSlotPromptPayload adds hand-ownership guardrails to prevent extra or floating hands", () => {
@@ -707,6 +644,7 @@ test("normalizeSlotPromptPayload adds hand-ownership guardrails to prevent extra
   assert.match(payload.finalPromptObject.composition, /所有可见手和手臂都必须明确属于画面中的主体人物/);
   assert.match(payload.finalPromptObject.composition, /不允许画外手|悬空手|额外手/);
   assert.match(payload.finalPromptObject.prompt_core, /所有可见手和手臂都必须明确属于画面中的主体人物/);
+  assert.match(payload.finalPrompt, /所有可见手和手臂都必须明确属于画面中的主体人物/);
 });
 
 test("normalizeSlotPromptPayload keeps aspect ratio caller-owned instead of accepting model drift", () => {
@@ -858,6 +796,8 @@ test("generateSlotImagePrompt falls back to normalized defaults when multimodal 
 
     assert.equal(payload.schemaVersion, "v2-slot-prompt");
     assert.ok(payload.finalPromptObject.prompt_core.length > 0);
+    assert.match(payload.finalPrompt, /参考图/);
+    assert.match(payload.finalPrompt, /当前图位职责|完整表达主信息/);
     assert.deepEqual(payload.finalPromptObject.cta, {
       text: "立即下载",
       instruction: "仅在信息流单图中以按钮形式呈现“立即下载”。",
@@ -878,34 +818,7 @@ test("generateSlotImagePrompt parses successful multimodal responses and normali
         choices: [
           {
             message: {
-              content: JSON.stringify({
-                slotMeta: {
-                  slotIndex: 99,
-                  slotCount: 99,
-                  imageForm: "double",
-                  copyType: "模型copyType",
-                  currentSlotText: "模型文案",
-                  slotRole: "model_role",
-                },
-                finalPromptObject: {
-                  prompt_version: "v2-slot",
-                  aspect_ratio: "16:9",
-                  prompt_core: "模型核心词里没有任何必需约束",
-                  subject: "模型主体",
-                  scene: "模型场景",
-                  composition: "模型构图",
-                  text_instruction: "模型文案指令",
-                  brand_constraints: "模型品牌约束",
-                  slot_instruction: "模型图位职责",
-                  cta: {
-                    text: "马上体验",
-                    instruction: "模型CTA",
-                  },
-                },
-                referencePlan: {
-                  referenceImages: [{ role: "ip", usage: "模型IP用途" }],
-                },
-              }),
+              content: "【图像任务】\n信息流单图，当前图位完整表达主信息。\n\n【整体风格】\n日系二次元插画广告风格，商业完成度高。\n\n【主体设定】\n中国初中生，年龄感明确，不要过成熟。\n\n【场景设定】\n书桌前拍题学习场景。\n\n【动作与情绪】\n人物从卡壳转为理解后的轻松状态。\n\n【构图与镜头】\n单图完整承载主副标题，保留左上角Logo区域。\n\n【核心功能可视化】\n手机屏幕清晰展示分步骤解析。\n\n【文字系统】\n真正图位文案必须清晰完整出现。\n\n【品牌与Logo】\nLogo参考图必须真实还原在左上角。\n\n【参考图使用】\n参考图1用于人物角色一致性。参考图2仅用于Logo真实还原。\n\n【质量与限制】\n不要出现额外手臂，不要文字乱码。",
             },
           },
         ],
@@ -956,6 +869,12 @@ test("generateSlotImagePrompt parses successful multimodal responses and normali
       { role: "ip", usage: "保持角色长相一致" },
       { role: "logo", usage: "左上角真实露出" },
     ]);
+    assert.match(payload.finalPrompt, /【图像任务】/);
+    assert.match(payload.finalPrompt, /【参考图使用】/);
+    assert.match(payload.finalPrompt, /参考图1/);
+    assert.match(payload.finalPrompt, /参考图2/);
+    assert.match(payload.finalPrompt, /真正图位文案|完整表达主信息/);
+    assert.match(payload.negativePrompt, /Logo变形|文字不可读|extra hand/);
   } finally {
     globalThis.fetch = previousFetch;
     process.env.NEW_API_KEY = previousApiKey;

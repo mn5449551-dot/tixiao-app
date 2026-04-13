@@ -528,6 +528,7 @@ test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
       layoutFreedom: "model_decides_within_structured_layout",
       overallFeel: "clean_and_feature_focused",
     },
+    finalPrompt: "请生成一张应用商店双图广告图。参考图1用于Logo位置规则。当前图重点表现痛点后的解决结果。",
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: "3:2",
@@ -560,25 +561,10 @@ test("buildImagePrompt consumes v2 per-slot prompt payload directly", () => {
     descriptionPayload: payload,
   });
 
-  const parsed = JSON.parse(prompt) as Record<string, unknown>;
-  assert.equal(parsed.prompt_version, undefined);
-  assert.equal(parsed.slot_prompt, undefined);
-  assert.equal(parsed.aspect_ratio, "3:2");
-  assert.equal(parsed.prompt_core, "核心提示词");
-  assert.equal(parsed.negative_prompt, "bad anatomy");
-  assert.deepEqual(parsed.reference_images, [
-    { index: 1, role: "logo", usage: "左上角真实露出" },
-  ]);
-  assert.deepEqual(parsed.typography_intent, payload.typographyIntent);
-  assert.deepEqual(parsed.text_overlay, {
-    main_title: "图一文案",
-    sub_title: null,
-    extra_title: null,
-  });
-  assert.equal(parsed.slot_meta, undefined);
-  assert.equal(parsed.summary_text, undefined);
-  assert.equal(parsed.reference_plan, undefined);
-  assert.match(String(parsed.brand_constraints), /Logo 左上角/);
+  assert.match(prompt, /请生成一张应用商店双图广告图/);
+  assert.match(prompt, /参考图1用于Logo位置规则/);
+  assert.doesNotMatch(prompt, /负面约束：|bad anatomy/);
+  assert.doesNotMatch(prompt, /"prompt_core"|^\{/);
 });
 
 test("buildImagePrompt preserves single-image main/sub title fields in v2 payload mapping", () => {
@@ -614,6 +600,7 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
       layoutFreedom: "model_decides_within_clear_text_area",
       overallFeel: "bold_and_scroll_stopping",
     },
+    finalPrompt: "请生成一张信息流单图广告图，主标题是拍一下就会，副标题是10秒出解析，参考图1锁定IP人物，参考图2锁定Logo。",
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: "16:9",
@@ -650,26 +637,12 @@ test("buildImagePrompt preserves single-image main/sub title fields in v2 payloa
     descriptionPayload: payload,
   });
 
-  const parsed = JSON.parse(prompt) as {
-    text_overlay?: {
-      main_title: string;
-      sub_title: string | null;
-      extra_title: string | null;
-    };
-    reference_images?: Array<{ index: number; role: string; usage: string }>;
-    typography_intent?: unknown;
-  };
-
-  assert.deepEqual(parsed.text_overlay, {
-    main_title: "拍一下就会",
-    sub_title: "10秒出解析",
-    extra_title: null,
-  });
-  assert.deepEqual(parsed.reference_images, [
-    { index: 1, role: "ip", usage: "保持角色长相一致" },
-    { index: 2, role: "logo", usage: "左上角真实露出" },
-  ]);
-  assert.deepEqual(parsed.typography_intent, payload.typographyIntent);
+  assert.match(prompt, /请生成一张信息流单图广告图/);
+  assert.match(prompt, /主标题是拍一下就会/);
+  assert.match(prompt, /副标题是10秒出解析/);
+  assert.match(prompt, /参考图1锁定IP人物/);
+  assert.match(prompt, /参考图2锁定Logo/);
+  assert.doesNotMatch(prompt, /负面约束：|bad anatomy/);
 });
 
 test("buildImagePrompt preserves hand-ownership guardrails and stronger limb negative prompts in v2 payload mapping", () => {
@@ -702,6 +675,7 @@ test("buildImagePrompt preserves hand-ownership guardrails and stronger limb neg
       layoutFreedom: "model_decides_within_clear_text_area",
       overallFeel: "bold_and_scroll_stopping",
     },
+    finalPrompt: "请生成一张16:9单图广告图，人物手持平板，突出交互界面，所有可见手和手臂都必须明确属于主体人物。",
     finalPromptObject: {
       prompt_version: "v2-slot",
       aspect_ratio: "16:9",
@@ -734,11 +708,6 @@ test("buildImagePrompt preserves hand-ownership guardrails and stronger limb neg
     descriptionPayload: payload,
   });
 
-  const parsed = JSON.parse(prompt) as { composition: string; negative_prompt: string };
-  assert.match(parsed.composition, /所有可见手和手臂都必须明确属于画面中的主体人物/);
-  assert.match(parsed.composition, /不允许画外手|悬空手|额外手/);
-  assert.match(parsed.negative_prompt, /extra hand/);
-  assert.match(parsed.negative_prompt, /disembodied hand/);
-  assert.match(parsed.negative_prompt, /floating hand/);
-  assert.match(parsed.negative_prompt, /pov hand|viewer hand/);
+  assert.match(prompt, /所有可见手和手臂都必须明确属于主体人物/);
+  assert.doesNotMatch(prompt, /负面约束：|extra hand|disembodied hand|floating hand|pov hand|viewer hand/);
 });
