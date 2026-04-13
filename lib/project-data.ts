@@ -19,6 +19,7 @@ export {
   appendDirectionSmart,
   updateDirection,
   deleteDirection,
+  deleteDirectionCard,
 } from "@/lib/project-data-modules/direction-operations";
 
 export {

@@ -85,22 +85,6 @@ type WorkspaceDirection = typeof directions.$inferSelect & {
   copyCards: WorkspaceCopyCard[];
 };
 
-const singleCopyAngles = [
-  ["孩子一做题就卡壳？", "拍一下 10 秒出解析，像老师边写边讲"],
-  ["一道题卡半小时", "洋葱学园帮你把思路掰开讲清楚"],
-  ["写作业总要等人教", "现在自己拍题就能立刻继续学"],
-  ["会做题却不会讲", "看懂解析后，孩子自己也能讲出来"],
-  ["难题一拖就放弃", "先拍一下，马上知道从哪一步开始"],
-];
-
-const duoCopyAngles = [
-  ["卡题不慌", "拍一下就懂", "错题不再拖"],
-  ["晚间作业", "秒出解析", "家长少焦虑"],
-  ["不会就拍", "思路立现", "越学越稳"],
-  ["题目太难", "讲解很清楚", "孩子能复述"],
-  ["不会写步骤", "拆成得分点", "考试更稳"],
-];
-
 function now() {
   return Date.now();
 }
@@ -197,103 +181,6 @@ function getNextCandidateVariantIndex(imageConfigId: string) {
   const db = getDb();
   const rows = db.select({ variantIndex: imageGroups.variantIndex }).from(imageGroups).where(eq(imageGroups.imageConfigId, imageConfigId)).all();
   return Math.max(...rows.map((row) => row.variantIndex), 0) + 1;
-}
-
-function buildDirectionBlueprint(index: number, requirement: ReturnType<typeof serializeRequirement>) {
-  const feature = featureLabel(requirement?.feature);
-  const audience = audienceLabel(requirement?.targetAudience);
-  const node = requirement?.timeNode ?? DEFAULT_REQUIREMENT.timeNode;
-
-  const blueprints = [
-    {
-      title: `${feature}·作业卡壳秒解决`,
-      scenarioProblem: `${node}阶段做题频繁卡住，${audience}都在追进度却找不到突破口。`,
-      differentiation: `用 ${feature} 把难题拆成可执行的小步骤，孩子能立刻继续写。`,
-      effect: "从不会下笔到自己能顺着思路完成整题。",
-    },
-    {
-      title: `${feature}·薄弱点精准击破`,
-      scenarioProblem: `${node}阶段刷题很多，但总在同一类题目反复出错。`,
-      differentiation: `把错题和知识点快速归因，告诉用户先补什么最值。`,
-      effect: "复习不再平均用力，提分更有方向。",
-    },
-    {
-      title: `${feature}·晚间陪学省心版`,
-      scenarioProblem: `晚上写作业最容易卡在关键题，家长也未必讲得清。`,
-      differentiation: `把讲解交给系统，家长只需要陪伴，不需要硬讲题。`,
-      effect: "减少催促和争执，家庭学习氛围更顺。",
-    },
-    {
-      title: `${feature}·考前冲刺抢分`,
-      scenarioProblem: `${node}前的复盘时间紧，最怕会做题但步骤扣分。`,
-      differentiation: "直接给出得分点与标准步骤表达，帮助快速校准答题方式。",
-      effect: "同样会做，写出来更容易拿到完整分数。",
-    },
-    {
-      title: `${feature}·看懂之后会表达`,
-      scenarioProblem: "很多孩子看过答案也只是照抄，真正上手还是不会。",
-      differentiation: "强调过程解释和语言重构，让孩子知道为什么这么做。",
-      effect: "从被动看答案，变成主动讲得出来。",
-    },
-  ];
-
-  const blueprint = blueprints[index % blueprints.length];
-
-  return {
-    ...blueprint,
-    targetAudience:
-      requirement?.targetAudience === "student"
-        ? `面向学生：${node}阶段需要快速提分的在校生`
-        : `面向家长：关注孩子${node}阶段学习效率与提分节奏的家长`,
-  };
-}
-
-function buildCopyVariant(imageForm: string, variantIndex: number) {
-  const single = singleCopyAngles[(variantIndex - 1) % singleCopyAngles.length];
-  const multi = duoCopyAngles[(variantIndex - 1) % duoCopyAngles.length];
-
-  if (imageForm === "triple") {
-    return {
-      titleMain: multi[0],
-      titleSub: multi[1],
-      titleExtra: multi[2],
-      copyType: "三图递进",
-    };
-  }
-
-  if (imageForm === "double") {
-    return {
-      titleMain: multi[0],
-      titleSub: multi[1],
-      titleExtra: null,
-      copyType: "双图因果",
-    };
-  }
-
-  return {
-    titleMain: single[0],
-    titleSub: single[1],
-    titleExtra: null,
-    copyType: "单图主副标题",
-  };
-}
-
-function getNextCopyVariantSeed(copy: typeof copies.$inferSelect, imageForm: string) {
-  if (imageForm === "single") {
-    const currentIndex = singleCopyAngles.findIndex(
-      ([main, sub]) => main === copy.titleMain && sub === (copy.titleSub ?? ""),
-    );
-    return currentIndex >= 0 ? currentIndex + 2 : copy.variantIndex + 1;
-  }
-
-  const currentIndex = duoCopyAngles.findIndex(
-    ([main, sub, extra]) =>
-      main === copy.titleMain &&
-      sub === (copy.titleSub ?? "") &&
-      (imageForm === "triple" ? extra === (copy.titleExtra ?? "") : true),
-  );
-
-  return currentIndex >= 0 ? currentIndex + 2 : copy.variantIndex + 1;
 }
 
 function normalizeDirectionIdeas(payload: unknown, count: number) {
@@ -704,58 +591,34 @@ export function listDirections(projectId: string) {
     .all();
 }
 
-export function generateDirections(
-  projectId: string,
-  channel: string,
-  imageForm: string,
-  copyGenerationCount = 3,
-) {
-  const requirement = getRequirement(projectId);
-  if (!requirement) throw new Error("请先填写需求卡");
-
-  const ideas = Array.from({ length: requirement.directionCount }, (_, index) =>
-    buildDirectionBlueprint(index, requirement),
-  );
-
-  return persistDirections(projectId, requirement, channel, imageForm, ideas, copyGenerationCount);
-}
-
 export async function generateDirectionsSmart(
   projectId: string,
   channel: string,
   imageForm: string,
   copyGenerationCount = 3,
-  useAi = false,
 ) {
   const requirement = getRequirement(projectId);
   if (!requirement) throw new Error("请先填写需求卡");
 
-  if (useAi) {
-    try {
-      const raw = await generateDirectionIdeas({
-        targetAudience: requirement.targetAudience ?? DEFAULT_REQUIREMENT.targetAudience,
-        feature: requirement.feature ?? DEFAULT_REQUIREMENT.feature,
-        sellingPoints: requirement.sellingPoints ?? DEFAULT_REQUIREMENT.sellingPoints,
-        timeNode: requirement.timeNode ?? DEFAULT_REQUIREMENT.timeNode,
-        count: requirement.directionCount,
-      });
-      const ideas = normalizeDirectionIdeas(raw, requirement.directionCount);
-      if (ideas) {
-        return persistDirections(
-          projectId,
-          requirement,
-          channel,
-          imageForm,
-          ideas,
-          copyGenerationCount,
-        );
-      }
-    } catch {
-      // Fallback to local rule generation.
-    }
+  const raw = await generateDirectionIdeas({
+    targetAudience: requirement.targetAudience ?? DEFAULT_REQUIREMENT.targetAudience,
+    feature: requirement.feature ?? DEFAULT_REQUIREMENT.feature,
+    sellingPoints: requirement.sellingPoints ?? DEFAULT_REQUIREMENT.sellingPoints,
+    timeNode: requirement.timeNode ?? DEFAULT_REQUIREMENT.timeNode,
+    count: requirement.directionCount,
+  });
+  const ideas = normalizeDirectionIdeas(raw, requirement.directionCount);
+  if (!ideas) {
+    throw new Error("AI 生成的方向格式不正确，请重试");
   }
-
-  return generateDirections(projectId, channel, imageForm, copyGenerationCount);
+  return persistDirections(
+    projectId,
+    requirement,
+    channel,
+    imageForm,
+    ideas,
+    copyGenerationCount,
+  );
 }
 
 export async function appendDirectionSmart(
@@ -763,7 +626,6 @@ export async function appendDirectionSmart(
   channel: string,
   imageForm: string,
   copyGenerationCount = 3,
-  useAi = false,
 ) {
   const requirement = getRequirement(projectId);
   if (!requirement) throw new Error("请先填写需求卡");
@@ -773,47 +635,30 @@ export async function appendDirectionSmart(
     throw new Error("方向总数已达上限（10条），无法追加");
   }
 
-  const nextIndex = currentDirections.length;
-
-  if (useAi) {
-    try {
-      const raw = await generateDirectionIdeas({
-        targetAudience: requirement.targetAudience ?? DEFAULT_REQUIREMENT.targetAudience,
-        feature: requirement.feature ?? DEFAULT_REQUIREMENT.feature,
-        sellingPoints: requirement.sellingPoints ?? DEFAULT_REQUIREMENT.sellingPoints,
-        timeNode: requirement.timeNode ?? DEFAULT_REQUIREMENT.timeNode,
-        count: 1,
-        existingDirections: currentDirections.map((direction) => ({
-          title: direction.title,
-          targetAudience: direction.targetAudience ?? "",
-          scenarioProblem: direction.scenarioProblem ?? "",
-          differentiation: direction.differentiation ?? "",
-          effect: direction.effect ?? "",
-        })),
-      });
-      const ideas = normalizeDirectionIdeas(raw, 1);
-      if (ideas) {
-        return appendDirections(
-          projectId,
-          requirement,
-          channel,
-          imageForm,
-          ideas,
-          copyGenerationCount,
-        )[0] ?? null;
-      }
-    } catch {
-      // Fallback to local rule generation.
-    }
+  const raw = await generateDirectionIdeas({
+    targetAudience: requirement.targetAudience ?? DEFAULT_REQUIREMENT.targetAudience,
+    feature: requirement.feature ?? DEFAULT_REQUIREMENT.feature,
+    sellingPoints: requirement.sellingPoints ?? DEFAULT_REQUIREMENT.sellingPoints,
+    timeNode: requirement.timeNode ?? DEFAULT_REQUIREMENT.timeNode,
+    count: 1,
+    existingDirections: currentDirections.map((direction) => ({
+      title: direction.title,
+      targetAudience: direction.targetAudience ?? "",
+      scenarioProblem: direction.scenarioProblem ?? "",
+      differentiation: direction.differentiation ?? "",
+      effect: direction.effect ?? "",
+    })),
+  });
+  const ideas = normalizeDirectionIdeas(raw, 1);
+  if (!ideas) {
+    throw new Error("AI 生成的方向格式不正确，请重试");
   }
-
-  const idea = buildDirectionBlueprint(nextIndex, requirement);
   return appendDirections(
     projectId,
     requirement,
     channel,
     imageForm,
-    [idea],
+    ideas,
     copyGenerationCount,
   )[0] ?? null;
 }
@@ -875,6 +720,42 @@ export async function deleteDirection(directionId: string) {
   return db.delete(directions).where(eq(directions.id, directionId)).run().changes > 0;
 }
 
+export async function deleteDirectionCard(projectId: string) {
+  const db = getDb();
+  const cardDirections = db
+    .select()
+    .from(directions)
+    .where(eq(directions.projectId, projectId))
+    .all();
+
+  if (cardDirections.length === 0) {
+    return false;
+  }
+
+  // 检查是否有任何方向存在下游内容
+  for (const direction of cardDirections) {
+    const downstreamCards = db
+      .select({ id: copyCards.id })
+      .from(copyCards)
+      .where(eq(copyCards.directionId, direction.id))
+      .all();
+
+    if (downstreamCards.length > 0) {
+      throw new Error("已有下游内容，不能删除方向卡");
+    }
+  }
+
+  // 删除所有方向及其关联配置
+  for (const direction of cardDirections) {
+    for (const configId of listDirectionImageConfigIds(direction.id)) {
+      await deleteImageConfigCascade(configId);
+    }
+    db.delete(directions).where(eq(directions.id, direction.id)).run();
+  }
+
+  return true;
+}
+
 export function listCopyCards(directionId: string) {
   const db = getDb();
   const cards = db
@@ -890,58 +771,37 @@ export function listCopyCards(directionId: string) {
   }));
 }
 
-export function generateCopyCard(directionId: string, count: number) {
+export async function generateCopyCardSmart(directionId: string, count: number) {
   const db = getDb();
   const direction = db.select().from(directions).where(eq(directions.id, directionId)).get();
   if (!direction) throw new Error("方向不存在");
-
   const actualCount = count || direction.copyGenerationCount || 3;
 
-  const ideas = Array.from({ length: actualCount }, (_, index) =>
-    buildCopyVariant(direction.imageForm ?? "single", index + 1),
-  );
-
+  const knowledge = buildCopyKnowledgeContext({
+    channel: direction.channel,
+    imageForm: direction.imageForm ?? "single",
+    targetAudience: direction.targetAudience ?? "",
+    directionTitle: direction.title,
+  });
+  const raw = await generateCopyIdeas({
+    directionTitle: direction.title,
+    targetAudience: direction.targetAudience ?? "",
+    scenarioProblem: direction.scenarioProblem ?? "",
+    differentiation: direction.differentiation ?? "",
+    effect: direction.effect ?? "",
+    channel: direction.channel,
+    imageForm: direction.imageForm ?? "single",
+    count: actualCount,
+    knowledgeContext: knowledge.promptBlock,
+  });
+  const ideas = normalizeCopyIdeas(raw, actualCount, direction.imageForm ?? "single");
+  if (!ideas) {
+    throw new Error("AI 生成的文案格式不正确，请重试");
+  }
   return persistCopyCard(direction, actualCount, ideas);
 }
 
-export async function generateCopyCardSmart(directionId: string, count: number, useAi = false) {
-  const db = getDb();
-  const direction = db.select().from(directions).where(eq(directions.id, directionId)).get();
-  if (!direction) throw new Error("方向不存在");
-  const actualCount = count || direction.copyGenerationCount || 3;
-
-  if (useAi) {
-    try {
-      const knowledge = buildCopyKnowledgeContext({
-        channel: direction.channel,
-        imageForm: direction.imageForm ?? "single",
-        targetAudience: direction.targetAudience ?? "",
-        directionTitle: direction.title,
-      });
-      const raw = await generateCopyIdeas({
-        directionTitle: direction.title,
-        targetAudience: direction.targetAudience ?? "",
-        scenarioProblem: direction.scenarioProblem ?? "",
-        differentiation: direction.differentiation ?? "",
-        effect: direction.effect ?? "",
-        channel: direction.channel,
-        imageForm: direction.imageForm ?? "single",
-        count: actualCount,
-        knowledgeContext: knowledge.promptBlock,
-      });
-      const ideas = normalizeCopyIdeas(raw, actualCount, direction.imageForm ?? "single");
-      if (ideas) {
-        return persistCopyCard(direction, actualCount, ideas);
-      }
-    } catch {
-      // Fallback to local rule generation.
-    }
-  }
-
-  return generateCopyCard(directionId, actualCount);
-}
-
-export async function appendCopyToCardSmart(copyCardId: string, useAi = false) {
+export async function appendCopyToCardSmart(copyCardId: string) {
   const db = getDb();
   const card = db.select().from(copyCards).where(eq(copyCards.id, copyCardId)).get();
   if (!card) return null;
@@ -957,51 +817,39 @@ export async function appendCopyToCardSmart(copyCardId: string, useAi = false) {
     .where(eq(copies.copyCardId, copyCardId))
     .orderBy(copies.variantIndex)
     .all();
-  const lastCopy = existingCopies[existingCopies.length - 1] ?? null;
 
-  let nextIdea: CopyIdea | null = null;
-  if (useAi) {
-    try {
-      const knowledge = buildCopyKnowledgeContext({
-        channel: direction.channel,
-        imageForm: direction.imageForm ?? "single",
-        targetAudience: direction.targetAudience ?? "",
-        directionTitle: direction.title,
-      });
-      const raw = await generateCopyIdeas({
-        directionTitle: direction.title,
-        targetAudience: direction.targetAudience ?? "",
-        scenarioProblem: direction.scenarioProblem ?? "",
-        differentiation: direction.differentiation ?? "",
-        effect: direction.effect ?? "",
-        channel: direction.channel,
-        imageForm: direction.imageForm ?? "single",
-        count: 1,
-        existingCopies: existingCopies.map((copy) => ({
-          titleMain: copy.titleMain,
-          titleSub: copy.titleSub,
-          titleExtra: copy.titleExtra,
-          copyType: copy.copyType,
-        })),
-        knowledgeContext: knowledge.promptBlock,
-      });
-      nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0] ?? null;
-    } catch {
-      nextIdea = null;
-    }
-  }
-
+  const knowledge = buildCopyKnowledgeContext({
+    channel: direction.channel,
+    imageForm: direction.imageForm ?? "single",
+    targetAudience: direction.targetAudience ?? "",
+    directionTitle: direction.title,
+  });
+  const raw = await generateCopyIdeas({
+    directionTitle: direction.title,
+    targetAudience: direction.targetAudience ?? "",
+    scenarioProblem: direction.scenarioProblem ?? "",
+    differentiation: direction.differentiation ?? "",
+    effect: direction.effect ?? "",
+    channel: direction.channel,
+    imageForm: direction.imageForm ?? "single",
+    count: 1,
+    existingCopies: existingCopies.map((copy) => ({
+      titleMain: copy.titleMain,
+      titleSub: copy.titleSub,
+      titleExtra: copy.titleExtra,
+      copyType: copy.copyType,
+    })),
+    knowledgeContext: knowledge.promptBlock,
+  });
+  const nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0];
   if (!nextIdea) {
-    const variantSeed = lastCopy
-      ? getNextCopyVariantSeed(lastCopy, direction.imageForm ?? "single")
-      : 1;
-    nextIdea = buildCopyVariant(direction.imageForm ?? "single", variantSeed);
+    throw new Error("AI 生成的文案格式不正确，请重试");
   }
 
   return appendCopyToExistingCard(card, direction, nextIdea);
 }
 
-export async function regenerateCopy(copyId: string, useAi = false) {
+export async function regenerateCopy(copyId: string) {
   const db = getDb();
   const copy = db.select().from(copies).where(eq(copies.id, copyId)).get();
   if (!copy) return null;
@@ -1011,30 +859,19 @@ export async function regenerateCopy(copyId: string, useAi = false) {
     throw new Error("方向不存在");
   }
 
-  let nextIdea: CopyIdea | null = null;
-  if (useAi) {
-    try {
-      const raw = await generateCopyIdeas({
-        directionTitle: direction.title,
-        targetAudience: direction.targetAudience ?? "",
-        scenarioProblem: direction.scenarioProblem ?? "",
-        differentiation: direction.differentiation ?? "",
-        effect: direction.effect ?? "",
-        channel: direction.channel,
-        imageForm: direction.imageForm ?? "single",
-        count: 1,
-      });
-      nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0] ?? null;
-    } catch {
-      nextIdea = null;
-    }
-  }
-
+  const raw = await generateCopyIdeas({
+    directionTitle: direction.title,
+    targetAudience: direction.targetAudience ?? "",
+    scenarioProblem: direction.scenarioProblem ?? "",
+    differentiation: direction.differentiation ?? "",
+    effect: direction.effect ?? "",
+    channel: direction.channel,
+    imageForm: direction.imageForm ?? "single",
+    count: 1,
+  });
+  const nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0];
   if (!nextIdea) {
-    nextIdea = buildCopyVariant(
-      direction.imageForm ?? "single",
-      getNextCopyVariantSeed(copy, direction.imageForm ?? "single"),
-    );
+    throw new Error("AI 生成的文案格式不正确，请重试");
   }
 
   const currentConfig = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copyId)).get();
