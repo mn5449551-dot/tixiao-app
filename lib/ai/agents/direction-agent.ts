@@ -94,6 +94,7 @@ export async function generateDirectionIdeas(input: DirectionAgentInput) {
   const messages = buildDirectionAgentMessages(input);
 
   const content = await createChatCompletion({
+    modelKey: "model_direction",
     messages,
     temperature: 0.8,
     responseFormat: { type: "json_object" },

@@ -106,6 +106,7 @@ export async function generateCopyIdeas(input: CopyAgentInput) {
   const messages = buildCopyAgentMessages(input);
 
   const content = await createChatCompletion({
+    modelKey: "model_copy",
     messages,
     temperature: 0.8,
     responseFormat: { type: "json_object" },

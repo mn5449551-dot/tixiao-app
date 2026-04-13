@@ -885,7 +885,7 @@ export async function generateSlotImagePrompt(input: {
 }) {
   try {
     const content = await createMultimodalChatCompletion({
-      model: "gemini-3.1-pro-preview",
+      modelKey: "model_image_description",
       messages: buildSlotImageDescriptionMessages(input),
     });
     return normalizeSlotPromptPayload(input, { finalPrompt: content });

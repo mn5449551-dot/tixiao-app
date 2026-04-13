@@ -107,6 +107,7 @@ ${knowledge.promptBlock}
 export async function runRequirementAssistant(input: AssistantAgentInput): Promise<AssistantAgentResult> {
   try {
     const raw = await createChatCompletion({
+      modelKey: "model_assistant",
       messages: buildRequirementAssistantMessages(input),
       temperature: 0.4,
       responseFormat: { type: "json_object" },
