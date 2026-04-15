@@ -294,6 +294,10 @@ function bootstrap(connection: Database.Database) {
     connection.exec("ALTER TABLE generated_images ADD COLUMN final_negative_prompt TEXT;");
   }
 
+  if (!generatedImageColumns.some((column) => column.name === "generation_request_json")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN generation_request_json TEXT;");
+  }
+
   const exportRecordColumns = connection
     .prepare("PRAGMA table_info(export_records)")
     .all() as Array<{ name: string }>;

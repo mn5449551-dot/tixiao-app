@@ -268,6 +268,13 @@ export async function processPreparedImageGeneration(input: {
         .set({
           finalPromptText: item.prompt,
           finalNegativePrompt: item.negativePrompt,
+          generationRequestJson: JSON.stringify({
+            promptText: item.prompt,
+            negativePrompt: item.negativePrompt,
+            model: config.imageModel ?? null,
+            aspectRatio: config.aspectRatio,
+            referenceImages: item.referenceImageUrls.map((url) => ({ url })),
+          }),
           updatedAt: Date.now(),
         })
         .where(eq(generatedImages.id, item.imageId))
