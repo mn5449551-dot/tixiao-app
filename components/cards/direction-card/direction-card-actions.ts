@@ -4,6 +4,7 @@ export async function saveDirectionItem(input: {
   directionId: string;
   title: string;
   targetAudience: string;
+  adaptationStage: string;
   scenarioProblem: string;
   differentiation: string;
   effect: string;
@@ -13,6 +14,7 @@ export async function saveDirectionItem(input: {
     body: {
       title: input.title,
       target_audience: input.targetAudience,
+      adaptation_stage: input.adaptationStage,
       scenario_problem: input.scenarioProblem,
       differentiation: input.differentiation,
       effect: input.effect,

@@ -85,7 +85,7 @@ export function Textarea({
 }
 
 const inputControlClassName =
-  "nodrag nopan h-10 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 text-sm text-[var(--ink-900)] outline-none transition-all duration-250 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
+  "nodrag nopan h-11 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 text-sm text-[var(--ink-900)] outline-none transition-all duration-300 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-2 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
 
 const textareaControlClassName =
-  "nodrag nopan min-h-10 w-full resize-none overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 py-3 text-sm text-[var(--ink-900)] outline-none transition-all duration-250 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
+  "nodrag nopan min-h-11 w-full resize-none overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 py-3 text-sm text-[var(--ink-900)] outline-none transition-all duration-300 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-2 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";

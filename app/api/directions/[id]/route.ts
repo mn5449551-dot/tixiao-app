@@ -10,6 +10,7 @@ export async function PUT(
   const body = (await request.json()) as {
     title?: string;
     target_audience?: string;
+    adaptation_stage?: string;
     scenario_problem?: string;
     differentiation?: string;
     effect?: string;
@@ -21,6 +22,7 @@ export async function PUT(
   const direction = updateDirection(id, {
     title: body.title,
     targetAudience: body.target_audience,
+    adaptationStage: body.adaptation_stage,
     scenarioProblem: body.scenario_problem,
     differentiation: body.differentiation,
     effect: body.effect,

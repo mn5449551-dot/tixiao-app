@@ -57,6 +57,29 @@ export async function saveImageBuffer(input: {
   }
 }
 
+export async function applyFixedLogoOverlay(input: {
+  buffer: Buffer;
+  logoPath: string;
+}) {
+  const source = sharp(input.buffer).ensureAlpha();
+  const meta = await source.metadata();
+  const width = meta.width ?? 1080;
+  const height = meta.height ?? 1080;
+  const logoWidth = Math.max(Math.round(width * 0.22), 180);
+  const top = Math.max(Math.round(height * 0.03), 24);
+  const left = Math.max(Math.round(width * 0.03), 24);
+
+  const logoBuffer = await sharp(input.logoPath)
+    .resize({ width: logoWidth })
+    .png()
+    .toBuffer();
+
+  return source
+    .composite([{ input: logoBuffer, left, top }])
+    .png()
+    .toBuffer();
+}
+
 export async function deleteFileIfExists(filePath: string | null | undefined) {
   if (!filePath) return;
   try {

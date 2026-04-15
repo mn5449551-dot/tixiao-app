@@ -19,7 +19,7 @@ import {
   shouldShowIpAssetSelector,
 } from "@/lib/workflow-defaults";
 import type { CardStatus } from "@/lib/constants";
-import { ASPECT_RATIOS, IMAGE_STYLES, LOGO_OPTIONS } from "@/lib/constants";
+import { DEFAULT_IMAGE_MODEL_VALUE, getAspectRatiosForModel, IMAGE_STYLES, LOGO_OPTIONS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
@@ -32,6 +32,7 @@ export type ImageConfigCardData = {
   initialAspectRatio?: string;
   initialStyleMode?: string;
   initialImageStyle?: string;
+  initialImageModel?: string | null;
   initialCount?: number;
   initialLogo?: string;
   initialIpRole?: string | null;
@@ -50,7 +51,7 @@ export function ImageConfigCard({
   const isError = status === "error";
   const isDone = status === "done";
 
-  const [aspectRatio, setAspectRatio] = useState(data.initialAspectRatio ?? ASPECT_RATIOS[0]);
+  const [aspectRatio, setAspectRatio] = useState(data.initialAspectRatio ?? getAspectRatiosForModel(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE)[0]);
   const [styleMode, setStyleMode] = useState(data.initialStyleMode ?? "normal");
   const [imageStyle, setImageStyle] = useState(
     resolveImageStyleForMode(data.initialStyleMode ?? "normal", data.initialImageStyle ?? IMAGE_STYLES[0]),
@@ -61,11 +62,11 @@ export function ImageConfigCard({
       : (data.initialImageStyle ?? IMAGE_STYLES[0]),
   );
   const [count, setCount] = useState(data.initialCount ?? 1);
+  const [imageModel, setImageModel] = useState<string | null>(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE);
   const [useLogo, setUseLogo] = useState(data.initialLogo !== "none" && data.initialLogo != null);
   const [logoOption, setLogoOption] = useState(data.initialLogo ?? LOGO_OPTIONS[0]);
   const [useIp, setUseIp] = useState(!!data.initialIpRole);
   const [ipRole, setIpRole] = useState<string>(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
-  const [referenceImageUrl, setReferenceImageUrl] = useState("");
   const [ctaEnabled, setCtaEnabled] = useState(Boolean(data.initialCtaEnabled));
   const [ctaText] = useState(data.initialCtaText ?? "立即下载");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,13 +83,14 @@ export function ImageConfigCard({
     const nextStyleMode = data.initialStyleMode ?? "normal";
     const nextImageStyle = resolveImageStyleForMode(nextStyleMode, data.initialImageStyle ?? IMAGE_STYLES[0]);
 
-    setAspectRatio(data.initialAspectRatio ?? ASPECT_RATIOS[0]);
+    setAspectRatio(data.initialAspectRatio ?? getAspectRatiosForModel(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE)[0]);
     setStyleMode(nextStyleMode);
     setImageStyle(nextImageStyle);
     setNormalImageStyle(
       nextStyleMode === "ip" ? "realistic" : (data.initialImageStyle ?? IMAGE_STYLES[0]),
     );
     setCount(data.initialCount ?? 1);
+    setImageModel(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE);
     setUseLogo(data.initialLogo !== "none" && data.initialLogo != null);
     setLogoOption(data.initialLogo ?? LOGO_OPTIONS[0]);
     setUseIp(!!data.initialIpRole);
@@ -99,6 +101,7 @@ export function ImageConfigCard({
     data.initialAspectRatio,
     data.initialCount,
     data.initialImageStyle,
+    data.initialImageModel,
     data.initialIpRole,
     data.initialCtaEnabled,
     data.initialLogo,
@@ -116,7 +119,7 @@ export function ImageConfigCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
+        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
@@ -145,8 +148,8 @@ export function ImageConfigCard({
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-1",
-        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]",
+        "absolute inset-x-0 top-0 h-1.5",
+        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]",
       )} />
 
       {/* Header */}
@@ -195,11 +198,10 @@ export function ImageConfigCard({
         aspectRatio={aspectRatio}
         styleMode={styleMode}
         imageStyle={imageStyle}
+        imageModel={imageModel}
         count={count}
-        referenceImageUrl={referenceImageUrl}
         ctaEnabled={supportsCta ? ctaEnabled : false}
         ctaText={ctaText}
-        isIpMode={isIpMode}
         showImageStyleField={showImageStyleField}
         onAspectRatioChange={setAspectRatio}
         onStyleModeChange={(nextMode) => {
@@ -213,12 +215,18 @@ export function ImageConfigCard({
           setImageStyle(value);
           setNormalImageStyle(value);
         }}
+        onImageModelChange={(newModel) => {
+          setImageModel(newModel);
+          const newRatios = getAspectRatiosForModel(newModel);
+          if (newRatios.length > 0 && !newRatios.includes(aspectRatio)) {
+            setAspectRatio(newRatios[0]);
+          }
+        }}
         onCountChange={(value) => {
           if (!isNaN(value) && value >= 1 && value <= 5) {
             setCount(value);
           }
         }}
-        onReferenceImageUrlChange={setReferenceImageUrl}
         onCtaEnabledChange={setCtaEnabled}
       >
         <ImageConfigBrandSection
@@ -251,7 +259,7 @@ export function ImageConfigCard({
       {/* Generate button */}
       <Button
         variant="primary"
-        className="w-full py-3 text-sm font-semibold"
+        className="w-full py-3.5 text-sm font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
         disabled={isSubmitting}
         onClick={async () => {
           setIsSubmitting(true);
@@ -263,10 +271,11 @@ export function ImageConfigCard({
               aspectRatio,
               styleMode,
               imageStyle: resolveImageStyleForMode(styleMode, imageStyle),
+              imageModel,
               count,
               logo: useLogo ? logoOption : "none",
               ipRole: showIpAssetSelector ? ipRole : null,
-              referenceImageUrl: showIpAssetSelector ? null : referenceImageUrl || null,
+              referenceImageUrl: null,
               ctaEnabled: supportsCta ? ctaEnabled : false,
               ctaText: supportsCta ? ctaText : null,
             });

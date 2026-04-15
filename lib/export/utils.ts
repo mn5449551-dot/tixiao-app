@@ -91,6 +91,7 @@ export function buildExportFileName(input: {
   projectTitle: string;
   channel: string;
   slotName: string;
+  ratio: string;
   index: number;
   format: string;
   namingRule?: string;
@@ -99,14 +100,19 @@ export function buildExportFileName(input: {
   const projectTitle = sanitizeExportSegment(input.projectTitle);
   const channel = sanitizeExportSegment(input.channel);
   const slotName = sanitizeExportSegment(input.slotName);
-  const version = `v${String(input.index).padStart(2, "0")}`;
+  const ratio = sanitizeExportSegment(input.ratio.replace(":", "x"));
+  const seq = String(input.index).padStart(2, "0");
 
   if (
     input.namingRule === "channel_slot_date_version" ||
     input.namingRule === "渠道_版位_日期_版本"
   ) {
-    return `${projectTitle}_${channel}_${slotName}_${date}_${version}.${input.format}`;
+    return `${projectTitle}_${channel}_${slotName}_${ratio}_${date}_${seq}.${input.format}`;
   }
 
-  return `${projectTitle}_${String(input.index).padStart(2, "0")}.${input.format}`;
+  return `${projectTitle}_${seq}.${input.format}`;
+}
+
+export function isSpecialRatio(ratio: string): boolean {
+  return ratio === "16:11" || ratio === "√2:1";
 }

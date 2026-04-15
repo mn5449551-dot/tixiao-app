@@ -212,24 +212,24 @@ export function RequirementCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
+        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
         selected
           ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)] shadow-[var(--shadow-card-hover)]"
           : "border-[var(--line-soft)]",
       )}
       style={{ width: 420 } satisfies CSSProperties}
     >
-      {/* Top color bar */}
+      {/* Top color bar — wider and softer */}
       <div
         className={cn(
-          "absolute inset-x-0 top-0 h-1 transition-colors",
+          "absolute inset-x-0 top-0 h-2 transition-colors",
           status === "loading"
-            ? "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]"
+            ? "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]"
             : status === "done"
               ? "bg-gradient-to-r from-[var(--success-500)] to-[var(--success-700)]"
               : status === "error"
                 ? "bg-gradient-to-r from-[var(--danger-500)] to-[var(--danger-700)]"
-                : "bg-gradient-to-r from-[var(--ink-300)] to-[var(--ink-400)]",
+                : "bg-gradient-to-r from-[var(--ink-200)] to-[var(--ink-300)]",
         )}
       />
 
@@ -246,7 +246,7 @@ export function RequirementCard({
       />
 
       {/* Header */}
-      <div className="workflow-drag-handle mb-5 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-6 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
         <div>
           <h3 className="text-lg font-semibold text-[var(--ink-950)]">需求卡</h3>
           <p className="mt-0.5 text-[10px] uppercase tracking-[0.22em] text-[var(--ink-400)]">REQUIREMENT</p>
@@ -255,13 +255,13 @@ export function RequirementCard({
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {errorMessage ? (
           <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
             {errorMessage}
           </div>
         ) : null}
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* 业务目标 (disabled) */}
           <div className="rounded-2xl bg-[var(--surface-1)] p-4">
             <Field label="业务目标">
@@ -358,7 +358,7 @@ export function RequirementCard({
           type="submit"
           variant="primary"
           disabled={!isFormValid || status === "loading"}
-          className="w-full py-3.5 text-base font-semibold"
+          className="w-full py-4 text-base font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
         >
           {status === "loading" ? (
             <span className="flex items-center gap-2">

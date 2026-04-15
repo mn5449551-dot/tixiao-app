@@ -9,6 +9,7 @@ import { getProjectExportContext } from "@/lib/project-data";
 import {
   buildExportFileName,
   classifyExportAdaptation,
+  isSpecialRatio,
   parseSlotSize,
   resolveExportSlotSpecs,
   sanitizeExportSegment,
@@ -46,7 +47,7 @@ export async function POST(
     const slotSpecs = resolveExportSlotSpecs({
       targetChannels: body.target_channels,
       targetSlots: body.target_slots,
-    });
+    }).filter((spec) => !isSpecialRatio(spec.ratio));
     if (slotSpecs.length === 0) {
       return NextResponse.json({ error: "请先选择导出版位" }, { status: 422 });
     }
@@ -62,11 +63,18 @@ export async function POST(
       for (const image of images) {
         const config = configMap.get(image.imageConfigId);
         const group = groupMap.get(image.imageGroupId);
+        const imageRatio = group?.aspectRatio ?? config?.aspectRatio ?? "1:1";
+        const adaptation = classifyExportAdaptation(imageRatio, slotSpec.ratio);
+
+        // 只导出比例匹配的图片（direct），不匹配的跳过
+        if (adaptation !== "direct") continue;
+
         const slotSize = parseSlotSize(slotSpec.size);
         const outputPath = path.join(exportDir, buildExportFileName({
           projectTitle: project.title,
           channel: slotSpec.channel,
           slotName: slotSpec.slotName,
+          ratio: slotSpec.ratio,
           index,
           format,
           namingRule: body.naming_rule,
@@ -78,7 +86,7 @@ export async function POST(
           format,
           targetWidth: slotSize?.width,
           targetHeight: slotSize?.height,
-          adaptationMode: classifyExportAdaptation(group?.aspectRatio ?? config?.aspectRatio ?? "1:1", slotSpec.ratio),
+          adaptationMode: "direct",
         });
         index += 1;
       }

@@ -13,7 +13,6 @@ type ModelSettings = {
   model_copy: string;
   model_assistant: string;
   model_image_description: string;
-  model_image_generation: string;
 };
 
 const TEXT_MODEL_OPTIONS = [
@@ -23,18 +22,11 @@ const TEXT_MODEL_OPTIONS = [
   { value: "doubao-seed-2-0-pro", label: "Doubao Seed 2.0 Pro" },
 ];
 
-const IMAGE_MODEL_OPTIONS = [
-  { value: "gpt-image-1.5", label: "GPT Image 1.5" },
-  { value: "gemini-3-pro-image-preview", label: "Gemini 3 Pro Image" },
-  { value: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image" },
-];
-
 const MODEL_CONFIG_LABELS: Record<keyof ModelSettings, string> = {
   model_direction: "方向生成模型",
   model_copy: "文案生成模型",
   model_assistant: "需求助手模型",
   model_image_description: "图片描述模型",
-  model_image_generation: "图片生成模型",
 };
 
 export default function SettingsPage() {
@@ -70,33 +62,18 @@ export default function SettingsPage() {
     setSaveSuccess(false);
 
     try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "model_direction", value: settings.model_direction }),
-      });
-      if (!res.ok) throw new Error("保存失败");
-
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "model_copy", value: settings.model_copy }),
-      });
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "model_assistant", value: settings.model_assistant }),
-      });
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "model_image_description", value: settings.model_image_description }),
-      });
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "model_image_generation", value: settings.model_image_generation }),
-      });
+      const entries = Object.entries(settings) as Array<[keyof ModelSettings, string]>;
+      for (const [key, value] of entries) {
+        const res = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, value }),
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          throw new Error(payload?.error ?? "保存失败");
+        }
+      }
 
       setSaveSuccess(true);
     } catch (error) {
@@ -162,22 +139,6 @@ export default function SettingsPage() {
         </div>
 
         <div className="h-px bg-[var(--line-soft)]" />
-
-        <div>
-          <h2 className="mb-4 text-lg font-medium text-[var(--ink-900)]">图片模型配置</h2>
-          <Field label={MODEL_CONFIG_LABELS.model_image_generation}>
-            <Select
-              value={settings?.model_image_generation ?? ""}
-              onChange={(e) => handleChange("model_image_generation", e.target.value)}
-            >
-              {IMAGE_MODEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
 
         <div className="flex justify-end gap-3 pt-4">
           <Button variant="secondary" onClick={() => window.location.reload()}>

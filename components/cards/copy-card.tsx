@@ -273,7 +273,7 @@ export function CopyCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
+        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
@@ -297,8 +297,8 @@ export function CopyCard({
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-1",
-        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]",
+        "absolute inset-x-0 top-0 h-1.5",
+        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]",
       )} />
 
       {/* Header */}
@@ -347,7 +347,7 @@ export function CopyCard({
       ) : null}
 
       {/* Copy items */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {localItems.map((item, index) => {
           const actions = getCopyActionState(item.isLocked);
           const rows = getCopyDisplayRows(imageForm, item);
@@ -415,7 +415,7 @@ export function CopyCard({
         })}
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-5 flex items-center gap-2.5">
         <Button
           variant="ghost"
           className="shrink-0 text-xs px-2"
@@ -433,14 +433,14 @@ export function CopyCard({
         </Button>
         <Button
           variant="primary"
-          className="flex-1 text-sm"
+          className="flex-1 text-sm shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
           disabled={selectedCount === 0 || isGenerating}
           onClick={generateSelectedCopyConfigs}
         >
           ⚡ 生成图片配置
         </Button>
       </div>
-      <p className="mt-2 text-[11px] text-[var(--ink-400)]">
+      <p className="mt-2.5 text-[11px] text-[var(--ink-400)]">
         为选中文案创建图片配置卡
       </p>
     </div>

@@ -6,7 +6,7 @@ export function Card({ children, className }: PropsWithChildren<{ className?: st
   return (
     <div
       className={cn(
-        "rounded-2xl border border-[var(--line-soft)] bg-white shadow-[var(--shadow-card)] transition-all duration-300",
+        "rounded-3xl border border-[var(--line-soft)] bg-white shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
         className,
       )}
     >
@@ -17,7 +17,7 @@ export function Card({ children, className }: PropsWithChildren<{ className?: st
 
 export function CardContent({ children, className }: PropsWithChildren<{ className?: string }>) {
   return (
-    <div className={cn("p-5", className)}>
+    <div className={cn("p-6", className)}>
       {children}
     </div>
   );

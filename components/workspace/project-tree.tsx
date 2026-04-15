@@ -53,7 +53,7 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
   return (
     <div className="flex h-full w-[220px] flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface-0)]">
       {/* Header — 极简布局 */}
-      <div className="border-b border-[var(--line-soft)] px-4 py-3">
+      <div className="border-b border-[var(--line-soft)] px-4 py-4">
         <div className="flex items-center justify-between">
           <Link
             href="/"
@@ -77,14 +77,14 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
         <p className="mt-3 truncate text-sm font-semibold text-[var(--ink-950)]" title={tree.project.title}>
           {tree.project.title}
         </p>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2.5 flex items-center gap-2">
           <Badge tone="brand" size="sm">{tree.directions.length} 方向</Badge>
           <span className="text-[10px] text-[var(--ink-400)]">{totalCopyCards} 文案 · {totalImages} 图</span>
         </div>
       </div>
 
       {/* Tree — 极简树状结构 */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto px-3 py-4">
         {/* 需求卡节点 */}
         <TreeItem
           label="需求卡"
@@ -95,11 +95,11 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
 
         {/* 方向列表 */}
         {tree.directions.length === 0 ? (
-          <div className="mt-4 rounded-xl bg-[var(--surface-1)] px-4 py-4 text-center">
+          <div className="mt-4 rounded-2xl bg-[var(--surface-1)] px-4 py-5 text-center">
             <p className="text-xs text-[var(--ink-400)]">暂无方向</p>
           </div>
         ) : (
-          <div className="mt-4 space-y-1">
+          <div className="mt-4 space-y-1.5">
             {tree.directions.map((dir, index) => {
               const copyCount = dir.copyCards.reduce((s, c) => s + c.copies.length, 0);
               return (
@@ -169,8 +169,8 @@ function TreeItem({
   );
 
   const baseClass = cn(
-    "flex w-full items-center rounded-lg px-3 text-left transition-all duration-200",
-    compact ? (smaller ? "py-1.5" : "py-2") : "py-2.5",
+    "flex w-full items-center rounded-xl px-3 text-left transition-all duration-200",
+    compact ? (smaller ? "py-2" : "py-2.5") : "py-2.5",
     isFocused
       ? "bg-[var(--brand-50)] text-[var(--brand-700)]"
       : "hover:bg-[var(--brand-50)]",
@@ -204,12 +204,12 @@ function TreeGroup({
   onClick?: () => void;
 }) {
   return (
-    <div className="rounded-xl">
+    <div className="rounded-2xl">
       {onClick ? (
         <button
           type="button"
           onClick={onClick}
-          className="group mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-500)] transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
+          className="group mb-1.5 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-500)] transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
         >
           <span className="flex h-1.5 w-1.5 shrink-0">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-400)]" />
@@ -222,7 +222,7 @@ function TreeGroup({
           )}
         </button>
       ) : (
-        <div className="mb-1 flex items-center gap-2 rounded-lg px-3 py-2">
+        <div className="mb-1.5 flex items-center gap-2 rounded-xl px-3 py-2.5">
           <span className="flex h-1.5 w-1.5 shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--ink-300)]" />
           </span>
@@ -231,7 +231,7 @@ function TreeGroup({
           </span>
         </div>
       )}
-      <div className="ml-4 border-l border-[var(--line-soft)] pl-3 space-y-0.5">
+      <div className="ml-4 border-l border-[var(--line-soft)] pl-3 space-y-1">
         {children}
       </div>
     </div>

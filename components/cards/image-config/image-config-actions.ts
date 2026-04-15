@@ -6,6 +6,7 @@ export async function saveImageConfigAndGenerate(input: {
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
+  imageModel: string | null;
   count: number;
   logo: string;
   ipRole: string | null;
@@ -24,6 +25,7 @@ export async function saveImageConfigAndGenerate(input: {
         ip_role: input.ipRole,
         logo: input.logo,
         image_style: input.imageStyle,
+        image_model: input.imageModel,
         count: input.count,
         reference_image_url: input.referenceImageUrl,
         cta_enabled: input.ctaEnabled,

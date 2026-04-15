@@ -6,14 +6,12 @@ import { Field, Textarea } from "@/components/ui/field";
 export function DirectionItemEditor({
   labels,
   value,
-  stageLabel,
   onChange,
   onCancel,
   onSave,
 }: {
   labels: Record<string, string>;
   value: Record<string, string>;
-  stageLabel?: string;
   onChange: (field: string, value: string) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -30,7 +28,13 @@ export function DirectionItemEditor({
           onChange={(e) => onChange("targetAudience", e.target.value)}
         />
       </Field>
-      {stageLabel ? <DetailBlock label={labels.stage} value={stageLabel} /> : null}
+      <Field label={labels.adaptationStage}>
+        <Textarea
+          minRows={1}
+          value={value.adaptationStage ?? ""}
+          onChange={(e) => onChange("adaptationStage", e.target.value)}
+        />
+      </Field>
       <Field label={labels.scenarioProblem}>
         <Textarea value={value.scenarioProblem ?? ""} onChange={(e) => onChange("scenarioProblem", e.target.value)} />
       </Field>
@@ -48,15 +52,6 @@ export function DirectionItemEditor({
           保存
         </Button>
       </div>
-    </div>
-  );
-}
-
-function DetailBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-white/70 px-3 py-2">
-      <div className="text-[11px] font-medium leading-5 text-[var(--ink-500)]">{label}</div>
-      <div className="mt-1 whitespace-pre-wrap break-words text-[var(--ink-900)]">{value}</div>
     </div>
   );
 }

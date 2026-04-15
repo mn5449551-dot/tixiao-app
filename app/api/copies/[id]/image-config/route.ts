@@ -31,6 +31,7 @@ export async function POST(
       ip_role?: string | null;
       logo?: string;
       image_style?: string;
+      image_model?: string | null;
       count?: number;
       reference_image_url?: string | null;
       cta_enabled?: boolean;
@@ -46,6 +47,7 @@ export async function POST(
       ipRole: body.ip_role,
       logo: body.logo,
       imageStyle: body.image_style,
+      imageModel: body.image_model,
       count: body.count,
       referenceImageUrl: body.reference_image_url,
       ctaEnabled: body.cta_enabled,
@@ -97,9 +99,7 @@ export async function POST(
       return NextResponse.json({
         id: config.id,
         image_config_id: config.id,
-        prompt_zh: config.promptZh,
-        prompt_en: config.promptEn,
-        negative_prompt: config.negativePrompt,
+        prompt_bundle_json: config.promptBundleJson,
         count: config.count,
         created_group_ids: createdGroupIds,
         groups: config.groups,
@@ -110,9 +110,7 @@ export async function POST(
     return NextResponse.json({
       id: config.id,
       image_config_id: config.id,
-      prompt_zh: config.promptZh,
-      prompt_en: config.promptEn,
-      negative_prompt: config.negativePrompt,
+      prompt_bundle_json: config.promptBundleJson,
       count: config.count,
       created_group_ids: config.createdGroups?.map((group) => group.id) ?? [],
       groups: config.groups,

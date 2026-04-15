@@ -12,11 +12,11 @@ type ButtonProps = PropsWithChildren<
 
 const variantClassMap: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-[0_6px_20px_rgba(230,126,58,0.25)] hover:shadow-[0_10px_28px_rgba(230,126,58,0.35)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    "bg-gradient-to-br from-[var(--brand-400)] to-[var(--brand-500)] text-white shadow-[0_4px_16px_rgba(232,131,90,0.2)] hover:shadow-[0_8px_24px_rgba(232,131,90,0.3)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]",
   secondary:
-    "bg-white text-[var(--ink-800)] ring-1 ring-[var(--line-medium)] hover:bg-[var(--surface-1)] hover:ring-[var(--brand-300)] hover:text-[var(--ink-900)] active:scale-[0.98]",
-  ghost: "bg-transparent text-[var(--ink-600)] hover:bg-[var(--surface-1)] hover:text-[var(--ink-800)] active:scale-[0.98]",
-  danger: "bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[var(--danger-soft-hover)] hover:-translate-y-0.5 active:scale-[0.98]",
+    "bg-white text-[var(--ink-800)] ring-1 ring-[var(--line-medium)] hover:bg-[var(--surface-1)] hover:ring-[var(--brand-300)] hover:text-[var(--ink-900)] active:scale-[0.97]",
+  ghost: "bg-transparent text-[var(--ink-600)] hover:bg-[var(--surface-1)] hover:text-[var(--ink-800)] active:scale-[0.97]",
+  danger: "bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[var(--danger-soft-hover)] hover:-translate-y-0.5 active:scale-[0.97]",
 };
 
 const sizeClassMap: Record<NonNullable<ButtonProps["size"]>, string> = {
@@ -40,7 +40,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "nodrag nopan inline-flex items-center justify-center font-medium transition-all duration-250 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0",
+        "nodrag nopan inline-flex items-center justify-center font-medium transition-all duration-300 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0",
         variantClassMap[variant],
         sizeClassMap[size],
         className,

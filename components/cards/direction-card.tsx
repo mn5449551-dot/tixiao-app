@@ -27,6 +27,7 @@ type DirectionItem = {
   id: string;
   title: string;
   targetAudience: string;
+  adaptationStage: string;
   scenarioProblem: string;
   differentiation: string;
   effect: string;
@@ -49,7 +50,7 @@ export type DirectionCardData = {
 const DIRECTION_FIELD_LABELS = {
   title: "素材方向",
   targetAudience: "目标人群",
-  stage: "适配阶段",
+  adaptationStage: "适配阶段",
   scenarioProblem: "1 能解决用户在具体哪个场景里的哪个问题",
   differentiation: "2 能带来什么不一样的一听很惊艳的解法？",
   effect: "3 因此带来了哪个场景下的什么奇效？",
@@ -110,6 +111,7 @@ export function DirectionCard({
     setEditBuffer({
       title: item.title,
       targetAudience: item.targetAudience,
+      adaptationStage: item.adaptationStage,
       scenarioProblem: item.scenarioProblem,
       differentiation: item.differentiation,
       effect: item.effect,
@@ -167,7 +169,7 @@ export function DirectionCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[var(--shadow-card)] transition-all duration-300",
+        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
@@ -190,12 +192,12 @@ export function DirectionCard({
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-1",
-        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)]",
+        "absolute inset-x-0 top-0 h-2",
+        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]",
       )} />
 
       {/* Header */}
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-5 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
         <div>
           <h3 className="text-lg font-semibold text-[var(--ink-950)]">方向卡</h3>
           <p className="mt-0.5 text-[11px] text-[var(--ink-500)]">
@@ -256,7 +258,7 @@ export function DirectionCard({
         </div>
       ) : null}
 
-      <div className="mb-4 grid gap-3 rounded-2xl bg-[var(--surface-1)] p-4 md:grid-cols-2">
+      <div className="mb-5 grid gap-3 rounded-2xl bg-[var(--surface-1)] p-4 md:grid-cols-2">
         <Field label="渠道">
           <Select value={channel} onChange={handleChannelChange}>
             {CHANNELS.map((item) => (
@@ -281,7 +283,7 @@ export function DirectionCard({
         </Field>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {directions.map((direction, index) => {
           const isEditing = editingId === direction.id;
           const isChecked = selectedIds.has(direction.id);
@@ -327,7 +329,6 @@ export function DirectionCard({
                   <DirectionItemEditor
                     labels={DIRECTION_FIELD_LABELS}
                     value={editBuffer}
-                    stageLabel={data.stageLabel}
                     onChange={(field, value) => setEditBuffer((current) => ({ ...current, [field]: value }))}
                     onCancel={cancelEdit}
                     onSave={async () => {
@@ -338,6 +339,7 @@ export function DirectionCard({
                           directionId: editingId,
                           title: editBuffer.title ?? "",
                           targetAudience: editBuffer.targetAudience ?? "",
+                          adaptationStage: editBuffer.adaptationStage ?? "",
                           scenarioProblem: editBuffer.scenarioProblem ?? "",
                           differentiation: editBuffer.differentiation ?? "",
                           effect: editBuffer.effect ?? "",
@@ -356,7 +358,6 @@ export function DirectionCard({
                   <ReadOnlyDirectionDetails
                     labels={DIRECTION_FIELD_LABELS}
                     direction={direction}
-                    stageLabel={data.stageLabel}
                   />
                 )
               }
@@ -372,10 +373,10 @@ export function DirectionCard({
         ) : null}
       </div>
 
-      <div className="my-4 h-px bg-[var(--line-soft)]" />
+      <div className="my-5 h-px bg-[var(--line-soft)]" />
 
       {/* Copy generation settings */}
-      <div className="mb-4">
+      <div className="mb-5">
         <Field label="文案生成数量" hint="1-5">
           <Select
             value={copyGenerationCount}
@@ -390,7 +391,7 @@ export function DirectionCard({
         </Field>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           onClick={async () => {
@@ -424,7 +425,7 @@ export function DirectionCard({
         </Button>
         <Button
           variant="primary"
-          className="flex-1"
+          className="flex-1 shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
           disabled={selectedCount === 0 || isGeneratingSelected}
           onClick={async () => {
             const selectedDirections = directions.filter(
@@ -466,17 +467,15 @@ export function DirectionCard({
 function ReadOnlyDirectionDetails({
   labels,
   direction,
-  stageLabel,
 }: {
   labels: typeof DIRECTION_FIELD_LABELS;
   direction: DirectionItem;
-  stageLabel?: string;
 }) {
   return (
     <div className="grid gap-2.5 md:grid-cols-3">
       <DetailBlock label={labels.title} value={direction.title} />
       <DetailBlock label={labels.targetAudience} value={direction.targetAudience} />
-      {stageLabel ? <DetailBlock label={labels.stage} value={stageLabel} /> : null}
+      <DetailBlock label={labels.adaptationStage} value={direction.adaptationStage} />
       <DetailBlock label={labels.scenarioProblem} value={direction.scenarioProblem} />
       <DetailBlock label={labels.differentiation} value={direction.differentiation} />
       <DetailBlock label={labels.effect} value={direction.effect} />
@@ -486,9 +485,9 @@ function ReadOnlyDirectionDetails({
 
 function DetailBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-[var(--surface-1)] px-4 py-3">
+    <div className="rounded-2xl bg-[var(--surface-1)] px-4 py-3.5">
       <div className="text-[11px] font-medium leading-4 text-[var(--ink-500)]">{label}</div>
-      <div className="mt-2 whitespace-pre-wrap break-words text-xs leading-7 text-[var(--ink-800)]">{value}</div>
+      <div className="mt-2.5 whitespace-pre-wrap break-words text-xs leading-7 text-[var(--ink-800)]">{value}</div>
     </div>
   );
 }

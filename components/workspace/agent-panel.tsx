@@ -144,9 +144,9 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
   }
 
   return (
-    <div className="flex h-full w-[360px] flex-col overflow-hidden border-l border-[var(--line-soft)] bg-gradient-to-b from-[var(--panel-strong)] to-[var(--surface-1)]">
+    <div className="flex h-full w-[360px] flex-col overflow-hidden border-l border-[var(--line-soft)] bg-gradient-to-b from-[var(--panel-strong)] to-[var(--surface-0)]">
       {/* Header - 美化布局 */}
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line-soft)] bg-white/60 px-4 py-3 backdrop-blur-sm">
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line-soft)] bg-white/70 px-4 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-sm">
             <span className="text-sm font-bold">AI</span>
@@ -197,7 +197,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
         </div>
 
         {/* Chat messages - 美化消息气泡 */}
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
           {assistantState?.stage === "done" && assistantState.confirmation ? (
             <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
               <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">当前需求摘要</p>
@@ -219,11 +219,11 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             >
               {/* 头像 */}
               {msg.role === "ai" ? (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-xs font-bold text-white shadow-sm">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-400)] to-[var(--brand-500)] text-xs font-bold text-white shadow-sm">
                   AI
                 </div>
               ) : msg.role === "user" ? (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ink-400)] to-[var(--ink-500)] text-xs font-bold text-white shadow-sm">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ink-300)] to-[var(--ink-400)] text-xs font-bold text-white shadow-sm">
                   我
                 </div>
               ) : null}

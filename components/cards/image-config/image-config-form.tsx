@@ -1,7 +1,7 @@
 "use client";
 
-import { Field, Select, Textarea } from "@/components/ui/field";
-import { ASPECT_RATIOS, IMAGE_STYLES } from "@/lib/constants";
+import { Field, Select } from "@/components/ui/field";
+import { getAspectRatiosForModel, IMAGE_MODELS, IMAGE_STYLES } from "@/lib/constants";
 
 const imageStyleLabel: Record<string, string> = {
   realistic: "写实",
@@ -17,17 +17,16 @@ export function ImageConfigForm({
   aspectRatio,
   styleMode,
   imageStyle,
+  imageModel,
   count,
-  referenceImageUrl,
   ctaEnabled,
   ctaText,
-  isIpMode,
   showImageStyleField,
   onAspectRatioChange,
   onStyleModeChange,
   onImageStyleChange,
+  onImageModelChange,
   onCountChange,
-  onReferenceImageUrlChange,
   onCtaEnabledChange,
   children,
 }: {
@@ -36,27 +35,41 @@ export function ImageConfigForm({
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
+  imageModel: string | null;
   count: number;
-  referenceImageUrl: string;
   ctaEnabled: boolean;
   ctaText: string;
-  isIpMode: boolean;
   showImageStyleField: boolean;
   onAspectRatioChange: (value: string) => void;
   onStyleModeChange: (value: string) => void;
   onImageStyleChange: (value: string) => void;
+  onImageModelChange: (value: string | null) => void;
   onCountChange: (value: number) => void;
-  onReferenceImageUrlChange: (value: string) => void;
   onCtaEnabledChange: (value: boolean) => void;
   children?: React.ReactNode;
 }) {
   const supportsCta = channel === "信息流（广点通）" && imageForm === "single";
+  const modelRatios = getAspectRatiosForModel(imageModel);
 
   return (
     <div className="space-y-2 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <Field label="生成模型">
+        <Select
+          value={imageModel ?? ""}
+          onChange={(e) => onImageModelChange(e.target.value || null)}
+        >
+          <option value="" disabled>请选择模型</option>
+          {IMAGE_MODELS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
       <Field label="生成比例">
-        <Select value={aspectRatio} onChange={(e) => onAspectRatioChange(e.target.value)}>
-          {ASPECT_RATIOS.map((ratio) => (
+        <Select value={aspectRatio} onChange={(e) => onAspectRatioChange(e.target.value)} disabled={!imageModel}>
+          {modelRatios.map((ratio) => (
             <option key={ratio} value={ratio}>
               {ratio}
             </option>
@@ -93,17 +106,6 @@ export function ImageConfigForm({
           className="h-11 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 text-sm text-[var(--ink-900)] outline-none transition placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)]"
         />
       </Field>
-
-      {!isIpMode && imageStyle === "img2img" ? (
-        <Field label="参考图 URL">
-          <Textarea
-            minRows={1}
-            value={referenceImageUrl}
-            onChange={(e) => onReferenceImageUrlChange(e.target.value)}
-            placeholder="https://..."
-          />
-        </Field>
-      ) : null}
 
       {supportsCta ? (
         <Field label="CTA">

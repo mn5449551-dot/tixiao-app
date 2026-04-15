@@ -14,7 +14,7 @@ export function Badge({
 }>) {
   const toneClass = {
     neutral: "bg-[var(--surface-2)] text-[var(--ink-700)]",
-    brand: "bg-[var(--brand-50)] text-[var(--brand-700)]",
+    brand: "bg-[var(--brand-100)] text-[var(--brand-700)]",
     success: "bg-[var(--success-soft)] text-[var(--success-700)]",
     warning: "bg-[var(--warning-soft)] text-[var(--warning-700)]",
     danger: "bg-[var(--danger-soft)] text-[var(--danger-700)]",

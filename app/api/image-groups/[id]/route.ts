@@ -26,6 +26,15 @@ export async function DELETE(
 ) {
   const { id } = (await context.params) as { id: string };
   const db = getDb();
+  const group = db.select().from(imageGroups).where(eq(imageGroups.id, id)).get();
+  if (!group) {
+    return NextResponse.json({ error: "图片组不存在" }, { status: 404 });
+  }
+
+  if (!group.groupType.startsWith("derived|")) {
+    return NextResponse.json({ error: "仅允许删除适配版本，原始定稿组不可删除" }, { status: 403 });
+  }
+
   const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, id)).all();
   for (const image of images) {
     await deleteFileIfExists(image.filePath);
