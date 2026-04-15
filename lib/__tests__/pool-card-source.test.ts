@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const candidatePoolCardPath = new URL("../../components/cards/candidate-pool-card.tsx", import.meta.url);
 const candidateImageCardPath = new URL("../../components/cards/candidate-pool/candidate-image-card.tsx", import.meta.url);
 const candidateGroupCardPath = new URL("../../components/cards/candidate-pool/candidate-group-card.tsx", import.meta.url);
+const promptDetailsModalPath = new URL("../../components/cards/candidate-pool/prompt-details-modal.tsx", import.meta.url);
 const finalizedPoolCardPath = new URL("../../components/cards/finalized-pool-card.tsx", import.meta.url);
 const finalizedPreviewCardPath = new URL("../../components/cards/finalized-pool/finalized-preview-card.tsx", import.meta.url);
 
@@ -57,6 +58,16 @@ test("candidate pool defaults to manual selection instead of auto-selecting done
   const source = await readFile(candidatePoolCardPath, "utf8");
 
   assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<Set<string>>\([\s\S]{0,40}\(\) => new Set\(\)/);
+});
+
+test("candidate pool prompt details modal shows prompt sections and copy actions", async () => {
+  const source = await readFile(promptDetailsModalPath, "utf8");
+
+  assert.match(source, /Modal/);
+  assert.match(source, /正向提示词/);
+  assert.match(source, /negative prompt/i);
+  assert.match(source, /navigator\.clipboard\.writeText|onCopyPrompt|onCopyNegativePrompt|onCopy/);
+  assert.match(source, /未传参考图/);
 });
 
 test("finalized pool defaults to manual channel selection", async () => {
