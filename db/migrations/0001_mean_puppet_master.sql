@@ -1,0 +1,1 @@
+ALTER TABLE `directions` ADD `adaptation_stage` text;

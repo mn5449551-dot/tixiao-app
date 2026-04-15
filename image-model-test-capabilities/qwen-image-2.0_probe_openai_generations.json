@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "url": "https://dashscope-7c2c.oss-accelerate.aliyuncs.com/7d/de/20260414/76483b06/6ee2ca00-3c02-4107-ab0e-4effd048efc4.png?Expires=1776784446&OSSAccessKeyId=LTAI5tPxpiCM2hjmWrFXrym1&Signature=2%2B48c9DKrwJ5Ns8DiOv4AZtVhh4%3D",
+      "b64_json": "",
+      "revised_prompt": ""
+    }
+  ],
+  "created": 1776178642,
+  "metadata": {
+    "output": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "message": {
+            "content": [
+              {
+                "image": "https://dashscope-7c2c.oss-accelerate.aliyuncs.com/7d/de/20260414/76483b06/6ee2ca00-3c02-4107-ab0e-4effd048efc4.png?Expires=1776784446&OSSAccessKeyId=LTAI5tPxpiCM2hjmWrFXrym1&Signature=2%2B48c9DKrwJ5Ns8DiOv4AZtVhh4%3D"
+              }
+            ],
+            "role": "assistant"
+          }
+        }
+      ]
+    },
+    "usage": {
+      "height": 1024,
+      "image_count": 1,
+      "width": 1024
+    },
+    "request_id": "5f616e6f-58e8-9f86-82d7-50354c86e097"
+  }
+}

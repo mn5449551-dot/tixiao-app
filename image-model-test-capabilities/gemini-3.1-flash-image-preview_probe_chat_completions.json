@@ -1,0 +1,29 @@
+{
+  "id": "portkey-1e7dac24-07da-4413-8457-6269d7adae49",
+  "object": "chat.completion",
+  "created": 1776178694,
+  "model": "gemini-3.1-flash-image-preview",
+  "provider": "google",
+  "choices": [
+    {
+      "message": {
+        "role": "assistant"
+      },
+      "index": 0,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 1548,
+    "total_tokens": 1580,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    }
+  }
+}

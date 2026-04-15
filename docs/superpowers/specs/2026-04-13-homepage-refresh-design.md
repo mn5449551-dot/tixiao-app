@@ -1,3 +1,5 @@
+> Archived historical design note. This document records a past planning state and does not define the current implementation. Current behavior should be verified against `docs/agent-design/*` and the live code.
+
 # 首页改版设计稿
 
 ## 背景
