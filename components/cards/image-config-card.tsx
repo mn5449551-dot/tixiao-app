@@ -19,7 +19,7 @@ import {
   shouldShowIpAssetSelector,
 } from "@/lib/workflow-defaults";
 import type { CardStatus } from "@/lib/constants";
-import { DEFAULT_IMAGE_MODEL_VALUE, getAspectRatiosForModel, IMAGE_STYLES, LOGO_OPTIONS } from "@/lib/constants";
+import { DEFAULT_IMAGE_MODEL_VALUE, getAspectRatiosForModel, IMAGE_STYLES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
@@ -63,8 +63,6 @@ export function ImageConfigCard({
   );
   const [count, setCount] = useState(data.initialCount ?? 1);
   const [imageModel, setImageModel] = useState<string | null>(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE);
-  const [useLogo, setUseLogo] = useState(data.initialLogo !== "none" && data.initialLogo != null);
-  const [logoOption, setLogoOption] = useState(data.initialLogo ?? LOGO_OPTIONS[0]);
   const [useIp, setUseIp] = useState(!!data.initialIpRole);
   const [ipRole, setIpRole] = useState<string>(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
   const [ctaEnabled, setCtaEnabled] = useState(Boolean(data.initialCtaEnabled));
@@ -91,8 +89,6 @@ export function ImageConfigCard({
     );
     setCount(data.initialCount ?? 1);
     setImageModel(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE);
-    setUseLogo(data.initialLogo !== "none" && data.initialLogo != null);
-    setLogoOption(data.initialLogo ?? LOGO_OPTIONS[0]);
     setUseIp(!!data.initialIpRole);
     setIpRole(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
     setCtaEnabled(supportsCta ? Boolean(data.initialCtaEnabled) : false);
@@ -104,7 +100,6 @@ export function ImageConfigCard({
     data.initialImageModel,
     data.initialIpRole,
     data.initialCtaEnabled,
-    data.initialLogo,
     data.initialStyleMode,
     isSubmitting,
     supportsCta,
@@ -230,14 +225,10 @@ export function ImageConfigCard({
         onCtaEnabledChange={setCtaEnabled}
       >
         <ImageConfigBrandSection
-          useLogo={useLogo}
-          logoOption={logoOption}
           ipRole={ipRole}
           isIpMode={isIpMode}
           showIpAssetSelector={showIpAssetSelector}
           activeIpDescription={activeIp?.description}
-          onUseLogoChange={setUseLogo}
-          onLogoOptionChange={setLogoOption}
           onIpRoleChange={setIpRole}
         />
       </ImageConfigForm>
@@ -273,7 +264,6 @@ export function ImageConfigCard({
               imageStyle: resolveImageStyleForMode(styleMode, imageStyle),
               imageModel,
               count,
-              logo: useLogo ? logoOption : "none",
               ipRole: showIpAssetSelector ? ipRole : null,
               referenceImageUrl: null,
               ctaEnabled: supportsCta ? ctaEnabled : false,

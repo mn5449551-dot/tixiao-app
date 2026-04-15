@@ -23,6 +23,7 @@ import {
   isSpecialRatio,
 } from "@/lib/export/utils";
 import { IMAGE_MODELS } from "@/lib/constants";
+import { LOGO_ASSET_OPTIONS } from "@/lib/logo-asset-metadata";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
@@ -78,6 +79,7 @@ export function FinalizedPoolCard({
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [fileFormat, setFileFormat] = useState<"jpg" | "png" | "webp">("jpg");
+  const [exportLogo, setExportLogo] = useState<"onion" | "onion_app" | "none">("none");
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [actionLoadingGroupId, setActionLoadingGroupId] = useState<string | null>(null);
@@ -444,6 +446,19 @@ export function FinalizedPoolCard({
         </Field>
       </div>
 
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+        <Field label="导出 Logo">
+          <Select value={exportLogo} onChange={(event) => setExportLogo(event.target.value as "onion" | "onion_app" | "none")}>
+            <option value="none">不添加 Logo</option>
+            {LOGO_ASSET_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+
       <div className="mb-3 flex items-center gap-2">
         <Select value={imageModel} onChange={(e) => setImageModel(e.target.value)} className="h-8 text-xs">
           {IMAGE_MODELS.map((m) => (
@@ -513,6 +528,7 @@ export function FinalizedPoolCard({
               selectedGroupIds: [...selectedGroupIds],
               selectedChannels,
               slotNames: exportableSlotSpecs.map((slot) => slot.slotName),
+              logo: exportLogo,
               fileFormat,
               namingRule: "channel_slot_date_version",
             });

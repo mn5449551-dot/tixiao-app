@@ -46,6 +46,7 @@ export async function exportFinalizedImages(input: {
   selectedGroupIds: string[];
   selectedChannels: string[];
   slotNames: string[];
+  logo: "onion" | "onion_app" | "none";
   fileFormat: "jpg" | "png" | "webp";
   namingRule: string;
 }) {
@@ -56,6 +57,7 @@ export async function exportFinalizedImages(input: {
         target_group_ids: input.selectedGroupIds,
         target_channels: input.selectedChannels,
         target_slots: input.slotNames,
+        logo: input.logo,
         file_format: input.fileFormat,
         naming_rule: input.namingRule,
       },

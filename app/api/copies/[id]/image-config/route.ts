@@ -29,7 +29,6 @@ export async function POST(
       aspect_ratio?: string;
       style_mode?: string;
       ip_role?: string | null;
-      logo?: string;
       image_style?: string;
       image_model?: string | null;
       count?: number;
@@ -45,7 +44,6 @@ export async function POST(
       aspectRatio: body.aspect_ratio,
       styleMode: body.style_mode,
       ipRole: body.ip_role,
-      logo: body.logo,
       imageStyle: body.image_style,
       imageModel: body.image_model,
       count: body.count,

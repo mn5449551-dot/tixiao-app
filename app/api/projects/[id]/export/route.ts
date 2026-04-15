@@ -29,6 +29,7 @@ export async function POST(
       target_group_ids?: string[];
       target_channels?: string[];
       target_slots?: string[];
+      logo?: "onion" | "onion_app" | "none";
       file_format?: "jpg" | "png" | "webp";
       naming_rule?: string;
     };
@@ -71,9 +72,8 @@ export async function POST(
         if (adaptation !== "direct") continue;
 
         const slotSize = parseSlotSize(slotSpec.size);
-        const outputLogo = group?.logo ?? config?.logo;
-        const logoPath = outputLogo && outputLogo !== "none"
-          ? getLogoAssetPath(outputLogo as "onion" | "onion_app")
+        const logoPath = body.logo && body.logo !== "none"
+          ? getLogoAssetPath(body.logo)
           : null;
         const outputPath = path.join(exportDir, buildExportFileName({
           projectTitle: project.title,
