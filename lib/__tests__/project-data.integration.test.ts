@@ -21,7 +21,7 @@ import {
 } from "../project-data";
 import { getDb } from "../db";
 import { finishGenerationRun, startGenerationRun } from "../generation-runs";
-import { copies, directions, generatedImages, imageConfigs, imageGroups, projectFolders, projects } from "../schema";
+import { copies, copyCards, directions, generatedImages, imageConfigs, imageGroups, projectFolders, projects, requirementCards } from "../schema";
 import { getStorageRoot } from "../storage";
 
 // NOTE: generateDirections and generateCopyCard have been removed.
@@ -155,4 +155,66 @@ test.skip("appendImageConfigGroup adds exactly one new candidate group for an ex
 
 test.skip("saveImageConfig can create a draft config without immediately creating candidate groups", async () => {
   // NOTE: This test requires AI calls. Needs mock-based rewrite.
+});
+
+test("saveImageConfig clears ipRole and referenceImageUrl when switching to normal mode", async () => {
+  const db = getDb();
+  const timestamp = Date.now();
+  const suffix = `ip-clear-${timestamp}`;
+
+  db.insert(projects).values({
+    id: `proj_${suffix}`, title: "IP Test", status: "active",
+    folderId: null, createdAt: timestamp, updatedAt: timestamp,
+  }).run();
+  db.insert(requirementCards).values({
+    id: `req_${suffix}`, projectId: `proj_${suffix}`, rawInput: null,
+    businessGoal: "app", targetAudience: "parent", formatType: "image_text",
+    feature: "拍题精学", sellingPoints: '["10秒出解析"]', timeNode: "期中考试",
+    directionCount: 1, createdAt: timestamp, updatedAt: timestamp,
+  }).run();
+  db.insert(directions).values({
+    id: `dir_${suffix}`, projectId: `proj_${suffix}`, requirementCardId: `req_${suffix}`,
+    title: "方向IP", targetAudience: "家长", channel: "信息流（广点通）",
+    imageForm: "single", copyGenerationCount: 1, imageTextRelation: "单图直给",
+    sortOrder: 0, isSelected: 1, createdAt: timestamp, updatedAt: timestamp,
+  }).run();
+  db.insert(copyCards).values({
+    id: `cc_${suffix}`, directionId: `dir_${suffix}`, channel: "信息流（广点通）",
+    imageForm: "single", version: 1, sourceReason: "initial",
+    createdAt: timestamp, updatedAt: timestamp,
+  }).run();
+  db.insert(copies).values({
+    id: `copy_${suffix}`, copyCardId: `cc_${suffix}`, directionId: `dir_${suffix}`,
+    titleMain: "主标题", titleSub: "副标题", copyType: "单图主副标题",
+    variantIndex: 1, isLocked: 0, createdAt: timestamp, updatedAt: timestamp,
+  }).run();
+
+  // 1. 先保存为 IP 模式
+  await saveImageConfig(`copy_${suffix}`, {
+    aspectRatio: "1:1",
+    styleMode: "ip",
+    ipRole: "豆包",
+    logo: "onion",
+    imageStyle: "realistic",
+    createGroups: false,
+  });
+
+  const ipConfig = db.select().from(imageConfigs)
+    .where(eq(imageConfigs.copyId, `copy_${suffix}`)).get();
+  assert.ok(ipConfig);
+  assert.equal(ipConfig.styleMode, "ip");
+  assert.equal(ipConfig.ipRole, "豆包");
+
+  // 2. 切换回普通模式
+  await saveImageConfig(`copy_${suffix}`, {
+    styleMode: "normal",
+    createGroups: false,
+  });
+
+  const normalConfig = db.select().from(imageConfigs)
+    .where(eq(imageConfigs.copyId, `copy_${suffix}`)).get();
+  assert.ok(normalConfig);
+  assert.equal(normalConfig.styleMode, "normal");
+  assert.equal(normalConfig.ipRole, null);
+  assert.equal(normalConfig.referenceImageUrl, null);
 });

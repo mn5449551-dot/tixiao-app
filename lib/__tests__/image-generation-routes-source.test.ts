@@ -35,14 +35,14 @@ test("single-image regenerate reads final prompt snapshots directly", async () =
   assert.doesNotMatch(regenerateSource, /buildImagePrompt\(/);
 });
 
-test("logo is excluded from model inputs and handled as a post-generation overlay", async () => {
+test("logo is excluded from generation and handled as an export-phase overlay", async () => {
   const generateSource = await readFile(generationServicePath, "utf8");
   const regenerateSource = await readFile(regenerateRoutePath, "utf8");
 
   assert.doesNotMatch(generateSource, /readLogoAssetAsDataUrl/);
   assert.doesNotMatch(regenerateSource, /readLogoAssetAsDataUrl/);
-  assert.match(generateSource, /applyFixedLogoOverlay/);
-  assert.match(regenerateSource, /applyFixedLogoOverlay/);
+  assert.doesNotMatch(generateSource, /applyFixedLogoOverlay/);
+  assert.doesNotMatch(regenerateSource, /applyFixedLogoOverlay/);
 });
 
 test("image config generate route completes generation work in-request instead of fire-and-forget background scheduling", async () => {

@@ -994,12 +994,13 @@ export async function saveImageConfig(
   const current = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copyId)).get() ?? null;
   const timestamp = now();
   const nextStyleMode = input.styleMode ?? current?.styleMode ?? "normal";
-  const nextIpRole = input.ipRole ?? current?.ipRole ?? null;
+  const shouldClearIp = nextStyleMode === "normal";
+  const nextIpRole = shouldClearIp ? null : (input.ipRole ?? current?.ipRole ?? null);
   const nextImageStyle = resolveImageStyleForMode(
     nextStyleMode,
     input.imageStyle ?? current?.imageStyle ?? IMAGE_STYLES[0],
   );
-  const nextReferenceImageUrl = await resolveReferenceImageUrl({
+  const nextReferenceImageUrl = shouldClearIp ? null : await resolveReferenceImageUrl({
     styleMode: nextStyleMode,
     ipRole: nextIpRole,
     referenceImageUrl: input.referenceImageUrl !== undefined ? input.referenceImageUrl : (current?.referenceImageUrl ?? null),
