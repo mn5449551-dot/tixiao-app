@@ -18,6 +18,13 @@ export async function POST(
   let runId: string | null = null;
 
   try {
+    if (!process.env.NEW_API_KEY) {
+      return NextResponse.json(
+        { error: "缺少 NEW_API_KEY，无法生成文案" },
+        { status: 500 },
+      );
+    }
+
     const { id } = await context.params;
     const body = (await request.json()) as {
       count?: number;

@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const routePath = new URL("../../app/api/image-configs/[id]/generate/route.ts", import.meta.url);
 const saveRoutePath = new URL("../../app/api/copies/[id]/image-config/route.ts", import.meta.url);
+const copyGenerateRoutePath = new URL("../../app/api/directions/[id]/copy-cards/generate/route.ts", import.meta.url);
 
 test("image config generate route checks for NEW_API_KEY before starting background work", async () => {
   const source = await readFile(routePath, "utf8");
@@ -47,4 +48,13 @@ test("image generation routes use image-group-batch resource locking instead of 
 
   assert.match(generateSource, /resourceType:\s*"image-group-batch"/);
   assert.match(saveSource, /resourceType:\s*"image-group-batch"/);
+});
+
+test("copy generate route checks for NEW_API_KEY before generating copy cards", async () => {
+  const source = await readFile(copyGenerateRoutePath, "utf8");
+
+  assert.match(source, /NEW_API_KEY/);
+  assert.match(source, /缺少 NEW_API_KEY/);
+  assert.match(source, /generateCopyCardSmart/);
+  assert.match(source, /appendCopyToCardSmart/);
 });

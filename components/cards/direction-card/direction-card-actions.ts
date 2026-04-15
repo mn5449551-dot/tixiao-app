@@ -53,27 +53,19 @@ export async function generateSelectedDirections(input: {
   copyGenerationCount: number;
 }) {
   for (const directionId of input.directionIds) {
-    try {
-      await apiFetch(`/api/directions/${directionId}`, {
+    await apiFetch(`/api/directions/${directionId}`, {
       method: "PUT",
       body: {
         channel: input.channel,
         image_form: input.imageForm,
         copy_generation_count: input.copyGenerationCount,
       },
-      });
-    } catch {
-      return false;
-    }
+    });
 
-    try {
-      await apiFetch(`/api/directions/${directionId}/copy-cards/generate`, {
+    await apiFetch(`/api/directions/${directionId}/copy-cards/generate`, {
       method: "POST",
       body: { count: input.copyGenerationCount },
-      });
-    } catch {
-      return false;
-    }
+    });
   }
 
   return true;

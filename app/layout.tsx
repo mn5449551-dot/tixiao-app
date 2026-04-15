@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="zh-CN" data-scroll-behavior="smooth" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
       <body>
         <a
           href="#main-content"
