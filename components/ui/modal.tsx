@@ -8,11 +8,13 @@ export function Modal({
   description,
   isOpen,
   onClose,
+  scrollable = false,
   title,
 }: PropsWithChildren<{
   description?: string;
   isOpen: boolean;
   onClose: () => void;
+  scrollable?: boolean;
   title: string;
 }>) {
   useEffect(() => {
@@ -47,7 +49,7 @@ export function Modal({
     >
       <div className="absolute inset-0 bg-[rgba(28,25,23,0.42)] backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-xl rounded-[28px] border border-[var(--line-soft)] bg-[var(--surface-0)] p-6 shadow-[var(--shadow-elevated)]"
+        className={`relative w-full max-w-xl rounded-[28px] border border-[var(--line-soft)] bg-[var(--surface-0)] p-6 shadow-[var(--shadow-elevated)]${scrollable ? " max-h-[85vh]" : ""}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="space-y-2">
@@ -56,7 +58,7 @@ export function Modal({
           </h2>
           {description ? <p className="text-sm leading-7 text-[var(--ink-600)]">{description}</p> : null}
         </div>
-        <div className="mt-5">{children}</div>
+        <div className={scrollable ? "mt-5 max-h-[70vh] overflow-y-auto pr-1" : "mt-5"}>{children}</div>
       </div>
     </div>,
     document.body,

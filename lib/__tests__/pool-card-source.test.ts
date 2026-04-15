@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const candidatePoolCardPath = new URL("../../components/cards/candidate-pool-card.tsx", import.meta.url);
 const candidateImageCardPath = new URL("../../components/cards/candidate-pool/candidate-image-card.tsx", import.meta.url);
 const candidateGroupCardPath = new URL("../../components/cards/candidate-pool/candidate-group-card.tsx", import.meta.url);
+const modalPath = new URL("../../components/ui/modal.tsx", import.meta.url);
 const promptDetailsModalPath = new URL("../../components/cards/candidate-pool/prompt-details-modal.tsx", import.meta.url);
 const finalizedPoolCardPath = new URL("../../components/cards/finalized-pool-card.tsx", import.meta.url);
 const finalizedPreviewCardPath = new URL("../../components/cards/finalized-pool/finalized-preview-card.tsx", import.meta.url);
@@ -61,7 +62,10 @@ test("candidate pool defaults to manual selection instead of auto-selecting done
 });
 
 test("candidate pool prompt details modal shows prompt sections and copy actions", async () => {
-  const source = await readFile(promptDetailsModalPath, "utf8");
+  const [source, modalSource] = await Promise.all([
+    readFile(promptDetailsModalPath, "utf8"),
+    readFile(modalPath, "utf8"),
+  ]);
 
   assert.match(source, /Modal/);
   assert.match(source, /正向提示词/);
@@ -71,6 +75,8 @@ test("candidate pool prompt details modal shows prompt sections and copy actions
   assert.match(source, /该图片缺少历史生图快照，请重新生成后查看/);
   assert.match(source, /referenceImages/);
   assert.doesNotMatch(source, /style=\{\{\s*aspectRatio:\s*"1 \/ 1"/);
+  assert.match(source, /scrollable/);
+  assert.match(modalSource, /overflow-y-auto/);
 });
 
 test("candidate pool exposes prompt inspection only for eligible images", async () => {

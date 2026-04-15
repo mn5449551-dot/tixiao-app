@@ -38,6 +38,7 @@ export function PromptDetailsModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      scrollable
       title="生图提示词"
       description="查看该候选图真实传入模型的提示词与参考信息。"
     >
