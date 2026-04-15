@@ -16,6 +16,7 @@ import {
 } from "@/lib/export/utils";
 import { zipAndCleanupDirectory } from "@/lib/export/zip";
 import { exportRecords } from "@/lib/schema";
+import { getLogoAssetPath } from "@/lib/logo-assets";
 import { getStorageRoot, writeExportImage } from "@/lib/storage";
 
 export async function POST(
@@ -70,6 +71,10 @@ export async function POST(
         if (adaptation !== "direct") continue;
 
         const slotSize = parseSlotSize(slotSpec.size);
+        const outputLogo = group?.logo ?? config?.logo;
+        const logoPath = outputLogo && outputLogo !== "none"
+          ? getLogoAssetPath(outputLogo as "onion" | "onion_app")
+          : null;
         const outputPath = path.join(exportDir, buildExportFileName({
           projectTitle: project.title,
           channel: slotSpec.channel,
@@ -87,6 +92,7 @@ export async function POST(
           targetWidth: slotSize?.width,
           targetHeight: slotSize?.height,
           adaptationMode: "direct",
+          logoPath,
         });
         index += 1;
       }
