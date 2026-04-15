@@ -18,6 +18,33 @@ function getGroupAspectRatio(groupType: string, fallback: string) {
   return groupType.split("|")[2] ?? fallback;
 }
 
+function parseGenerationRequestSnapshot(value: string | null | undefined) {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value) as {
+      promptText?: string | null;
+      negativePrompt?: string | null;
+      model?: string | null;
+      aspectRatio?: string | null;
+      referenceImages?: Array<{ url?: string | null }>;
+    };
+
+    return {
+      promptText: parsed.promptText ?? null,
+      negativePrompt: parsed.negativePrompt ?? null,
+      model: parsed.model ?? null,
+      aspectRatio: parsed.aspectRatio ?? null,
+      referenceImages: (parsed.referenceImages ?? [])
+        .filter((item) => typeof item?.url === "string" && item.url.trim().length > 0)
+        .map((item) => ({ url: item.url!.trim() })),
+      hasSnapshot: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function buildImageConfigNode(input: {
   direction: WorkspaceData["directions"][number];
   copy: WorkspaceData["directions"][number]["copyCards"][number]["copies"][number];
@@ -75,12 +102,13 @@ export function buildCandidatePoolNode(input: {
           aspectRatio: group.aspectRatio ?? config.aspectRatio,
           updatedAt: img.updatedAt,
           inpaintParentId: img.inpaintParentId ?? null,
-          promptDetails: {
-            promptText: img.finalPromptText ?? null,
-            negativePrompt: img.finalNegativePrompt ?? null,
-            model: config.imageModel ?? null,
-            aspectRatio: group.aspectRatio ?? config.aspectRatio ?? null,
-            referenceImageUrl: group.referenceImageUrl ?? config.referenceImageUrl ?? null,
+          promptDetails: parseGenerationRequestSnapshot(img.generationRequestJson) ?? {
+            promptText: null,
+            negativePrompt: null,
+            model: null,
+            aspectRatio: null,
+            referenceImages: [],
+            hasSnapshot: false,
           },
         })),
     }));

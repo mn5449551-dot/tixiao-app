@@ -23,7 +23,8 @@ type CandidateImagePromptDetails = {
   negativePrompt: string | null;
   model: string | null;
   aspectRatio: string | null;
-  referenceImageUrl: string | null;
+  referenceImages: Array<{ url: string }>;
+  hasSnapshot: boolean;
 };
 
 export type GraphNodeData =

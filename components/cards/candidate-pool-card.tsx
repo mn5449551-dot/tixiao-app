@@ -42,7 +42,14 @@ export type CandidateImage = {
   aspectRatio?: string;
   updatedAt?: number;
   inpaintParentId?: string | null;
-  promptDetails?: PromptDetails | null;
+  promptDetails?: {
+    promptText: string | null;
+    negativePrompt: string | null;
+    model: string | null;
+    aspectRatio: string | null;
+    referenceImages: Array<{ url: string }>;
+    hasSnapshot: boolean;
+  } | null;
 };
 
 export type CandidateGroup = {
