@@ -386,6 +386,7 @@ test("buildGraph keeps image config card interactive while candidate images are 
   assert.equal(configNode.data.status, "idle");
   assert.ok(candidateNode && "status" in candidateNode.data);
   assert.equal(candidateNode.data.status, "partial-success");
+  assert.ok(candidateNode && "groups" in candidateNode.data);
   const candidateImage = candidateNode.data.groups[0]?.images[0];
   assert.ok(candidateImage && "promptDetails" in candidateImage);
   assert.equal(candidateImage.promptDetails?.hasSnapshot, false);
@@ -504,6 +505,7 @@ test("buildGraph keeps candidate pool visible while images are still pending", (
                         errorMessage: null,
                         finalPromptText: null,
                         finalNegativePrompt: null,
+                        generationRequestJson: null,
                         seed: 1,
                         createdAt: 0,
                         updatedAt: 0,
@@ -646,6 +648,7 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
                         errorMessage: null,
                         finalPromptText: null,
                         finalNegativePrompt: null,
+                        generationRequestJson: null,
                         seed: 2,
                         createdAt: 0,
                         updatedAt: 0,
@@ -680,6 +683,7 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
                         errorMessage: null,
                         finalPromptText: null,
                         finalNegativePrompt: null,
+                        generationRequestJson: null,
                         seed: 3,
                         createdAt: 0,
                         updatedAt: 0,
