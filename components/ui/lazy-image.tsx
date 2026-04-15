@@ -3,12 +3,28 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Lazy-loaded wrapper around Next.js <Image>.
- * Uses IntersectionObserver to defer loading until the element is near
- * the viewport (rootMargin 300px). Once visible, the image stays loaded
- * so repeated scroll in/out doesn't cause flicker.
- */
+// Shared observer — one instance for all LazyImage components
+let sharedObserver: IntersectionObserver | null = null;
+function getSharedObserver() {
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const callback = (entry.target as HTMLElement & { _lazyVisible?: () => void })._lazyVisible;
+            if (callback) {
+              callback();
+              sharedObserver?.unobserve(entry.target);
+            }
+          }
+        }
+      },
+      { rootMargin: "300px" },
+    );
+  }
+  return sharedObserver;
+}
+
 export function LazyImage({
   ...props
 }: React.ComponentProps<typeof Image>) {
@@ -19,18 +35,10 @@ export function LazyImage({
     const el = ref.current;
     if (!el) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "300px" },
-    );
-
+    const observer = getSharedObserver();
+    (el as HTMLElement & { _lazyVisible?: () => void })._lazyVisible = () => setIsVisible(true);
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => observer.unobserve(el);
   }, []);
 
   return (

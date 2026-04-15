@@ -44,12 +44,16 @@ export async function saveImageBuffer(input: {
     const metadata = await sharp(input.buffer).metadata();
     await fs.writeFile(filePath, input.buffer);
 
-    // Generate thumbnail (webp, 400px wide)
+    // Generate thumbnail (best-effort — failure must not block the original save)
     const thumbnailPath = path.join(dir, `${input.imageId}_thumb.webp`);
-    await sharp(input.buffer)
-      .resize({ width: 400, withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toFile(thumbnailPath);
+    try {
+      await sharp(input.buffer)
+        .resize({ width: 400, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(thumbnailPath);
+    } catch {
+      await fs.rm(thumbnailPath, { force: true }).catch(() => undefined);
+    }
 
     return {
       filePath,
