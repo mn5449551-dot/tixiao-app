@@ -33,3 +33,10 @@ test("workspace panels fetch fresh graph and tree payloads without reusing cache
   assert.match(canvasPanelSource, /fetch\(`\/api\/projects\/\$\{projectId\}\/graph`,\s*\{[\s\S]{0,120}cache:\s*"no-store"/);
   assert.match(treePanelSource, /fetch\(`\/api\/projects\/\$\{projectId\}\/tree`,\s*\{[\s\S]{0,120}cache:\s*"no-store"/);
 });
+
+test("workflow canvas panel merges polled statuses before scheduling a structural reload", async () => {
+  const source = await readFile(workflowCanvasPanelPath, "utf8");
+
+  assert.match(source, /const mergedGraph = mergeGenerationStatusesIntoGraph\(current,\s*payload\);/);
+  assert.match(source, /if \(shouldReloadGraphAfterStatusPoll\(current,\s*payload\)\) \{[\s\S]{0,120}queueMicrotask\(loadGraph\);[\s\S]{0,80}return mergedGraph;/);
+});

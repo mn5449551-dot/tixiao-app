@@ -73,6 +73,7 @@ export async function DELETE(
     }
 
     await deleteFileIfExists(image.filePath);
+    await deleteFileIfExists(image.thumbnailPath);
 
     db.delete(generatedImages).where(eq(generatedImages.id, id)).run();
 
@@ -109,10 +110,19 @@ export async function POST(
 
     // Clear old file
     await deleteFileIfExists(image.filePath);
+    await deleteFileIfExists(image.thumbnailPath);
 
     // Mark as generating
     db.update(generatedImages)
-      .set({ status: "generating", filePath: null, fileUrl: null, errorMessage: null, updatedAt: Date.now() })
+      .set({
+        status: "generating",
+        filePath: null,
+        fileUrl: null,
+        thumbnailPath: null,
+        thumbnailUrl: null,
+        errorMessage: null,
+        updatedAt: Date.now(),
+      })
       .where(eq(generatedImages.id, id))
       .run();
 
@@ -248,6 +258,8 @@ async function regenerateSingleImage(input: {
         .set({
           filePath: saved.filePath,
           fileUrl: saved.fileUrl,
+          thumbnailPath: saved.thumbnailPath,
+          thumbnailUrl: saved.thumbnailUrl,
           status: "done",
           updatedAt: Date.now(),
         })
@@ -300,6 +312,8 @@ async function regenerateSingleImage(input: {
       .set({
         filePath: saved.filePath,
         fileUrl: saved.fileUrl,
+        thumbnailPath: saved.thumbnailPath,
+        thumbnailUrl: saved.thumbnailUrl,
         status: "done",
         updatedAt: Date.now(),
       })

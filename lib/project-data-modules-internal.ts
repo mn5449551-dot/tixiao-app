@@ -49,6 +49,7 @@ export async function deleteImageConfigCascade(configId: string) {
     const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
     for (const image of images) {
       if (image.filePath) filePaths.push(image.filePath);
+      if (image.thumbnailPath) filePaths.push(image.thumbnailPath);
     }
   }
   await Promise.all(filePaths.map((path) => deleteFileIfExists(path)));
@@ -1185,6 +1186,7 @@ export async function generateFinalizedVariants(
               const existingImages = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, existingDerived.id)).all();
               for (const image of existingImages) {
                 await deleteFileIfExists(image.filePath);
+                await deleteFileIfExists(image.thumbnailPath);
               }
               db.delete(imageGroups).where(eq(imageGroups.id, existingDerived.id)).run();
             }
@@ -1662,6 +1664,7 @@ export function getGenerationStatusData(projectId: string) {
       id: image.id,
       imageConfigId: image.imageConfigId,
       fileUrl: image.fileUrl,
+      thumbnailUrl: image.thumbnailUrl,
       status: image.status,
       errorMessage: image.errorMessage,
       updatedAt: image.updatedAt,

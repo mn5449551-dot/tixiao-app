@@ -6,6 +6,7 @@ const generateRoutePath = new URL("../../app/api/image-configs/[id]/generate/rou
 const appendRoutePath = new URL("../../app/api/image-configs/[id]/append/route.ts", import.meta.url);
 const generationServicePath = new URL("../image-generation-service.ts", import.meta.url);
 const regenerateRoutePath = new URL("../../app/api/images/[id]/route.ts", import.meta.url);
+const inpaintRoutePath = new URL("../../app/api/images/[id]/inpaint/route.ts", import.meta.url);
 const referenceModeRoutePath = new URL("../../app/api/reference-mode/route.ts", import.meta.url);
 
 test("image generation routes pass aspect ratio through the shared OpenAI-compatible image client", async () => {
@@ -85,4 +86,11 @@ test("image generation service stores prompt bundles and per-image final prompt 
   assert.match(generateSource, /promptText:\s*item\.prompt/);
   assert.match(generateSource, /referenceImages:\s*item\.referenceImageUrls\.map/);
   assert.match(regenerateSource, /finalPromptText|final_prompt_text/);
+});
+
+test("inpaint route persists thumbnail metadata together with the regenerated file", async () => {
+  const inpaintSource = await readFile(inpaintRoutePath, "utf8");
+
+  assert.match(inpaintSource, /thumbnailPath:\s*saved\.thumbnailPath/);
+  assert.match(inpaintSource, /thumbnailUrl:\s*saved\.thumbnailUrl/);
 });

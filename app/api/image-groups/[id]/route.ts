@@ -38,6 +38,7 @@ export async function DELETE(
   const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, id)).all();
   for (const image of images) {
     await deleteFileIfExists(image.filePath);
+    await deleteFileIfExists(image.thumbnailPath);
   }
   db.delete(imageGroups).where(eq(imageGroups.id, id)).run();
   return NextResponse.json({ deleted: true });

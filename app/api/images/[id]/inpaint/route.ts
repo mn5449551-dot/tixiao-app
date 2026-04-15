@@ -168,6 +168,8 @@ async function processInpaintInBackground(input: {
       .set({
         filePath: saved.filePath,
         fileUrl: saved.fileUrl,
+        thumbnailPath: saved.thumbnailPath,
+        thumbnailUrl: saved.thumbnailUrl,
         status: "done",
         updatedAt: Date.now(),
       })

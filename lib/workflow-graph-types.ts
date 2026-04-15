@@ -113,6 +113,7 @@ export type GraphNodeData =
         images: Array<{
           id: string;
           fileUrl: string | null;
+          thumbnailUrl?: string | null;
           aspectRatio: string;
           groupLabel?: string;
           isConfirmed: boolean;

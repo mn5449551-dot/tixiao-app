@@ -1,4 +1,5 @@
 import type { CandidatePoolCardData } from "@/components/cards/candidate-pool-card";
+import type { FinalizedPoolCardData } from "@/components/cards/finalized-pool-card";
 import type { getCanvasData, getGenerationStatusData } from "@/lib/project-data";
 import { toVersionedFileUrl } from "@/lib/utils";
 
@@ -34,28 +35,54 @@ export function mergeGenerationStatusesIntoGraph(
       (image) => image.status === "pending" || image.status === "generating",
     ),
     nodes: graph.nodes.map((node) => {
-      if (node.type !== "candidatePool") return node;
+      if (node.type === "candidatePool") {
+        const candidateData = node.data as CandidatePoolCardData;
+        return {
+          ...node,
+          data: {
+            ...candidateData,
+            groups: candidateData.groups.map((group) => ({
+              ...group,
+              images: group.images.map((image) => {
+                const nextImage = imageStatusMap.get(image.id);
+                if (!nextImage) return image;
+                return {
+                  ...image,
+                  fileUrl: toVersionedFileUrl(nextImage.fileUrl, nextImage.updatedAt),
+                  thumbnailUrl: toVersionedFileUrl(nextImage.thumbnailUrl, nextImage.updatedAt),
+                  status: nextImage.status as CandidateImageStatus,
+                  updatedAt: nextImage.updatedAt,
+                };
+              }),
+            })),
+          },
+        };
+      }
 
-      const candidateData = node.data as CandidatePoolCardData;
-      return {
-        ...node,
-        data: {
-          ...candidateData,
-          groups: candidateData.groups.map((group) => ({
-            ...group,
-            images: group.images.map((image) => {
-              const nextImage = imageStatusMap.get(image.id);
-              if (!nextImage) return image;
-              return {
-                ...image,
-                fileUrl: toVersionedFileUrl(nextImage.fileUrl, nextImage.updatedAt),
-                status: nextImage.status as CandidateImageStatus,
-                updatedAt: nextImage.updatedAt,
-              };
-            }),
-          })),
-        },
-      };
+      if (node.type === "finalizedPool") {
+        const finalizedData = node.data as FinalizedPoolCardData;
+        return {
+          ...node,
+          data: {
+            ...finalizedData,
+            groups: finalizedData.groups.map((group) => ({
+              ...group,
+              images: group.images.map((image) => {
+                const nextImage = imageStatusMap.get(image.id);
+                if (!nextImage) return image;
+                return {
+                  ...image,
+                  fileUrl: toVersionedFileUrl(nextImage.fileUrl, nextImage.updatedAt),
+                  thumbnailUrl: toVersionedFileUrl(nextImage.thumbnailUrl, nextImage.updatedAt),
+                  updatedAt: nextImage.updatedAt,
+                };
+              }),
+            })),
+          },
+        };
+      }
+
+      return node;
     }),
   };
 }

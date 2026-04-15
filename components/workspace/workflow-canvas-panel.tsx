@@ -73,11 +73,12 @@ export function WorkflowCanvasPanel({ projectId }: { projectId: string }) {
   const handleStatuses = useCallback((payload: GenerationStatusData) => {
     setGraph((current) => {
       if (!current) return current;
+      const mergedGraph = mergeGenerationStatusesIntoGraph(current, payload);
       if (shouldReloadGraphAfterStatusPoll(current, payload)) {
         queueMicrotask(loadGraph);
-        return current;
+        return mergedGraph;
       }
-      return mergeGenerationStatusesIntoGraph(current, payload);
+      return mergedGraph;
     });
   }, [loadGraph]);
 
