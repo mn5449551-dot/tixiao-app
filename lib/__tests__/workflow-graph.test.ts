@@ -218,10 +218,13 @@ test("buildGraph creates row-level source handles and shows candidate pool when 
   const finalizedNode = graph.nodes.find((node) => node.id === "finalized-cfg_1");
 
   assert.ok(candidateNode && "displayMode" in candidateNode.data);
-  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.promptText, "真实正向提示词");
-  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.negativePrompt, "真实负向提示词");
-  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.aspectRatio, "1:1");
-  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.referenceImageUrl, null);
+  assert.ok(candidateNode && "imageModel" in candidateNode.data);
+  const candidateImage = candidateNode.data.groups[0]?.images[0];
+  assert.ok(candidateImage && "promptDetails" in candidateImage);
+  assert.equal(candidateImage.promptDetails?.promptText, "真实正向提示词");
+  assert.equal(candidateImage.promptDetails?.negativePrompt, "真实负向提示词");
+  assert.equal(candidateImage.promptDetails?.aspectRatio, "1:1");
+  assert.equal(candidateImage.promptDetails?.referenceImageUrl, null);
   assert.equal(candidateNode.data.displayMode, "single");
   assert.ok("groups" in candidateNode.data);
   assert.equal(candidateNode.data.groups[0]?.id, "grp_1");
