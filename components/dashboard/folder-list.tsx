@@ -49,7 +49,7 @@ export function FolderList({ folders }: { folders: FolderSummary[] }) {
               className="h-8 px-3 text-xs text-[var(--ink-500)] opacity-40 transition-[opacity,color,background-color] group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
               disabled={isPending}
               onClick={() => {
-                if (!confirm(`确定删除文件夹「${folder.name}」吗？文件夹内的项目会移到"未分类"。`)) return;
+                if (!confirm(`确定删除文件夹「${folder.name}」吗？会同时永久删除该文件夹下的全部项目和素材，无法恢复。`)) return;
                 startTransition(async () => {
                   const deleted = await apiFetchOk(`/api/folders/${folder.id}`, { method: "DELETE" });
                   if (deleted) {
