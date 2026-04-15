@@ -57,15 +57,16 @@ test("classifyExportAdaptation distinguishes direct, transform, and postprocess 
   assert.equal(classifyExportAdaptation("16:9", "16:11"), "postprocess");
 });
 
-test("buildExportFileName accepts the frontend naming rule key and includes channel and slot", () => {
+test("buildExportFileName accepts the frontend naming rule key and includes channel, slot and ratio", () => {
   const fileName = buildExportFileName({
     projectTitle: "../Q2/期中冲刺",
     channel: "OPPO",
     slotName: "富媒体-横版大图",
+    ratio: "16:9",
     index: 3,
     format: "jpg",
     namingRule: "channel_slot_date_version",
   });
 
-  assert.match(fileName, /^Q2_期中冲刺_OPPO_富媒体-横版大图_\d{8}_v03\.jpg$/);
+  assert.match(fileName, /^Q2_期中冲刺_OPPO_富媒体-横版大图_16x9_\d{8}_03\.jpg$/);
 });

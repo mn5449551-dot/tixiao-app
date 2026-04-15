@@ -4,11 +4,12 @@ import { readFile } from "node:fs/promises";
 
 const imageChatPath = new URL("../ai/image-chat.ts", import.meta.url);
 
-test("image chat uses the OpenAI-compatible chat completions image path", async () => {
+test("image chat supports both chat-completions and images-generations transports", async () => {
   const source = await readFile(imageChatPath, "utf8");
 
   assert.match(source, /DEFAULT_IMAGE_RESOLUTION\s*=\s*"2K"/);
   assert.match(source, /fetch\(`\$\{DEFAULT_BASE_URL\}\/v1\/chat\/completions`/);
+  assert.match(source, /fetch\(`\$\{DEFAULT_BASE_URL\}\/v1\/images\/generations`/);
   assert.match(source, /generationConfig:/);
   assert.match(source, /imageSize:\s*input\.resolution/);
   assert.match(source, /aspectRatio:\s*input\.aspectRatio/);
@@ -17,12 +18,20 @@ test("image chat uses the OpenAI-compatible chat completions image path", async 
   assert.doesNotMatch(source, /buildNativeParts/);
 });
 
-test("image chat uses the same model for prompt and reference generation", async () => {
-  const source = await readFile(imageChatPath, "utf8");
+test("image chat resolves the global image-generation model and routes by model capability", async () => {
+  const [source, constantsSource] = await Promise.all([
+    readFile(imageChatPath, "utf8"),
+    readFile(new URL("../constants.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.doesNotMatch(source, /DEFAULT_REFERENCE_MODEL/);
-  assert.match(source, /generateImageFromPrompt[\s\S]{0,300}model:\s*DEFAULT_IMAGE_MODEL/);
-  assert.match(source, /generateImageFromReference[\s\S]{0,600}model:\s*DEFAULT_IMAGE_MODEL/);
+  assert.match(source, /model_image_generation/);
+  assert.match(source, /getModelSetting/);
+  assert.match(constantsSource, /qwen-image-2\.0/);
+  assert.match(constantsSource, /gpt-image-1\.5/);
+  assert.match(constantsSource, /doubao-seedream-5-0-lite/);
+  assert.match(source, /supportsReference/);
+  assert.match(source, /supportsEdits/);
+  assert.match(source, /\/v1\/images\/edits/);
 });
 
 test("image chat source maps transport failures to specific timeout and network errors", async () => {
@@ -41,5 +50,6 @@ test("text client supports multimodal content parts for Gemini prompt generation
 
   assert.match(source, /type:\s*"image_url"/);
   assert.match(source, /createMultimodalChatCompletion/);
-  assert.match(source, /model:\s*options\.model/);
+  // model 从 options 中读取（model ?? modelKey ?? default）
+  assert.match(source, /options\.model/);
 });

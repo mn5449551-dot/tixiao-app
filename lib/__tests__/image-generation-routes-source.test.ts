@@ -19,30 +19,30 @@ test("image generation routes pass aspect ratio through the shared OpenAI-compat
   assert.match(regenerateSource, /generateImageFromPrompt/);
   assert.match(referenceSource, /generateImageFromReference/);
   assert.match(generateSource, /generateImageFromReference\([\s\S]{0,240}aspectRatio:\s*config\.aspectRatio/);
-  assert.match(generateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,180}aspectRatio:\s*config\.aspectRatio/);
+  assert.match(generateSource, /generateImageFromPrompt\(item\.prompt,\s*\{[\s\S]{0,180}aspectRatio:\s*config\.aspectRatio/);
   assert.match(regenerateSource, /generateImageFromReference\([\s\S]{0,280}aspectRatio:\s*group\?\.aspectRatio \?\? config\.aspectRatio/);
   assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,200}aspectRatio:\s*group\?\.aspectRatio \?\? config\.aspectRatio/);
   assert.match(referenceSource, /aspect_ratio\?:/);
   assert.match(referenceSource, /aspectRatio:\s*body\.aspect_ratio/);
 });
 
-test("single-image regenerate prefers slot prompt snapshots over rebuilding group prompt", async () => {
+test("single-image regenerate reads final prompt snapshots directly", async () => {
   const regenerateSource = await readFile(regenerateRoutePath, "utf8");
 
-  assert.match(regenerateSource, /slotPromptSnapshot|slot_prompt_snapshot/);
-  assert.match(regenerateSource, /instruction:\s*fullPrompt/);
+  assert.match(regenerateSource, /finalPromptText|final_prompt_text/);
+  assert.match(regenerateSource, /当前图片缺少最终提示词快照/);
   assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt/);
-  assert.doesNotMatch(regenerateSource, /mergeImagePromptWithSlot\(/);
+  assert.doesNotMatch(regenerateSource, /buildImagePrompt\(/);
 });
 
-test("logo remains part of the reference image inputs for both initial generation and regenerate", async () => {
+test("logo is excluded from model inputs and handled as a post-generation overlay", async () => {
   const generateSource = await readFile(generationServicePath, "utf8");
   const regenerateSource = await readFile(regenerateRoutePath, "utf8");
 
-  assert.match(generateSource, /config\.logo && config\.logo !== "none"/);
-  assert.match(generateSource, /readLogoAssetAsDataUrl/);
-  assert.match(regenerateSource, /group\?\.logo \?\? config\.logo/);
-  assert.match(regenerateSource, /readLogoAssetAsDataUrl/);
+  assert.doesNotMatch(generateSource, /readLogoAssetAsDataUrl/);
+  assert.doesNotMatch(regenerateSource, /readLogoAssetAsDataUrl/);
+  assert.match(generateSource, /applyFixedLogoOverlay/);
+  assert.match(regenerateSource, /applyFixedLogoOverlay/);
 });
 
 test("image config generate route completes generation work in-request instead of fire-and-forget background scheduling", async () => {
@@ -69,19 +69,16 @@ test("image append route uses the shared image generation service instead of cal
   assert.match(appendSource, /@\/lib\/image-generation-service/);
 });
 
-test("image generation service snapshots shared-base and slot prompt payloads for multimodal slot generation", async () => {
+test("image generation service stores prompt bundles and per-image final prompt snapshots", async () => {
   const [generateSource, regenerateSource] = await Promise.all([
     readFile(generationServicePath, "utf8"),
     readFile(regenerateRoutePath, "utf8"),
   ]);
 
   assert.match(generateSource, /db\.update\(imageGroups\)/);
-  assert.match(generateSource, /generateSlotImagePrompt/);
-  assert.match(generateSource, /Promise\.all/);
-  assert.match(generateSource, /sharedBaseSnapshot|shared_base_snapshot/);
-  assert.match(generateSource, /slotPromptSnapshot|slot_prompt_snapshot/);
-  assert.match(generateSource, /referencePlanSnapshot|reference_plan_snapshot/);
-  assert.match(generateSource, /promptSummaryText|prompt_summary_text/);
-  assert.match(regenerateSource, /group\?\.promptEn \|\| config\.promptEn/);
-  assert.match(regenerateSource, /group\?\.promptZh \?\? config\.promptZh/);
+  assert.match(generateSource, /generateImageDescription/);
+  assert.match(generateSource, /promptBundleJson|prompt_bundle_json/);
+  assert.match(generateSource, /finalPromptText|final_prompt_text/);
+  assert.match(generateSource, /finalNegativePrompt|final_negative_prompt/);
+  assert.match(regenerateSource, /finalPromptText|final_prompt_text/);
 });

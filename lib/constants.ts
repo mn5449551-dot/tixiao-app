@@ -15,10 +15,43 @@ export const TARGET_AUDIENCES = [
 
 export const CHANNELS = ["信息流（广点通）", "应用商店", "学习机"] as const;
 export const IMAGE_FORMS = ["single", "double", "triple"] as const;
-export const ASPECT_RATIOS = ["1:1", "3:2", "16:9", "9:16"] as const;
 export const STYLE_MODES = ["normal", "ip"] as const;
 export const IMAGE_STYLES = ["realistic", "3d", "animation", "felt", "img2img"] as const;
 export const LOGO_OPTIONS = ["onion", "onion_app", "none"] as const;
+
+export const IMAGE_MODELS = [
+  { value: "doubao-seedream-4-0", label: "即梦 4.0（推荐）", transport: "images_generations" as const, supportsReference: true, supportsEdits: true, aspectRatios: ["1:1", "3:2", "16:9", "9:16"] as const },
+  { value: "doubao-seedream-4-5", label: "即梦 4.5", transport: "images_generations" as const, supportsReference: true, supportsEdits: true, aspectRatios: ["1:1", "3:2", "16:9", "9:16"] as const },
+  { value: "doubao-seedream-5-0-lite", label: "即梦 5.0 Lite", transport: "images_generations" as const, supportsReference: true, supportsEdits: true, aspectRatios: ["1:1", "3:2", "16:9", "9:16"] as const },
+  { value: "qwen-image-2.0", label: "通义千问 2.0", transport: "images_generations" as const, supportsReference: true, supportsEdits: true, aspectRatios: ["1:1", "3:2", "16:9", "9:16"] as const },
+  { value: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash", transport: "chat_completions" as const, supportsReference: true, supportsEdits: false, aspectRatios: ["1:1", "3:2", "16:9", "9:16"] as const },
+  { value: "gemini-3-pro-image-preview", label: "Gemini 3 Pro（不稳定）", transport: "chat_completions" as const, supportsReference: true, supportsEdits: false, aspectRatios: ["16:9", "9:16"] as const },
+  { value: "gpt-image-1.5", label: "GPT Image 1.5", transport: "images_generations" as const, supportsReference: true, supportsEdits: false, aspectRatios: ["1:1"] as const },
+] as const;
+export const DEFAULT_IMAGE_MODEL_VALUE = IMAGE_MODELS[0].value;
+
+export function getAspectRatiosForModel(modelValue: string | null | undefined): readonly string[] {
+  if (!modelValue) return [];
+  const model = IMAGE_MODELS.find((m) => m.value === modelValue);
+  return model ? model.aspectRatios : [];
+}
+
+export function getModelDefaultSize(modelValue: string, ratio: string): string {
+  if (modelValue.includes("doubao")) {
+    switch (ratio) {
+      case "3:2": return "2352x1568";
+      case "16:9": return "2560x1440";
+      case "9:16": return "1440x2560";
+      default: return "1920x1920";
+    }
+  }
+  switch (ratio) {
+    case "3:2": return "1536x1024";
+    case "16:9": return "1792x1024";
+    case "9:16": return "1024x1792";
+    default: return "1024x1024";
+  }
+}
 
 export const TIME_NODES = [
   "开学季",

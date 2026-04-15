@@ -31,6 +31,17 @@ test("image config card delegates form and action logic", async () => {
   assert.match(actionsSource, /created_group_ids/);
 });
 
+test("image config form exposes the expanded image model options", async () => {
+  const formSource = await readFile(new URL("../../components/cards/image-config/image-config-form.tsx", import.meta.url), "utf8");
+  const constantsSource = await readFile(new URL("../constants.ts", import.meta.url), "utf8");
+
+  assert.match(formSource, /生成模型/);
+  assert.match(constantsSource, /gpt-image-1\.5/);
+  assert.match(constantsSource, /gemini-3-pro-image-preview/);
+  assert.match(constantsSource, /qwen-image-2\.0/);
+  assert.match(constantsSource, /doubao-seedream-5-0-lite/);
+});
+
 test("image config card supports CTA only for information-flow single-image cases", async () => {
   const [cardSource, formSource, actionsSource] = await Promise.all([
     readFile(cardPath, "utf8"),

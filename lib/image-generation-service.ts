@@ -2,19 +2,16 @@ import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
 
 import {
-  generateSlotImagePrompt,
-  type SharedBaseContext,
-  type SlotPromptPayload,
-  type SlotSpecificContext,
+  generateImageDescription,
+  type ImageDescriptionInput,
 } from "@/lib/ai/agents/image-description-agent";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
-import { buildImagePrompt, buildNegativePrompt } from "@/lib/ai/services/prompt-template";
 import { getDb } from "@/lib/db";
 import { finishGenerationRun } from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
-import { readLogoAssetAsDataUrl } from "@/lib/logo-assets";
+import { getLogoAssetPath } from "@/lib/logo-assets";
 import { copies, directions, generatedImages, imageConfigs, imageGroups } from "@/lib/schema";
-import { saveImageBuffer } from "@/lib/storage";
+import { applyFixedLogoOverlay, saveImageBuffer } from "@/lib/storage";
 
 type ImageConfigRecord = typeof imageConfigs.$inferSelect;
 type DirectionRecord = typeof directions.$inferSelect;
@@ -136,82 +133,13 @@ export function resetImageGroupsToPending(groupIds: string[]) {
     .run();
 }
 
-function resolveSlotRole(copyType: string | null | undefined, slotIndex: number, slotCount: number) {
-  if (slotCount <= 1) return "complete_message";
-
-  const normalized = (copyType ?? "").trim();
-  if (slotCount === 2) {
-    if (normalized.includes("对照")) {
-      return slotIndex === 1 ? "before_state" : "after_state";
-    }
-    if (normalized.includes("递进")) {
-      return slotIndex === 1 ? "starting_point" : "next_step";
-    }
-    return slotIndex === 1 ? "pain_or_cause" : "solution_or_result";
-  }
-
-  if (normalized.includes("因果")) {
-    return ["cause", "intervention", "effect"][slotIndex - 1] ?? `slot_${slotIndex}`;
-  }
-  if (normalized.includes("并列")) {
-    return ["selling_point_1", "selling_point_2", "selling_point_3"][slotIndex - 1] ?? `slot_${slotIndex}`;
-  }
-  if (normalized.includes("互补")) {
-    return ["main_problem", "supporting_solution", "supporting_benefit"][slotIndex - 1] ?? `slot_${slotIndex}`;
-  }
-  return ["problem_entry", "process_action", "result_upgrade"][slotIndex - 1] ?? `slot_${slotIndex}`;
-}
-
-export function buildSlotSpecificContexts(input: {
-  imageForm: string | null | undefined;
-  copyType: string | null | undefined;
-  titleMain: string;
-  titleSub?: string | null;
-  titleExtra?: string | null;
-  ctaEnabled: boolean;
-  ctaText: string | null;
-}): SlotSpecificContext[] {
-  const titles = [input.titleMain, input.titleSub ?? "", input.titleExtra ?? ""].filter(Boolean);
-  const slotCount = input.imageForm === "triple" ? 3 : input.imageForm === "double" ? 2 : 1;
-
-  if (slotCount === 1) {
-    return [{
-      slotIndex: 1,
-      slotCount: 1,
-      currentSlotText: [input.titleMain, input.titleSub].filter(Boolean).join(" / "),
-      allSlotTexts: [input.titleMain, input.titleSub ?? "", input.titleExtra ?? ""].filter(Boolean),
-      slotRole: "complete_message",
-      mustShowTextMode: input.titleSub ? "main_and_sub_same_frame" : "single_text",
-      mustNotRepeat: "不要偏离当前单图的完整表达任务。",
-      layoutExpectation: input.ctaEnabled
-        ? `单图完整承载主副标题，并为 CTA「${input.ctaText ?? "立即下载"}」预留清晰区域。`
-        : "单图完整承载当前主副标题信息。",
-    }];
-  }
-
-  return Array.from({ length: slotCount }, (_, index) => {
-    const slotIndex = index + 1;
-    const currentSlotText = titles[index] ?? titles[titles.length - 1] ?? input.titleMain;
-    return {
-      slotIndex,
-      slotCount,
-      currentSlotText,
-      allSlotTexts: titles,
-      slotRole: resolveSlotRole(input.copyType, slotIndex, slotCount),
-      mustShowTextMode: "single_text",
-      mustNotRepeat: "不要重复其他图位的文案和职责。",
-      layoutExpectation: `当前图位重点服务文案“${currentSlotText}”，并与其他图形成清晰区分。`,
-    };
-  });
-}
-
 async function buildSharedBaseContext(input: {
   config: ImageConfigRecord;
   direction: DirectionRecord;
   copy: CopyRecord;
   ipMetadata: ReturnType<typeof getIpAssetMetadata> | null;
-}): Promise<SharedBaseContext> {
-  const referenceImages: SharedBaseContext["referenceImages"] = [];
+}): Promise<ImageDescriptionInput> {
+  const referenceImages: ImageDescriptionInput["referenceImages"] = [];
 
   if (input.config.referenceImageUrl) {
     referenceImages.push({
@@ -223,18 +151,11 @@ async function buildSharedBaseContext(input: {
     });
   }
 
-  if (input.config.logo && input.config.logo !== "none") {
-    referenceImages.push({
-      role: "logo",
-      url: await readLogoAssetAsDataUrl(input.config.logo as "onion" | "onion_app"),
-      usage: "左上角真实露出，不得改字改形，不得重新设计。",
-    });
-  }
-
   return {
     direction: {
       title: input.direction.title,
       targetAudience: input.direction.targetAudience ?? "家长",
+      adaptationStage: input.direction.adaptationStage ?? "",
       scenarioProblem: input.direction.scenarioProblem ?? "",
       differentiation: input.direction.differentiation ?? "",
       effect: input.direction.effect ?? "",
@@ -261,15 +182,6 @@ async function buildSharedBaseContext(input: {
       ipPromptKeywords: input.ipMetadata?.promptKeywords ?? null,
     },
     referenceImages,
-    consistencyConstraints: {
-      sameCharacterIdentity: true,
-      sameOutfitAndHair: Boolean(input.config.ipRole),
-      sameSceneFamily: true,
-      sameBrandSystem: true,
-      sameLightingTone: true,
-      allowPoseChange: true,
-      allowCameraVariation: true,
-    },
   };
 }
 
@@ -291,53 +203,22 @@ export async function processPreparedImageGeneration(input: {
       copy,
       ipMetadata,
     });
-    const slotInputs = buildSlotSpecificContexts({
-      imageForm: direction.imageForm ?? "single",
-      copyType: copy.copyType,
-      titleMain: copy.titleMain,
-      titleSub: copy.titleSub,
-      titleExtra: copy.titleExtra,
-      ctaEnabled: config.ctaEnabled === 1,
-      ctaText: config.ctaText,
-    });
-    const slotPayloads = await Promise.all(
-      slotInputs.map((slot) => generateSlotImagePrompt({ sharedBase, slot })),
+    const descriptionResult = await generateImageDescription(sharedBase);
+    const promptMap = new Map(
+      descriptionResult.prompts.map((prompt) => [prompt.slotIndex, prompt]),
     );
-    const slotPayloadMap = new Map<number, SlotPromptPayload>(
-      slotPayloads.map((payload) => [payload.slotMeta.slotIndex, payload]),
-    );
-    const primarySlotPayload = slotPayloadMap.get(1) ?? slotPayloads[0];
-    if (!primarySlotPayload) {
-      throw new Error("图片描述生成失败：未生成任何 slot prompt");
+    const primaryPrompt = promptMap.get(1) ?? descriptionResult.prompts[0];
+    if (!primaryPrompt) {
+      throw new Error("图片描述生成失败：未生成任何 prompt");
     }
 
-    const promptEn = buildImagePrompt({
-      directionTitle: direction.title,
-      scenarioProblem: direction.scenarioProblem,
-      copyTitleMain: copy.titleMain,
-      copyTitleSub: copy.titleSub,
-      copyTitleExtra: copy.titleExtra,
-      aspectRatio: config.aspectRatio,
-      styleMode: config.styleMode,
-      imageStyle: config.imageStyle,
-      ipRole: config.ipRole,
-      ipDescription: ipMetadata?.description ?? null,
-      ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-      logo: config.logo ?? "none",
-      imageForm: direction.imageForm ?? "single",
-      referenceImageUrl: config.referenceImageUrl,
-      channel: direction.channel,
-      ctaEnabled: config.ctaEnabled === 1,
-      ctaText: config.ctaText,
-      descriptionPayload: primarySlotPayload,
+    const promptBundleJson = JSON.stringify({
+      agentType: (direction.imageForm ?? "single") === "single" ? "poster" : "series",
+      prompts: descriptionResult.prompts,
     });
 
-    const negativePrompt = primarySlotPayload.negativePrompt || buildNegativePrompt({ imageStyle: config.imageStyle });
-    const promptZh = JSON.stringify(primarySlotPayload);
-    const sharedBaseSnapshot = JSON.stringify(sharedBase);
-
     db.update(imageConfigs)
-      .set({ promptZh, promptEn, negativePrompt, updatedAt: Date.now() })
+      .set({ promptBundleJson, updatedAt: Date.now() })
       .where(eq(imageConfigs.id, config.id))
       .run();
 
@@ -345,101 +226,109 @@ export async function processPreparedImageGeneration(input: {
     for (const group of groups) {
       db.update(imageGroups)
         .set({
-          promptZh,
-          promptEn,
-          negativePrompt,
+          promptBundleJson,
           referenceImageUrl: config.referenceImageUrl ?? null,
           logo: config.logo ?? "none",
-          sharedBaseSnapshot,
           updatedAt: snapshotTimestamp,
         })
         .where(eq(imageGroups.id, group.id))
         .run();
     }
 
+    // Build work items for all images across all groups, then generate in parallel
+    const workItems: Array<{
+      imageId: string;
+      prompt: string;
+      negativePrompt: string | null;
+      referenceImageUrls: string[];
+      groupLogo: string;
+    }> = [];
+
     for (const group of groups) {
       const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
       const groupReferenceImageUrl = group.referenceImageUrl ?? config.referenceImageUrl ?? null;
       const groupLogo = group.logo ?? config.logo ?? "none";
-
-      const groupReferenceImageUrls = [
-        groupReferenceImageUrl,
-        groupLogo && groupLogo !== "none"
-          ? await readLogoAssetAsDataUrl(groupLogo as "onion" | "onion_app")
-          : null,
-      ].filter(Boolean) as string[];
+      const groupReferenceImageUrls = [groupReferenceImageUrl].filter(Boolean) as string[];
 
       for (const image of images) {
-        try {
-          const slotPayload = slotPayloadMap.get(image.slotIndex) ?? primarySlotPayload;
-          const fullPrompt = buildImagePrompt({
-            directionTitle: direction.title,
-            scenarioProblem: direction.scenarioProblem,
-            copyTitleMain: copy.titleMain,
-            copyTitleSub: copy.titleSub,
-            copyTitleExtra: copy.titleExtra,
-            aspectRatio: config.aspectRatio,
-            styleMode: config.styleMode,
-            imageStyle: config.imageStyle,
-            ipRole: config.ipRole,
-            ipDescription: ipMetadata?.description ?? null,
-            ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-            logo: group.logo ?? config.logo ?? "none",
-            imageForm: direction.imageForm ?? "single",
-            referenceImageUrl: groupReferenceImageUrl,
-            channel: direction.channel,
-            ctaEnabled: config.ctaEnabled === 1,
-            ctaText: config.ctaText,
-            descriptionPayload: slotPayload,
-          });
+        const promptEntry = promptMap.get(image.slotIndex) ?? primaryPrompt;
+        workItems.push({
+          imageId: image.id,
+          prompt: promptEntry.prompt,
+          negativePrompt: promptEntry.negativePrompt,
+          referenceImageUrls: groupReferenceImageUrls,
+          groupLogo,
+        });
+      }
+    }
 
-          db.update(generatedImages)
-            .set({
-              slotPromptSnapshot: JSON.stringify(slotPayload),
-              slotNegativePrompt: slotPayload.negativePrompt,
-              referencePlanSnapshot: JSON.stringify(slotPayload.referencePlan),
-              promptSummaryText: slotPayload.summaryText,
-              updatedAt: Date.now(),
+    // Save prompt snapshots before generating
+    for (const item of workItems) {
+      db.update(generatedImages)
+        .set({
+          finalPromptText: item.prompt,
+          finalNegativePrompt: item.negativePrompt,
+          updatedAt: Date.now(),
+        })
+        .where(eq(generatedImages.id, item.imageId))
+        .run();
+    }
+
+    // Generate all images in parallel
+    const generationResults = await Promise.allSettled(
+      workItems.map(async (item) => {
+        const binaries = item.referenceImageUrls.length > 0
+          ? await generateImageFromReference({
+              instruction: item.prompt,
+              imageUrls: item.referenceImageUrls,
+              aspectRatio: config.aspectRatio,
+              model: config.imageModel ?? undefined,
             })
-            .where(eq(generatedImages.id, image.id))
-            .run();
+          : await generateImageFromPrompt(item.prompt, {
+              aspectRatio: config.aspectRatio,
+              model: config.imageModel ?? undefined,
+            });
 
-          const binaries = groupReferenceImageUrls.length > 0
-            ? await generateImageFromReference({
-              instruction: fullPrompt,
-                imageUrls: groupReferenceImageUrls,
-                aspectRatio: config.aspectRatio,
-              })
-            : await generateImageFromPrompt(fullPrompt, {
-                aspectRatio: config.aspectRatio,
-              });
-
-          const binary = binaries[0];
-          const pngBuffer = await sharp(binary.buffer).png().toBuffer();
-          const saved = await saveImageBuffer({
-            projectId,
-            imageId: image.id,
+        const binary = binaries[0];
+        let pngBuffer = await sharp(binary.buffer).png().toBuffer();
+        if (item.groupLogo && item.groupLogo !== "none") {
+          pngBuffer = await applyFixedLogoOverlay({
             buffer: pngBuffer,
-            extension: "png",
+            logoPath: getLogoAssetPath(item.groupLogo as "onion" | "onion_app"),
           });
-
-          db.update(generatedImages)
-            .set({
-              filePath: saved.filePath,
-              fileUrl: saved.fileUrl,
-              status: "done",
-              updatedAt: Date.now(),
-            })
-            .where(eq(generatedImages.id, image.id))
-            .run();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "图片生成失败";
-          hadFailure = true;
-          db.update(generatedImages)
-            .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
-            .where(eq(generatedImages.id, image.id))
-            .run();
         }
+        const saved = await saveImageBuffer({
+          projectId,
+          imageId: item.imageId,
+          buffer: pngBuffer,
+          extension: "png",
+        });
+        return { imageId: item.imageId, saved };
+      }),
+    );
+
+    // Update DB with results sequentially (SQLite doesn't support concurrent writes)
+    for (let i = 0; i < generationResults.length; i += 1) {
+      const result = generationResults[i];
+      const imageId = workItems[i].imageId;
+
+      if (result.status === "fulfilled") {
+        db.update(generatedImages)
+          .set({
+            filePath: result.value.saved.filePath,
+            fileUrl: result.value.saved.fileUrl,
+            status: "done",
+            updatedAt: Date.now(),
+          })
+          .where(eq(generatedImages.id, imageId))
+          .run();
+      } else {
+        const message = result.reason instanceof Error ? result.reason.message : "图片生成失败";
+        hadFailure = true;
+        db.update(generatedImages)
+          .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
+          .where(eq(generatedImages.id, imageId))
+          .run();
       }
     }
   } catch (error) {

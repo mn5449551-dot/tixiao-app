@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import { buildCopyAgentMessages } from "../ai/agents/copy-agent";
 
-test("buildCopyAgentMessages uses full direction context and channel format constraints", () => {
+test("buildCopyAgentMessages follows the provided copy-agent prompt contract", () => {
   const messages = buildCopyAgentMessages({
     directionTitle: "寒假得分点拆解",
     targetAudience: "寒假想学懂压轴题的学生",
@@ -16,26 +17,31 @@ test("buildCopyAgentMessages uses full direction context and channel format cons
   });
 
   assert.equal(messages[0]?.role, "system");
-  assert.match(messages[0]?.content ?? "", /角色定位/);
-  assert.match(messages[0]?.content ?? "", /业务背景/);
-  assert.match(messages[0]?.content ?? "", /核心任务/);
-  assert.match(messages[0]?.content ?? "", /硬性边界/);
-  assert.match(messages[0]?.content ?? "", /输出契约/);
-  assert.match(messages[0]?.content ?? "", /顶层键名为 copies/);
-  assert.match(messages[0]?.content ?? "", /当前请求只服务一个方向/);
-  assert.match(messages[0]?.content ?? "", /不能只看方向标题/);
-  assert.match(messages[0]?.content ?? "", /双图/);
-  assert.match(messages[0]?.content ?? "", /图间关系/);
-  assert.match(messages[0]?.content ?? "", /titleMain.*6~22 字|长度 6~22 字/);
-  assert.match(messages[0]?.content ?? "", /titleSub.*7~31 字|长度 7~31 字/);
-  assert.match(messages[0]?.content ?? "", /4~10 字内|每句.*4~10 字/);
-  assert.match(messages[0]?.content ?? "", /口语化|顺口|不拗口/);
+  assert.match(messages[0]?.content ?? "", /营销图文文案生成 Agent/);
+  assert.match(messages[0]?.content ?? "", /你的核心职责不是“创作”，而是“压缩表达”/);
+  assert.match(messages[0]?.content ?? "", /第一原则：文案必须忠实绑定方向/);
+  assert.match(messages[0]?.content ?? "", /第二原则：先看渠道，再决定怎么写/);
+  assert.match(messages[0]?.content ?? "", /第三原则：先看图片形式，再决定结构/);
+  assert.match(messages[0]?.content ?? "", /第四原则：同一批文案要有明显差异/);
+  assert.match(messages[0]?.content ?? "", /信息流（广点通）/);
+  assert.match(messages[0]?.content ?? "", /应用商店/);
+  assert.match(messages[0]?.content ?? "", /学习机/);
+  assert.match(messages[0]?.content ?? "", /single/);
+  assert.match(messages[0]?.content ?? "", /double/);
+  assert.match(messages[0]?.content ?? "", /triple/);
+  assert.match(messages[0]?.content ?? "", /titleMain/);
+  assert.match(messages[0]?.content ?? "", /titleSub/);
+  assert.match(messages[0]?.content ?? "", /titleExtra/);
+  assert.match(messages[0]?.content ?? "", /copyType/);
+  assert.match(messages[0]?.content ?? "", /你必须只输出 JSON/);
+  assert.doesNotMatch(messages[0]?.content ?? "", /###/);
+  assert.doesNotMatch(messages[0]?.content ?? "", /思考过程/);
   assert.match(messages[1]?.content ?? "", /场景问题/);
   assert.match(messages[1]?.content ?? "", /差异化解法/);
   assert.match(messages[1]?.content ?? "", /奇效/);
 });
 
-test("buildCopyAgentMessages encodes append mode as a single differentiated copy", () => {
+test("buildCopyAgentMessages encodes append mode and existing copy de-duplication", () => {
   const messages = buildCopyAgentMessages({
     directionTitle: "作业卡壳秒解决",
     targetAudience: "初中生，晚间做作业经常卡题",
@@ -53,11 +59,17 @@ test("buildCopyAgentMessages encodes append mode as a single differentiated copy
     ],
   });
 
-  assert.match(messages[0]?.content ?? "", /当前请求只服务一个方向/);
-  assert.match(messages[0]?.content ?? "", /决策规则/);
-  assert.match(messages[0]?.content ?? "", /当前是追加生成/);
-  assert.match(messages[0]?.content ?? "", /只新增 1 条文案/);
-  assert.match(messages[0]?.content ?? "", /不能只是机械改写已有文案/);
+  assert.match(messages[0]?.content ?? "", /追加生成规则/);
+  assert.match(messages[0]?.content ?? "", /existingCopies/);
+  assert.match(messages[0]?.content ?? "", /换几个词/);
   assert.match(messages[1]?.content ?? "", /当前已生成文案/);
   assert.match(messages[1]?.content ?? "", /作业写不动了/);
+});
+
+test("generateCopyIdeas requests json_object output instead of mixed thought text", async () => {
+  const source = await readFile(new URL("../ai/agents/copy-agent.ts", import.meta.url), "utf8");
+
+  assert.match(source, /responseFormat:\s*\{\s*type:\s*"json_object"\s*\}/);
+  assert.match(source, /return JSON\.parse\(content\) as CopyAgentOutput/);
+  assert.doesNotMatch(source, /###/);
 });
