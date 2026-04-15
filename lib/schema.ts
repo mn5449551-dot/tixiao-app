@@ -1,9 +1,18 @@
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+export const projectFolders = sqliteTable("project_folders", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   status: text("status").notNull().default("draft"),
+  folderId: text("folder_id"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
@@ -39,6 +48,7 @@ export const directions = sqliteTable("directions", {
     .references(() => requirementCards.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   targetAudience: text("target_audience"),
+  adaptationStage: text("adaptation_stage"),
   scenarioProblem: text("scenario_problem"),
   differentiation: text("differentiation"),
   effect: text("effect"),
@@ -100,10 +110,9 @@ export const imageConfigs = sqliteTable("image_configs", {
   referenceImageUrl: text("reference_image_url"),
   ctaEnabled: integer("cta_enabled").notNull().default(0),
   ctaText: text("cta_text"),
-  promptZh: text("prompt_zh"),
-  promptEn: text("prompt_en"),
-  negativePrompt: text("negative_prompt"),
+  promptBundleJson: text("prompt_bundle_json"),
   count: integer("count").notNull().default(1),
+  imageModel: text("image_model"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
@@ -119,12 +128,9 @@ export const imageGroups = sqliteTable("image_groups", {
   aspectRatio: text("aspect_ratio").notNull().default("1:1"),
   styleMode: text("style_mode").notNull().default("normal"),
   imageStyle: text("image_style").notNull().default("realistic"),
-  promptZh: text("prompt_zh"),
-  promptEn: text("prompt_en"),
-  negativePrompt: text("negative_prompt"),
+  promptBundleJson: text("prompt_bundle_json"),
   referenceImageUrl: text("reference_image_url"),
   logo: text("logo"),
-  sharedBaseSnapshot: text("shared_base_snapshot"),
   isConfirmed: integer("is_confirmed").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
@@ -144,10 +150,8 @@ export const generatedImages = sqliteTable("generated_images", {
   status: text("status").notNull().default("pending"),
   inpaintParentId: text("inpaint_parent_id"),
   errorMessage: text("error_message"),
-  slotPromptSnapshot: text("slot_prompt_snapshot"),
-  slotNegativePrompt: text("slot_negative_prompt"),
-  referencePlanSnapshot: text("reference_plan_snapshot"),
-  promptSummaryText: text("prompt_summary_text"),
+  finalPromptText: text("final_prompt_text"),
+  finalNegativePrompt: text("final_negative_prompt"),
   seed: integer("seed"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

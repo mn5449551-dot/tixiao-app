@@ -15,10 +15,19 @@ let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 function bootstrap(connection: Database.Database) {
   connection.pragma("journal_mode = WAL");
   connection.exec(`
+    CREATE TABLE IF NOT EXISTS project_folders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'draft',
+      folder_id TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -100,9 +109,7 @@ function bootstrap(connection: Database.Database) {
       reference_image_url TEXT,
       cta_enabled INTEGER NOT NULL DEFAULT 0,
       cta_text TEXT,
-      prompt_zh TEXT,
-      prompt_en TEXT,
-      negative_prompt TEXT,
+      prompt_bundle_json TEXT,
       count INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -119,12 +126,9 @@ function bootstrap(connection: Database.Database) {
       aspect_ratio TEXT NOT NULL DEFAULT '1:1',
       style_mode TEXT NOT NULL DEFAULT 'normal',
       image_style TEXT NOT NULL DEFAULT 'realistic',
-      prompt_zh TEXT,
-      prompt_en TEXT,
-      negative_prompt TEXT,
+      prompt_bundle_json TEXT,
       reference_image_url TEXT,
       logo TEXT,
-      shared_base_snapshot TEXT,
       is_confirmed INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -141,10 +145,8 @@ function bootstrap(connection: Database.Database) {
       status TEXT NOT NULL DEFAULT 'pending',
       inpaint_parent_id TEXT,
       error_message TEXT,
-      slot_prompt_snapshot TEXT,
-      slot_negative_prompt TEXT,
-      reference_plan_snapshot TEXT,
-      prompt_summary_text TEXT,
+      final_prompt_text TEXT,
+      final_negative_prompt TEXT,
       seed INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -246,6 +248,16 @@ function bootstrap(connection: Database.Database) {
     );
   }
 
+  if (!imageConfigColumns.some((column) => column.name === "image_model")) {
+    connection.exec(
+      "ALTER TABLE image_configs ADD COLUMN image_model TEXT;",
+    );
+  }
+
+  if (!imageConfigColumns.some((column) => column.name === "prompt_bundle_json")) {
+    connection.exec("ALTER TABLE image_configs ADD COLUMN prompt_bundle_json TEXT;");
+  }
+
   if (!imageGroupColumns.some((column) => column.name === "style_mode")) {
     connection.exec(
       "ALTER TABLE image_groups ADD COLUMN style_mode TEXT NOT NULL DEFAULT 'normal';",
@@ -258,16 +270,8 @@ function bootstrap(connection: Database.Database) {
     );
   }
 
-  if (!imageGroupColumns.some((column) => column.name === "prompt_zh")) {
-    connection.exec("ALTER TABLE image_groups ADD COLUMN prompt_zh TEXT;");
-  }
-
-  if (!imageGroupColumns.some((column) => column.name === "prompt_en")) {
-    connection.exec("ALTER TABLE image_groups ADD COLUMN prompt_en TEXT;");
-  }
-
-  if (!imageGroupColumns.some((column) => column.name === "negative_prompt")) {
-    connection.exec("ALTER TABLE image_groups ADD COLUMN negative_prompt TEXT;");
+  if (!imageGroupColumns.some((column) => column.name === "prompt_bundle_json")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN prompt_bundle_json TEXT;");
   }
 
   if (!imageGroupColumns.some((column) => column.name === "reference_image_url")) {
@@ -278,28 +282,16 @@ function bootstrap(connection: Database.Database) {
     connection.exec("ALTER TABLE image_groups ADD COLUMN logo TEXT;");
   }
 
-  if (!imageGroupColumns.some((column) => column.name === "shared_base_snapshot")) {
-    connection.exec("ALTER TABLE image_groups ADD COLUMN shared_base_snapshot TEXT;");
-  }
-
   const generatedImageColumns = connection
     .prepare("PRAGMA table_info(generated_images)")
     .all() as Array<{ name: string }>;
 
-  if (!generatedImageColumns.some((column) => column.name === "slot_prompt_snapshot")) {
-    connection.exec("ALTER TABLE generated_images ADD COLUMN slot_prompt_snapshot TEXT;");
+  if (!generatedImageColumns.some((column) => column.name === "final_prompt_text")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN final_prompt_text TEXT;");
   }
 
-  if (!generatedImageColumns.some((column) => column.name === "slot_negative_prompt")) {
-    connection.exec("ALTER TABLE generated_images ADD COLUMN slot_negative_prompt TEXT;");
-  }
-
-  if (!generatedImageColumns.some((column) => column.name === "reference_plan_snapshot")) {
-    connection.exec("ALTER TABLE generated_images ADD COLUMN reference_plan_snapshot TEXT;");
-  }
-
-  if (!generatedImageColumns.some((column) => column.name === "prompt_summary_text")) {
-    connection.exec("ALTER TABLE generated_images ADD COLUMN prompt_summary_text TEXT;");
+  if (!generatedImageColumns.some((column) => column.name === "final_negative_prompt")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN final_negative_prompt TEXT;");
   }
 
   const exportRecordColumns = connection
@@ -334,6 +326,25 @@ function bootstrap(connection: Database.Database) {
     connection.exec(
       "ALTER TABLE export_records ADD COLUMN zip_file_path TEXT;",
     );
+  }
+
+  // Migrate: create project_folders table if not exists, add folder_id to projects
+  connection.exec(`
+    CREATE TABLE IF NOT EXISTS project_folders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  const projectColumns = connection
+    .prepare("PRAGMA table_info(projects)")
+    .all() as Array<{ name: string }>;
+
+  if (!projectColumns.some((column) => column.name === "folder_id")) {
+    connection.exec("ALTER TABLE projects ADD COLUMN folder_id TEXT;");
   }
 }
 

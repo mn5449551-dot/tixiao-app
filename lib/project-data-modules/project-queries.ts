@@ -12,4 +12,7 @@ export {
   createProject,
   deleteProject,
   upsertRequirement,
+  listFolders,
+  createFolder,
+  deleteFolder,
 } from "@/lib/project-data-modules-internal";

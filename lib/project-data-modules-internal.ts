@@ -1,21 +1,24 @@
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
+import { readFile } from "node:fs/promises";
 
 import { generateCopyIdeas } from "@/lib/ai/agents/copy-agent";
+import { generateImageFromReference } from "@/lib/ai/image-chat";
 import { buildCopyKnowledgeContext } from "@/lib/ai/agents/copy-knowledge";
 import { generateDirectionIdeas } from "@/lib/ai/agents/direction-agent";
 import {
-  ASPECT_RATIOS,
   CHANNELS,
+  DEFAULT_IMAGE_MODEL_VALUE,
   DEFAULT_REQUIREMENT,
   FEATURE_LIBRARY,
+  IMAGE_MODELS,
   IMAGE_STYLES,
   IP_ROLES,
   LOGO_OPTIONS,
   TARGET_AUDIENCES,
 } from "@/lib/constants";
 import { getDb } from "@/lib/db";
-import { classifyExportAdaptation, parseSlotSize, resolveExportSlotSpecs } from "@/lib/export/utils";
+import { classifyExportAdaptation, isSpecialRatio, resolveExportSlotSpecs } from "@/lib/export/utils";
 import { createId } from "@/lib/id";
 import { resolveReferenceImageUrl } from "@/lib/ip-assets";
 import {
@@ -25,6 +28,7 @@ import {
   generatedImages,
   imageConfigs,
   imageGroups,
+  projectFolders,
   projects,
   projectGenerationRuns,
   requirementCards,
@@ -56,6 +60,7 @@ export async function deleteImageConfigCascade(configId: string) {
 type DirectionIdea = {
   title: string;
   targetAudience: string;
+  adaptationStage: string;
   scenarioProblem: string;
   differentiation: string;
   effect: string;
@@ -187,8 +192,9 @@ function normalizeDirectionIdeas(payload: unknown, count: number) {
   const array = Array.isArray(payload)
     ? payload
     : payload && typeof payload === "object"
-      ? ((payload as { items?: unknown; directions?: unknown }).items ??
-          (payload as { items?: unknown; directions?: unknown }).directions)
+      ? ((payload as { items?: unknown; directions?: unknown; ideas?: unknown }).items ??
+          (payload as { items?: unknown; directions?: unknown; ideas?: unknown }).directions ??
+          (payload as { items?: unknown; directions?: unknown; ideas?: unknown }).ideas)
       : null;
 
   if (!Array.isArray(array)) return null;
@@ -201,6 +207,7 @@ function normalizeDirectionIdeas(payload: unknown, count: number) {
       return {
         title: idea.title,
         targetAudience: idea.targetAudience ?? "细分人群待补充",
+        adaptationStage: idea.adaptationStage ?? "通用",
         scenarioProblem: idea.scenarioProblem,
         differentiation: idea.differentiation,
         effect: idea.effect,
@@ -293,6 +300,7 @@ function persistDirections(
         requirementCardId: requirement.id,
         title: idea.title,
         targetAudience: idea.targetAudience,
+        adaptationStage: idea.adaptationStage,
         scenarioProblem: idea.scenarioProblem,
         differentiation: idea.differentiation,
         effect: idea.effect,
@@ -347,6 +355,7 @@ function appendDirections(
         requirementCardId: requirement.id,
         title: idea.title,
         targetAudience: idea.targetAudience,
+        adaptationStage: idea.adaptationStage,
         scenarioProblem: idea.scenarioProblem,
         differentiation: idea.differentiation,
         effect: idea.effect,
@@ -457,13 +466,67 @@ function appendCopyToExistingCard(
   return listCopyCards(direction.id).find((item) => item.id === card.id) ?? null;
 }
 
-export function listProjects() {
+// ── Folder operations ──
+
+export function listFolders() {
   const db = getDb();
+  return db
+    .select({
+      id: projectFolders.id,
+      name: projectFolders.name,
+      sortOrder: projectFolders.sortOrder,
+      createdAt: projectFolders.createdAt,
+      updatedAt: projectFolders.updatedAt,
+    })
+    .from(projectFolders)
+    .orderBy(projectFolders.sortOrder, desc(projectFolders.updatedAt))
+    .all();
+}
+
+export function createFolder(name: string) {
+  const db = getDb();
+  const timestamp = now();
+  const id = createId("folder");
+
+  db.insert(projectFolders)
+    .values({
+      id,
+      name,
+      sortOrder: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .run();
+
+  return db.select().from(projectFolders).where(eq(projectFolders.id, id)).get() ?? null;
+}
+
+export function deleteFolder(folderId: string) {
+  const db = getDb();
+  // Move all projects in this folder to no folder
+  db.update(projects)
+    .set({ folderId: null, updatedAt: now() })
+    .where(eq(projects.folderId, folderId))
+    .run();
+  db.delete(projectFolders).where(eq(projectFolders.id, folderId)).run();
+}
+
+// ── Project operations ──
+
+export function listProjects(folderId?: string | null) {
+  const db = getDb();
+  const conditions = folderId !== undefined
+    ? folderId === null
+      ? sql`${projects.folderId} IS NULL`
+      : eq(projects.folderId, folderId)
+    : undefined;
+
   return db
     .select({
       id: projects.id,
       title: projects.title,
       status: projects.status,
+      folderId: projects.folderId,
       directionCount: sql<number>`count(distinct ${directions.id})`,
       copyCardCount: sql<number>`count(distinct ${copyCards.id})`,
       createdAt: projects.createdAt,
@@ -472,12 +535,13 @@ export function listProjects() {
     .from(projects)
     .leftJoin(directions, eq(directions.projectId, projects.id))
     .leftJoin(copyCards, eq(copyCards.directionId, directions.id))
+    .where(conditions)
     .groupBy(projects.id)
     .orderBy(desc(projects.updatedAt))
     .all();
 }
 
-export function createProject(title: string) {
+export function createProject(title: string, folderId?: string | null) {
   const db = getDb();
   const timestamp = now();
   const id = createId("proj");
@@ -487,6 +551,7 @@ export function createProject(title: string) {
       id,
       title,
       status: "draft",
+      folderId: folderId ?? null,
       createdAt: timestamp,
       updatedAt: timestamp,
     })
@@ -644,6 +709,7 @@ export async function appendDirectionSmart(
     existingDirections: currentDirections.map((direction) => ({
       title: direction.title,
       targetAudience: direction.targetAudience ?? "",
+      adaptationStage: direction.adaptationStage ?? "",
       scenarioProblem: direction.scenarioProblem ?? "",
       differentiation: direction.differentiation ?? "",
       effect: direction.effect ?? "",
@@ -668,6 +734,7 @@ export function updateDirection(
   input: Partial<{
     title: string;
     targetAudience: string;
+    adaptationStage: string;
     scenarioProblem: string;
     differentiation: string;
     effect: string;
@@ -684,6 +751,7 @@ export function updateDirection(
     .set({
       title: input.title ?? current.title,
       targetAudience: input.targetAudience ?? current.targetAudience,
+      adaptationStage: input.adaptationStage ?? current.adaptationStage,
       scenarioProblem: input.scenarioProblem ?? current.scenarioProblem,
       differentiation: input.differentiation ?? current.differentiation,
       effect: input.effect ?? current.effect,
@@ -902,6 +970,7 @@ export async function saveImageConfig(
     ipRole: string | null;
     logo: string;
     imageStyle: string;
+    imageModel: string | null;
     count: number;
     referenceImageUrl: string | null;
     ctaEnabled: boolean;
@@ -928,11 +997,12 @@ export async function saveImageConfig(
   const nextReferenceImageUrl = await resolveReferenceImageUrl({
     styleMode: nextStyleMode,
     ipRole: nextIpRole,
-    referenceImageUrl: input.referenceImageUrl ?? current?.referenceImageUrl ?? null,
+    referenceImageUrl: input.referenceImageUrl !== undefined ? input.referenceImageUrl : (current?.referenceImageUrl ?? null),
   });
   const nextCount = Math.max(1, Math.min(5, Math.trunc(input.count ?? current?.count ?? 1)));
   const nextCtaEnabled = Boolean(input.ctaEnabled ?? current?.ctaEnabled ?? 0);
   const nextCtaText = nextCtaEnabled ? (input.ctaText ?? current?.ctaText ?? "立即下载") : null;
+  const nextImageModel = input.imageModel !== undefined ? input.imageModel : current?.imageModel ?? null;
 
   if (!current) {
     const configId = createId("imgcfg");
@@ -941,17 +1011,16 @@ export async function saveImageConfig(
         id: configId,
         copyId,
         directionId: copy.directionId,
-        aspectRatio: input.aspectRatio ?? ASPECT_RATIOS[0],
+        aspectRatio: input.aspectRatio ?? IMAGE_MODELS[0].aspectRatios[0],
         styleMode: nextStyleMode,
         ipRole: nextIpRole,
         logo: input.logo ?? LOGO_OPTIONS[0],
         imageStyle: nextImageStyle,
+        imageModel: nextImageModel,
         referenceImageUrl: nextReferenceImageUrl,
         ctaEnabled: nextCtaEnabled ? 1 : 0,
         ctaText: nextCtaText,
-        promptZh: `围绕 ${direction.title} 生成画面描述，左上角预留 Logo 留白。`,
-        promptEn: `Hero visual for ${direction.title}`,
-        negativePrompt: "distorted text, messy layout, unrelated characters",
+        promptBundleJson: null,
         count: nextCount,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -967,6 +1036,7 @@ export async function saveImageConfig(
         ipRole: nextIpRole,
         logo: input.logo ?? current.logo,
         imageStyle: nextImageStyle,
+        imageModel: nextImageModel,
         referenceImageUrl: nextReferenceImageUrl,
         ctaEnabled: nextCtaEnabled ? 1 : 0,
         ctaText: nextCtaText,
@@ -1054,14 +1124,23 @@ export async function generateFinalizedVariants(
     targetGroupIds?: string[];
     targetChannels?: string[];
     targetSlots?: string[];
+    imageModel?: string;
   },
 ) {
   const db = getDb();
   const selectedGroupIds = new Set(input.targetGroupIds ?? []);
   const slotSpecs = resolveExportSlotSpecs(input);
+  const model = input.imageModel ?? "doubao-seedream-4-0";
+
   const ratioSpecs = new Map(
-    slotSpecs.map((slot) => [slot.ratio, slot]),
+    slotSpecs
+      .filter((slot) => !isSpecialRatio(slot.ratio))
+      .map((slot) => [slot.ratio, slot]),
   );
+
+  const skippedSlots = slotSpecs
+    .filter((slot) => isSpecialRatio(slot.ratio))
+    .map((slot) => `${slot.channel} · ${slot.slotName}`);
 
   const directionRows = listDirections(projectId);
   const created = [] as Array<typeof imageGroups.$inferSelect>;
@@ -1087,7 +1166,7 @@ export async function generateFinalizedVariants(
             .from(generatedImages)
             .where(eq(generatedImages.imageGroupId, group.id))
             .all()
-            .filter((image) => image.filePath);
+            .filter((image) => image.status === "done" && image.filePath);
 
           if (sourceImages.length === 0) continue;
 
@@ -1122,43 +1201,86 @@ export async function generateFinalizedVariants(
               })
               .run();
 
-            const targetSize = parseSlotSize(slotSpec.size);
+            const workItems: Array<{
+              imageId: string;
+              sourceImage: typeof sourceImages[number];
+              prompt: string;
+            }> = [];
+
             for (const sourceImage of sourceImages) {
               const imageId = createId("img");
-              const pipeline = sharp(sourceImage.filePath!);
-              const buffer = await pipeline
-                .resize({
-                  width: targetSize?.width,
-                  height: targetSize?.height,
-                  fit: classifyExportAdaptation(config.aspectRatio, ratio) === "postprocess" ? "contain" : "cover",
-                  position: "centre",
-                  background: "#ffffff",
-                })
-                .png()
-                .toBuffer();
-              const saved = await saveImageBuffer({
-                projectId,
-                imageId,
-                buffer,
-                extension: "png",
-              });
-
               db.insert(generatedImages)
                 .values({
                   id: imageId,
                   imageGroupId: derivedGroupId,
                   imageConfigId: config.id,
                   slotIndex: sourceImage.slotIndex,
-                  filePath: saved.filePath,
-                  fileUrl: saved.fileUrl,
-                  status: "done",
+                  filePath: null,
+                  fileUrl: null,
+                  status: "generating",
                   inpaintParentId: sourceImage.id,
                   errorMessage: null,
                   seed: sourceImage.seed,
+                  finalPromptText: null,
+                  finalNegativePrompt: null,
                   createdAt: timestamp,
                   updatedAt: timestamp,
                 })
                 .run();
+
+              const aspectDirection = compareAspectRatios(config.aspectRatio, ratio);
+              const prompt = buildAdaptationPrompt(config.aspectRatio, ratio, aspectDirection);
+
+              workItems.push({ imageId, sourceImage, prompt });
+            }
+
+            const generationResults = await Promise.allSettled(
+              workItems.map(async (item) => {
+                const imageBuffer = await readFile(item.sourceImage.filePath!);
+                const mimeType = getMimeTypeFromPath(item.sourceImage.filePath!);
+                const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
+                const binaries = await generateImageFromReference({
+                  instruction: item.prompt,
+                  imageUrls: [dataUrl],
+                  aspectRatio: ratio,
+                  model,
+                });
+
+                const binary = binaries[0];
+                const pngBuffer = await sharp(binary.buffer).png().toBuffer();
+                const saved = await saveImageBuffer({
+                  projectId,
+                  imageId: item.imageId,
+                  buffer: pngBuffer,
+                  extension: "png",
+                });
+                return { imageId: item.imageId, saved, prompt: item.prompt };
+              }),
+            );
+
+            for (let i = 0; i < generationResults.length; i += 1) {
+              const result = generationResults[i];
+              const imageId = workItems[i].imageId;
+
+              if (result.status === "fulfilled") {
+                db.update(generatedImages)
+                  .set({
+                    filePath: result.value.saved.filePath,
+                    fileUrl: result.value.saved.fileUrl,
+                    status: "done",
+                    finalPromptText: result.value.prompt,
+                    updatedAt: Date.now(),
+                  })
+                  .where(eq(generatedImages.id, imageId))
+                  .run();
+              } else {
+                const message = result.reason instanceof Error ? result.reason.message : "适配版本生成失败";
+                db.update(generatedImages)
+                  .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
+                  .where(eq(generatedImages.id, imageId))
+                  .run();
+              }
             }
 
             const groupRecord = db.select().from(imageGroups).where(eq(imageGroups.id, derivedGroupId)).get();
@@ -1169,7 +1291,40 @@ export async function generateFinalizedVariants(
     }
   }
 
-  return created;
+  return { groups: created, skippedSlots };
+}
+
+function compareAspectRatios(source: string, target: string): "wider" | "taller" | "same" {
+  function parseRatio(r: string): number {
+    if (r === "√2:1") return Math.SQRT2;
+    const parts = r.split(":");
+    return Number(parts[0]) / Number(parts[1]);
+  }
+  const s = parseRatio(source);
+  const t = parseRatio(target);
+  if (Math.abs(s - t) < 0.01) return "same";
+  return t > s ? "wider" : "taller";
+}
+
+function buildAdaptationPrompt(sourceRatio: string, targetRatio: string, direction: "wider" | "taller" | "same"): string {
+  const base = "保持原图内容、构图、主体位置和色调完全不变，";
+  const noBorder = "画面必须铺满整个画幅，绝对不能出现黑边、留白、letterboxing或任何空白区域。";
+  const style = "扩展区域必须与原图风格、色调、光影完全一致，形成一个完整统一的画面。";
+
+  if (direction === "wider") {
+    return `${base}将画面比例从 ${sourceRatio} 扩展为 ${targetRatio}。向左右两侧自然延伸场景内容来填充更宽的画幅，${noBorder}${style}`;
+  }
+  if (direction === "taller") {
+    return `${base}将画面比例从 ${sourceRatio} 扩展为 ${targetRatio}。向上下方向自然延伸场景内容来填充更高的画幅，${noBorder}${style}`;
+  }
+  return `${base}将画面比例适配为 ${targetRatio}。${noBorder}${style}`;
+}
+
+function getMimeTypeFromPath(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase();
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "webp") return "image/webp";
+  return "image/png";
 }
 
 export function getProjectWorkspace(projectId: string) {
@@ -1186,7 +1341,7 @@ export function getProjectWorkspace(projectId: string) {
     meta: {
       availableChannels: CHANNELS,
       availableFeatures: FEATURE_LIBRARY,
-      availableAspectRatios: ASPECT_RATIOS,
+      availableAspectRatios: IMAGE_MODELS[0].aspectRatios,
       availableImageStyles: IMAGE_STYLES,
       availableLogoOptions: LOGO_OPTIONS,
       availableIpRoles: IP_ROLES,
@@ -1402,7 +1557,7 @@ export function getCanvasData(projectId: string) {
     meta: {
       availableChannels: CHANNELS,
       availableFeatures: FEATURE_LIBRARY,
-      availableAspectRatios: ASPECT_RATIOS,
+      availableAspectRatios: IMAGE_MODELS[0].aspectRatios,
       availableImageStyles: IMAGE_STYLES,
       availableLogoOptions: LOGO_OPTIONS,
       availableIpRoles: IP_ROLES,

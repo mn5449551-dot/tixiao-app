@@ -8,24 +8,24 @@ import { Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { ApiError, apiFetch } from "@/lib/api-fetch";
 
-export function CreateProjectForm({ folderId }: { folderId?: string } = {}) {
+export function CreateFolderForm() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const handleClose = () => {
     setIsOpen(false);
-    setTitle("");
+    setName("");
     setError(null);
   };
 
   const handleSubmit = () => {
-    const trimmedTitle = title.trim();
+    const trimmedName = name.trim();
 
-    if (!trimmedTitle) {
-      setError("项目标题不能为空");
+    if (!trimmedName) {
+      setError("文件夹名称不能为空");
       return;
     }
 
@@ -33,44 +33,41 @@ export function CreateProjectForm({ folderId }: { folderId?: string } = {}) {
       setError(null);
 
       try {
-        const payload = await apiFetch<{ id?: string }>("/api/projects", {
+        await apiFetch("/api/folders", {
           method: "POST",
-          body: { title: trimmedTitle, folder_id: folderId },
+          body: { name: trimmedName },
         });
 
-        if (!payload?.id) {
-          setError("新建项目失败");
-          return;
-        }
-
         handleClose();
-        router.push(`/projects/${payload.id}`);
         router.refresh();
       } catch (error) {
-        setError(error instanceof ApiError ? error.message : "新建项目失败");
+        setError(error instanceof ApiError ? error.message : "创建文件夹失败");
       }
     });
   };
 
   return (
     <>
-      <Button size="lg" onClick={() => setIsOpen(true)} className="w-full justify-center lg:w-auto">
-        ＋ 新建项目
+      <Button variant="primary" size="lg" onClick={() => setIsOpen(true)} className="w-full justify-center lg:w-auto shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]">
+        <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        新建文件夹
       </Button>
 
       <Modal
         isOpen={isOpen}
         onClose={handleClose}
-        title="新建项目"
-        description="输入项目名称后即可进入工作台继续编辑。"
+        title="新建文件夹"
+        description="创建一个项目文件夹，按人员或项目类型分组管理。"
       >
         <div className="space-y-4">
           <Input
             autoFocus
-            placeholder="例如：Q2-期中冲刺拍题精学"
-            value={title}
+            placeholder="例如：运营A的项目"
+            value={name}
             onChange={(event) => {
-              setTitle(event.target.value);
+              setName(event.target.value);
               if (error) {
                 setError(null);
               }
@@ -86,7 +83,7 @@ export function CreateProjectForm({ folderId }: { folderId?: string } = {}) {
               取消
             </Button>
             <Button disabled={isPending} onClick={handleSubmit}>
-              {isPending ? "创建中..." : "创建项目"}
+              {isPending ? "创建中..." : "创建文件夹"}
             </Button>
           </div>
         </div>

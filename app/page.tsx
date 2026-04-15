@@ -1,20 +1,21 @@
 import Link from "next/link";
 
-import { CreateProjectForm } from "@/components/dashboard/create-project-form";
-import { ProjectList } from "@/components/dashboard/project-list";
+import { CreateFolderForm } from "@/components/dashboard/create-folder-form";
+import { FolderList } from "@/components/dashboard/folder-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { listProjects } from "@/lib/project-data";
+import { listFolders, listProjects } from "@/lib/project-data";
 
 export default function HomePage() {
-  const projects = listProjects();
-  const totalDirections = projects.reduce((sum, project) => sum + project.directionCount, 0);
-  const totalCopyCards = projects.reduce((sum, project) => sum + project.copyCardCount, 0);
-  const activeProjects = projects.filter((project) => project.status === "active").length;
+  const folders = listFolders();
+  const totalProjects = listProjects(); // all projects
+  const totalDirections = totalProjects.reduce((sum, project) => sum + project.directionCount, 0);
+  const totalCopyCards = totalProjects.reduce((sum, project) => sum + project.copyCardCount, 0);
+  const activeProjects = totalProjects.filter((project) => project.status === "active").length;
 
   const metrics = [
-    { label: "项目总数", value: projects.length, accent: "from-[var(--brand-200)] to-transparent" },
+    { label: "项目总数", value: totalProjects.length, accent: "from-[var(--brand-200)] to-transparent" },
     { label: "活跃项目", value: activeProjects, accent: "from-[var(--accent-300)] to-transparent" },
     { label: "方向卡总数", value: totalDirections, accent: "from-[var(--brand-300)] to-transparent" },
     { label: "文案卡总数", value: totalCopyCards, accent: "from-[var(--accent-300)] to-transparent" },
@@ -46,7 +47,7 @@ export default function HomePage() {
 
         <div className="relative z-10 mt-6 animate-scale-in stagger-4 lg:mt-0 lg:shrink-0 lg:flex lg:items-center lg:gap-3">
           <Link href="/settings">
-            <Button variant="ghost" size="sm">
+            <Button variant="secondary" size="sm" className="h-9">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -54,7 +55,7 @@ export default function HomePage() {
               设置
             </Button>
           </Link>
-          <CreateProjectForm />
+          <CreateFolderForm />
         </div>
       </section>
 
@@ -76,10 +77,15 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section className="animate-fade-in-up space-y-4" style={{ animationDelay: "400ms" }}>
-        <h2 className="text-2xl font-semibold text-[var(--ink-950)]">项目列表</h2>
-        <ProjectList projects={projects} />
-      </section>
+      {folders.length > 0 && (
+        <section className="animate-fade-in-up space-y-5" style={{ animationDelay: "300ms" }}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-[var(--ink-950)]">项目文件夹</h2>
+            <span className="text-sm text-[var(--ink-500)]">{folders.length} 个文件夹</span>
+          </div>
+          <FolderList folders={folders} />
+        </section>
+      )}
     </main>
   );
 }
