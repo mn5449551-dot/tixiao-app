@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { unstable_noStore as noStore } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 
 import { createFolder, listFolders } from "@/lib/project-data";
 
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     }
 
     const folder = createFolder(name);
+    revalidatePath("/", "layout");
     return NextResponse.json(folder, { status: 200 });
   } catch (error) {
     return NextResponse.json(

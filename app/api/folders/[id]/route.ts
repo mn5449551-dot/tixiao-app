@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 import { deleteFolder } from "@/lib/project-data";
 
@@ -9,6 +10,7 @@ export async function DELETE(
   try {
     const { id } = (await context.params) as { id: string };
     await deleteFolder(id);
+    revalidatePath("/", "layout");
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
