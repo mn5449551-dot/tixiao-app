@@ -172,14 +172,14 @@ test("buildGraph creates row-level source handles and shows candidate pool when 
                         id: "img_1",
                         imageGroupId: "grp_1",
                         imageConfigId: "cfg_1",
-                    slotIndex: 1,
-                    filePath: "/tmp/img_1.png",
-                    fileUrl: "/api/images/img_1/file",
+                        slotIndex: 1,
+                        filePath: "/tmp/img_1.png",
+                        fileUrl: "/api/images/img_1/file",
                         status: "done",
                         inpaintParentId: null,
                         errorMessage: null,
-                        finalPromptText: null,
-                        finalNegativePrompt: null,
+                        finalPromptText: "真实正向提示词",
+                        finalNegativePrompt: "真实负向提示词",
                         seed: 1,
                         createdAt: 0,
                         updatedAt: 0,
@@ -218,6 +218,10 @@ test("buildGraph creates row-level source handles and shows candidate pool when 
   const finalizedNode = graph.nodes.find((node) => node.id === "finalized-cfg_1");
 
   assert.ok(candidateNode && "displayMode" in candidateNode.data);
+  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.promptText, "真实正向提示词");
+  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.negativePrompt, "真实负向提示词");
+  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.aspectRatio, "1:1");
+  assert.equal(candidateNode?.data.groups[0]?.images[0]?.promptDetails?.referenceImageUrl, null);
   assert.equal(candidateNode.data.displayMode, "single");
   assert.ok("groups" in candidateNode.data);
   assert.equal(candidateNode.data.groups[0]?.id, "grp_1");

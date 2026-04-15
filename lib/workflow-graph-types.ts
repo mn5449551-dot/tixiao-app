@@ -18,6 +18,14 @@ export type DirectionItem = {
   sourceHandleId: string;
 };
 
+type CandidateImagePromptDetails = {
+  promptText: string | null;
+  negativePrompt: string | null;
+  model: string | null;
+  aspectRatio: string | null;
+  referenceImageUrl: string | null;
+};
+
 export type GraphNodeData =
   | FrameNodeData
   | { projectId?: string; initial?: Record<string, unknown> }
@@ -83,6 +91,7 @@ export type GraphNodeData =
           aspectRatio?: string;
           updatedAt?: number;
           inpaintParentId?: string | null;
+          promptDetails?: CandidateImagePromptDetails | null;
         }>;
       }>;
       groupLabel?: string;

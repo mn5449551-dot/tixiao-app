@@ -65,8 +65,8 @@ export function buildCandidatePoolNode(input: {
       slotCount: group.slotCount,
       isConfirmed: group.isConfirmed === 1,
       aspectRatio: group.aspectRatio ?? config.aspectRatio,
-      styleMode: group.styleMode ?? config.styleMode,
-      imageStyle: group.imageStyle ?? config.imageStyle,
+        styleMode: group.styleMode ?? config.styleMode,
+        imageStyle: group.imageStyle ?? config.imageStyle,
         images: group.images.map((img) => ({
           id: img.id,
           fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),
@@ -75,6 +75,13 @@ export function buildCandidatePoolNode(input: {
           aspectRatio: group.aspectRatio ?? config.aspectRatio,
           updatedAt: img.updatedAt,
           inpaintParentId: img.inpaintParentId ?? null,
+          promptDetails: {
+            promptText: img.finalPromptText ?? null,
+            negativePrompt: img.finalNegativePrompt ?? null,
+            model: config.imageModel ?? null,
+            aspectRatio: group.aspectRatio ?? config.aspectRatio ?? null,
+            referenceImageUrl: group.referenceImageUrl ?? config.referenceImageUrl ?? null,
+          },
         })),
     }));
 
