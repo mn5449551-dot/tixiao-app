@@ -70,6 +70,19 @@ test("candidate pool prompt details modal shows prompt sections and copy actions
   assert.match(source, /未传参考图/);
 });
 
+test("candidate pool exposes prompt inspection only for eligible images", async () => {
+  const source = await readFile(candidatePoolCardPath, "utf8");
+  const imageSource = await readFile(candidateImageCardPath, "utf8");
+  const groupSource = await readFile(candidateGroupCardPath, "utf8");
+
+  assert.match(source, /PromptDetailsModal/);
+  assert.match(source, /navigator\.clipboard\.writeText/);
+  assert.match(imageSource, /查看提示词/);
+  assert.match(imageSource, /image\.status === "done"|isDone/);
+  assert.match(imageSource, /!image\.inpaintParentId/);
+  assert.match(groupSource, /onViewPromptDetails/);
+});
+
 test("finalized pool defaults to manual channel selection", async () => {
   const source = await readFile(finalizedPoolCardPath, "utf8");
 

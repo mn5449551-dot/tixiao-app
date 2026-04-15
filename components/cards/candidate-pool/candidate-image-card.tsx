@@ -15,6 +15,7 @@ export function CandidateImageCard({
   onPreview,
   onInpaint,
   onRegenerate,
+  onViewPromptDetails,
   onDelete,
   onDiscardInpaint,
   footer,
@@ -26,6 +27,7 @@ export function CandidateImageCard({
   onPreview: (id: string) => void;
   onInpaint: (id: string) => void;
   onRegenerate: (id: string) => void;
+  onViewPromptDetails?: (id: string) => void;
   onDelete?: (id: string) => void;
   onDiscardInpaint?: (id: string) => void;
   footer?: React.ReactNode;
@@ -33,6 +35,7 @@ export function CandidateImageCard({
   const isGenerating = image.status === "generating" || image.status === "pending";
   const isFailed = image.status === "failed";
   const isDone = image.status === "done";
+  const canViewPromptDetails = isDone && !image.inpaintParentId && Boolean(onViewPromptDetails);
 
   return (
     <div className="group overflow-hidden rounded-xl border border-[var(--line-soft)] bg-white">
@@ -86,6 +89,11 @@ export function CandidateImageCard({
         )}
         {footer}
         <div className="flex flex-wrap gap-2">
+          {canViewPromptDetails ? (
+            <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onViewPromptDetails?.(image.id)}>
+              查看提示词
+            </Button>
+          ) : null}
           <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>
             重绘
           </Button>

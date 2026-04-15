@@ -17,6 +17,7 @@ import {
 } from "@/components/cards/candidate-pool/candidate-pool-actions";
 import { CandidateGroupCard } from "@/components/cards/candidate-pool/candidate-group-card";
 import { CandidateImageCard } from "@/components/cards/candidate-pool/candidate-image-card";
+import { PromptDetailsModal, type PromptDetails } from "@/components/cards/candidate-pool/prompt-details-modal";
 import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
 import { IMAGE_MODELS } from "@/lib/constants";
@@ -41,6 +42,7 @@ export type CandidateImage = {
   aspectRatio?: string;
   updatedAt?: number;
   inpaintParentId?: string | null;
+  promptDetails?: PromptDetails | null;
 };
 
 export type CandidateGroup = {
@@ -78,10 +80,16 @@ export function CandidatePoolCard({
   );
   const [inpaintImageId, setInpaintImageId] = useState<string | null>(null);
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
+  const [promptDetailsImageId, setPromptDetailsImageId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const images = useMemo(() => groups.flatMap((group) => group.images), [groups]);
+  const promptDetailsImage = useMemo(
+    () => (promptDetailsImageId ? images.find((img) => img.id === promptDetailsImageId) ?? null : null),
+    [images, promptDetailsImageId],
+  );
   const isError = status === "error";
   const isPartialSuccess = status === "partial-success";
   const isDone = status === "done";
@@ -176,6 +184,16 @@ export function CandidatePoolCard({
     }
   }, []);
 
+  const handleCopyPromptText = useCallback(async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyFeedback(`${label}已复制`);
+      window.setTimeout(() => setCopyFeedback(null), 1600);
+    } catch {
+      setCopyFeedback(`${label}复制失败`);
+    }
+  }, []);
+
   return (
     <div
       className={cn(
@@ -222,6 +240,12 @@ export function CandidatePoolCard({
         </div>
       ) : null}
 
+      {copyFeedback ? (
+        <div className="mb-3 rounded-lg bg-[var(--surface-1)] px-3 py-2 text-xs text-[var(--ink-600)]">
+          {copyFeedback}
+        </div>
+      ) : null}
+
       <div className="space-y-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         {displayMode === "single"
           ? groups.flatMap((group) =>
@@ -235,6 +259,7 @@ export function CandidatePoolCard({
                   onPreview={setPreviewImageId}
                   onInpaint={setInpaintImageId}
                   onRegenerate={handleRegenerateImage}
+                  onViewPromptDetails={setPromptDetailsImageId}
                   onDelete={handleDeleteImage}
                   onDiscardInpaint={handleDiscardInpaint}
                   footer={
@@ -272,6 +297,7 @@ export function CandidatePoolCard({
                 onPreview={setPreviewImageId}
                 onInpaint={setInpaintImageId}
                 onRegenerate={handleRegenerateImage}
+                onViewPromptDetails={setPromptDetailsImageId}
                 onDeleteGroup={handleDeleteGroup}
                 onDiscardInpaint={handleDiscardInpaint}
                 onConfirmGroup={() =>
@@ -312,6 +338,13 @@ export function CandidatePoolCard({
           onClose={() => setPreviewImageId(null)}
         />
       ) : null}
+
+      <PromptDetailsModal
+        details={promptDetailsImage?.promptDetails ?? null}
+        isOpen={Boolean(promptDetailsImage)}
+        onClose={() => setPromptDetailsImageId(null)}
+        onCopy={handleCopyPromptText}
+      />
     </div>
   );
 }

@@ -16,6 +16,7 @@ export function CandidateGroupCard({
   onPreview,
   onInpaint,
   onRegenerate,
+  onViewPromptDetails,
   onDeleteGroup,
   onConfirmGroup,
   onDiscardInpaint,
@@ -28,6 +29,7 @@ export function CandidateGroupCard({
   onPreview: (id: string) => void;
   onInpaint: (id: string) => void;
   onRegenerate: (id: string) => void;
+  onViewPromptDetails?: (id: string) => void;
   onDeleteGroup: (id: string) => void;
   onConfirmGroup: () => void;
   onDiscardInpaint?: (id: string) => void;
@@ -59,6 +61,7 @@ export function CandidateGroupCard({
             onPreview={onPreview}
             onInpaint={onInpaint}
             onRegenerate={onRegenerate}
+            onViewPromptDetails={onViewPromptDetails}
             onDiscardInpaint={onDiscardInpaint}
             footer={
               <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
