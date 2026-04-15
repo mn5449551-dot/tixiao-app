@@ -180,6 +180,13 @@ test("buildGraph creates row-level source handles and shows candidate pool when 
                         errorMessage: null,
                         finalPromptText: "真实正向提示词",
                         finalNegativePrompt: "真实负向提示词",
+                        generationRequestJson: JSON.stringify({
+                          promptText: "真实正向提示词",
+                          negativePrompt: "真实负向提示词",
+                          model: "doubao-seedream-4-0",
+                          aspectRatio: "1:1",
+                          referenceImages: [{ url: "/api/reference/demo.png" }],
+                        }),
                         seed: 1,
                         createdAt: 0,
                         updatedAt: 0,
@@ -223,8 +230,10 @@ test("buildGraph creates row-level source handles and shows candidate pool when 
   assert.ok(candidateImage && "promptDetails" in candidateImage);
   assert.equal(candidateImage.promptDetails?.promptText, "真实正向提示词");
   assert.equal(candidateImage.promptDetails?.negativePrompt, "真实负向提示词");
+  assert.equal(candidateImage.promptDetails?.model, "doubao-seedream-4-0");
   assert.equal(candidateImage.promptDetails?.aspectRatio, "1:1");
-  assert.equal(candidateImage.promptDetails?.referenceImageUrl, null);
+  assert.equal(candidateImage.promptDetails?.hasSnapshot, true);
+  assert.equal(candidateImage.promptDetails?.referenceImages[0]?.url, "/api/reference/demo.png");
   assert.equal(candidateNode.data.displayMode, "single");
   assert.ok("groups" in candidateNode.data);
   assert.equal(candidateNode.data.groups[0]?.id, "grp_1");
@@ -346,6 +355,7 @@ test("buildGraph keeps image config card interactive while candidate images are 
                         errorMessage: null,
                         finalPromptText: null,
                         finalNegativePrompt: null,
+                        generationRequestJson: null,
                         seed: 1,
                         createdAt: 0,
                         updatedAt: 0,
@@ -376,6 +386,9 @@ test("buildGraph keeps image config card interactive while candidate images are 
   assert.equal(configNode.data.status, "idle");
   assert.ok(candidateNode && "status" in candidateNode.data);
   assert.equal(candidateNode.data.status, "partial-success");
+  const candidateImage = candidateNode.data.groups[0]?.images[0];
+  assert.ok(candidateImage && "promptDetails" in candidateImage);
+  assert.equal(candidateImage.promptDetails?.hasSnapshot, false);
 });
 
 test("buildGraph keeps candidate pool visible while images are still pending", () => {

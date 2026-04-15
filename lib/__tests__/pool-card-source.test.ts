@@ -67,7 +67,10 @@ test("candidate pool prompt details modal shows prompt sections and copy actions
   assert.match(source, /正向提示词/);
   assert.match(source, /negative prompt/i);
   assert.match(source, /navigator\.clipboard\.writeText|onCopyPrompt|onCopyNegativePrompt|onCopy/);
-  assert.match(source, /未传参考图/);
+  assert.match(source, /hasSnapshot/);
+  assert.match(source, /该图片缺少历史生图快照，请重新生成后查看/);
+  assert.match(source, /referenceImages/);
+  assert.doesNotMatch(source, /style=\{\{\s*aspectRatio:\s*"1 \/ 1"/);
 });
 
 test("candidate pool exposes prompt inspection only for eligible images", async () => {

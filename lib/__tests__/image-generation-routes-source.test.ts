@@ -80,5 +80,9 @@ test("image generation service stores prompt bundles and per-image final prompt 
   assert.match(generateSource, /promptBundleJson|prompt_bundle_json/);
   assert.match(generateSource, /finalPromptText|final_prompt_text/);
   assert.match(generateSource, /finalNegativePrompt|final_negative_prompt/);
+  assert.match(generateSource, /generationRequestJson|generation_request_json/);
+  assert.match(generateSource, /referenceImageUrls/);
+  assert.match(generateSource, /promptText:\s*item\.prompt/);
+  assert.match(generateSource, /referenceImages:\s*item\.referenceImageUrls\.map/);
   assert.match(regenerateSource, /finalPromptText|final_prompt_text/);
 });
