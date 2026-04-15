@@ -11,22 +11,26 @@ export function CandidateGroupCard({
   group,
   displayMode,
   isLatest = false,
+  modelLabel,
   loadingKey,
   onPreview,
   onInpaint,
   onRegenerate,
   onDeleteGroup,
   onConfirmGroup,
+  onDiscardInpaint,
 }: {
   group: CandidateGroup;
   displayMode: "double" | "triple";
   isLatest?: boolean;
+  modelLabel?: string | null;
   loadingKey: string | null;
   onPreview: (id: string) => void;
   onInpaint: (id: string) => void;
   onRegenerate: (id: string) => void;
   onDeleteGroup: (id: string) => void;
   onConfirmGroup: () => void;
+  onDiscardInpaint?: (id: string) => void;
 }) {
   const groupHasGenerating = group.images.some((image) => image.status === "generating" || image.status === "pending");
 
@@ -35,7 +39,7 @@ export function CandidateGroupCard({
       <div className="mb-3 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套</p>
+            <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套{modelLabel ? <span className="font-normal text-[var(--ink-400)]"> · {modelLabel}</span> : ""}</p>
             {isLatest ? <Badge tone="neutral">最新</Badge> : null}
           </div>
           <p className="mt-1 text-[11px] text-[var(--ink-400)]">
@@ -55,6 +59,7 @@ export function CandidateGroupCard({
             onPreview={onPreview}
             onInpaint={onInpaint}
             onRegenerate={onRegenerate}
+            onDiscardInpaint={onDiscardInpaint}
             footer={
               <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
                 <span>图 {image.slotIndex}</span>

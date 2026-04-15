@@ -16,6 +16,7 @@ export function CandidateImageCard({
   onInpaint,
   onRegenerate,
   onDelete,
+  onDiscardInpaint,
   footer,
 }: {
   image: CandidateImage;
@@ -26,6 +27,7 @@ export function CandidateImageCard({
   onInpaint: (id: string) => void;
   onRegenerate: (id: string) => void;
   onDelete?: (id: string) => void;
+  onDiscardInpaint?: (id: string) => void;
   footer?: React.ReactNode;
 }) {
   const isGenerating = image.status === "generating" || image.status === "pending";
@@ -70,6 +72,18 @@ export function CandidateImageCard({
         ) : null}
       </button>
       <div className="space-y-2 p-3">
+        {image.inpaintParentId && (
+          <div className="flex items-center justify-between">
+            <span className="inline-flex rounded bg-[var(--brand-50)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--brand-700)]">
+              重绘版本
+            </span>
+            {onDiscardInpaint && (
+              <Button variant="ghost" className="h-6 px-1.5 text-[10px] text-[var(--ink-400)]" onClick={() => onDiscardInpaint(image.id)}>
+                放弃
+              </Button>
+            )}
+          </div>
+        )}
         {footer}
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>

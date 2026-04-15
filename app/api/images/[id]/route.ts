@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
+import { readFile } from "node:fs/promises";
 
 import { deleteFileIfExists, saveImageBuffer } from "@/lib/storage";
 import { getDb } from "@/lib/db";
@@ -10,10 +11,10 @@ import {
   startGenerationRun,
 } from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
-import { readLogoAssetAsDataUrl } from "@/lib/logo-assets";
+import { getLogoAssetPath } from "@/lib/logo-assets";
 import { generatedImages, imageConfigs, directions, copies, imageGroups } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
-import { buildImagePrompt } from "@/lib/ai/services/prompt-template";
+import { applyFixedLogoOverlay } from "@/lib/storage";
 import sharp from "sharp";
 
 export async function GET(
@@ -211,85 +212,92 @@ async function regenerateSingleImage(input: {
   const { runId, image, config, direction, projectId } = input;
 
   try {
-    const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
     const group = db.select().from(imageGroups).where(eq(imageGroups.id, image.imageGroupId)).get();
+
+    // 派生图（适配版本）：用父图作为参考图 + 适配 prompt 重新生成
+    if (group?.groupType.startsWith("derived|") && image.inpaintParentId) {
+      const parentImage = db.select().from(generatedImages).where(eq(generatedImages.id, image.inpaintParentId)).get();
+      if (!parentImage?.filePath) {
+        throw new Error("原始定稿图不存在");
+      }
+
+      const prompt = image.finalPromptText ?? "保持原图内容和构图不变，扩展画面适配目标比例，画面必须铺满整个画幅，不能有黑边。";
+      const imageBuffer = await readFile(parentImage.filePath);
+      const ext = parentImage.filePath.split(".").pop()?.toLowerCase();
+      const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png";
+      const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
+      // 从 groupType 提取目标比例：derived|{groupId}|{ratio}
+      const targetRatio = group.groupType.split("|")[2] ?? config.aspectRatio;
+
+      const binaries = await generateImageFromReference({
+        instruction: prompt,
+        imageUrls: [dataUrl],
+        aspectRatio: targetRatio,
+        model: config.imageModel ?? undefined,
+      });
+
+      const binary = binaries[0];
+      const pngBuffer = await sharp(binary.buffer).png().toBuffer();
+      const saved = await saveImageBuffer({
+        projectId,
+        imageId: image.id,
+        buffer: pngBuffer,
+        extension: "png",
+      });
+
+      db.update(generatedImages)
+        .set({
+          filePath: saved.filePath,
+          fileUrl: saved.fileUrl,
+          status: "done",
+          updatedAt: Date.now(),
+        })
+        .where(eq(generatedImages.id, image.id))
+        .run();
+      finishGenerationRun(runId, { status: "done" });
+      return;
+    }
+
+    // 常规候选图重新生成：复用 prompt 快照
     const copy = db.select().from(copies).where(eq(copies.id, config.copyId)).get();
 
     if (!copy) {
       throw new Error("文案不存在");
     }
 
-    let slotPromptPayload: unknown = null;
-    if (image.slotPromptSnapshot) {
-      try {
-        slotPromptPayload = JSON.parse(image.slotPromptSnapshot);
-      } catch {
-        slotPromptPayload = null;
-      }
+    if (!image.finalPromptText) {
+      throw new Error("当前图片缺少最终提示词快照，旧版图片请重新生成候选图");
     }
 
-    const promptEn = slotPromptPayload
-      ? buildImagePrompt({
-          directionTitle: direction.title,
-          scenarioProblem: direction.scenarioProblem,
-          copyTitleMain: copy.titleMain,
-          copyTitleSub: copy.titleSub,
-          copyTitleExtra: copy.titleExtra,
-          aspectRatio: group?.aspectRatio ?? config.aspectRatio,
-          styleMode: group?.styleMode ?? config.styleMode,
-          imageStyle: group?.imageStyle ?? config.imageStyle,
-          ipRole: config.ipRole,
-          ipDescription: ipMetadata?.description ?? null,
-          ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-          logo: group?.logo ?? config.logo ?? "none",
-          imageForm: direction.imageForm ?? "single",
-          referenceImageUrl: group?.referenceImageUrl ?? config.referenceImageUrl,
-          channel: direction.channel,
-          ctaEnabled: config.ctaEnabled === 1,
-          ctaText: config.ctaText,
-          descriptionPayload: slotPromptPayload as never,
-        })
-      : group?.promptEn || config.promptEn || buildImagePrompt({
-          directionTitle: direction.title,
-          scenarioProblem: direction.scenarioProblem,
-          copyTitleMain: copy.titleMain,
-          copyTitleSub: copy.titleSub,
-          copyTitleExtra: copy.titleExtra,
-          aspectRatio: group?.aspectRatio ?? config.aspectRatio,
-          styleMode: group?.styleMode ?? config.styleMode,
-          imageStyle: group?.imageStyle ?? config.imageStyle,
-          ipRole: config.ipRole,
-          ipDescription: ipMetadata?.description ?? null,
-          ipPromptKeywords: ipMetadata?.promptKeywords ?? null,
-          logo: group?.logo ?? config.logo ?? "none",
-          imageForm: direction.imageForm ?? "single",
-          referenceImageUrl: group?.referenceImageUrl ?? config.referenceImageUrl,
-          channel: direction.channel,
-          ctaEnabled: config.ctaEnabled === 1,
-          ctaText: config.ctaText,
-          descriptionPayload: group?.promptZh ?? config.promptZh ?? undefined,
-        });
+    const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
 
     const referenceImageUrls = [
       group?.referenceImageUrl ?? config.referenceImageUrl ?? null,
-      (group?.logo ?? config.logo) && (group?.logo ?? config.logo) !== "none"
-        ? await readLogoAssetAsDataUrl((group?.logo ?? config.logo) as "onion" | "onion_app")
-        : null,
     ].filter(Boolean) as string[];
 
-    const fullPrompt = promptEn;
+    const fullPrompt = image.finalPromptText;
     const binaries = referenceImageUrls.length > 0
       ? await generateImageFromReference({
           instruction: fullPrompt,
           imageUrls: referenceImageUrls,
           aspectRatio: group?.aspectRatio ?? config.aspectRatio,
+          model: config.imageModel ?? undefined,
         })
       : await generateImageFromPrompt(fullPrompt, {
           aspectRatio: group?.aspectRatio ?? config.aspectRatio,
+          model: config.imageModel ?? undefined,
         });
 
     const binary = binaries[0];
-    const pngBuffer = await sharp(binary.buffer).png().toBuffer();
+    let pngBuffer = await sharp(binary.buffer).png().toBuffer();
+    const outputLogo = group?.logo ?? config.logo;
+    if (outputLogo && outputLogo !== "none") {
+      pngBuffer = await applyFixedLogoOverlay({
+        buffer: pngBuffer,
+        logoPath: getLogoAssetPath(outputLogo as "onion" | "onion_app"),
+      });
+    }
     const saved = await saveImageBuffer({
       projectId,
       imageId: image.id,

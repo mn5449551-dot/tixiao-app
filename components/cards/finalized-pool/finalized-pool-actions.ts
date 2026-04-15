@@ -9,9 +9,10 @@ export async function generateFinalizedVariants(input: {
   selectedGroupIds: string[];
   selectedChannels: string[];
   slotNames: string[];
+  imageModel: string;
 }) {
   try {
-    const payload = await apiFetch<{ groups?: Array<{ id: string }> }>(
+    const payload = await apiFetch<{ groups?: Array<{ id: string }>; skipped_slots?: string[] }>(
       `/api/projects/${input.projectId}/finalized/variants`,
       {
         method: "POST",
@@ -19,6 +20,7 @@ export async function generateFinalizedVariants(input: {
           target_group_ids: input.selectedGroupIds,
           target_channels: input.selectedChannels,
           target_slots: input.slotNames,
+          image_model: input.imageModel,
         },
       },
     );
@@ -27,12 +29,14 @@ export async function generateFinalizedVariants(input: {
       ok: true,
       error: null as string | null,
       groups: payload.groups ?? [],
+      skippedSlots: payload.skipped_slots ?? [],
     };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof ApiError ? error.message : "生成适配版本失败",
       groups: [],
+      skippedSlots: [],
     };
   }
 }

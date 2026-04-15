@@ -39,6 +39,7 @@ export function buildImageConfigNode(input: {
       initialAspectRatio: config.aspectRatio,
       initialStyleMode: config.styleMode,
       initialImageStyle: config.imageStyle,
+      initialImageModel: config.imageModel ?? null,
       initialCount: config.count,
       initialLogo: config.logo ?? undefined,
       initialIpRole: config.ipRole,
@@ -73,6 +74,7 @@ export function buildCandidatePoolNode(input: {
           slotIndex: img.slotIndex,
           aspectRatio: group.aspectRatio ?? config.aspectRatio,
           updatedAt: img.updatedAt,
+          inpaintParentId: img.inpaintParentId ?? null,
         })),
     }));
 
@@ -106,6 +108,7 @@ export function buildCandidatePoolNode(input: {
           groupLabel: `${candidateGroups.length} 组`,
           status: poolStatus,
           imageConfigId: config.id,
+          imageModel: config.imageModel ?? null,
         },
       } satisfies Node<GraphNodeData, GraphNodeType>)
     : null;
@@ -122,6 +125,7 @@ export function buildFinalizedPoolNode(input: {
   copy: WorkspaceData["directions"][number]["copyCards"][number]["copies"][number];
   configY: number;
   projectId: string;
+  imageModel?: string | null;
 }) {
   const { copy, configY, projectId } = input;
   const config = copy.imageConfig!;
@@ -164,6 +168,7 @@ export function buildFinalizedPoolNode(input: {
               ? `${confirmedGroups.reduce((sum, group) => sum + group.images.length, 0)} 张已定稿`
               : `${confirmedGroups.length} 套已定稿`,
           projectId,
+          defaultImageModel: input.imageModel ?? null,
         },
       } satisfies Node<GraphNodeData, GraphNodeType>)
     : null;

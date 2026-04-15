@@ -57,6 +57,7 @@ export type GraphNodeData =
       initialAspectRatio?: string;
       initialStyleMode?: string;
       initialImageStyle?: string;
+      initialImageModel?: string | null;
       initialCount?: number;
       initialLogo?: string;
       initialIpRole?: string | null;
@@ -81,11 +82,13 @@ export type GraphNodeData =
           slotIndex: number;
           aspectRatio?: string;
           updatedAt?: number;
+          inpaintParentId?: string | null;
         }>;
       }>;
       groupLabel?: string;
       status?: string;
       imageConfigId?: string;
+      imageModel?: string | null;
     }
   | {
       displayMode: "single" | "double" | "triple";
@@ -108,6 +111,7 @@ export type GraphNodeData =
       }>;
       groupLabel?: string;
       projectId?: string;
+      defaultImageModel?: string | null;
     };
 
 export type GraphNodeType =

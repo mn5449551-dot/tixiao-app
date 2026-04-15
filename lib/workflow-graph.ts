@@ -105,6 +105,7 @@ export function buildGraph(workspace: WorkspaceData) {
         id: d.id,
         title: d.title,
         targetAudience: toStr(d.targetAudience),
+        adaptationStage: toStr(d.adaptationStage),
         scenarioProblem: toStr(d.scenarioProblem),
         differentiation: toStr(d.differentiation),
         effect: toStr(d.effect),
@@ -191,6 +192,7 @@ export function buildGraph(workspace: WorkspaceData) {
           copy,
           configY,
           projectId: workspace.project.id,
+          imageModel: copy.imageConfig?.imageModel ?? null,
         });
         if (finalizedPool.hasConfirmedGroups && finalizedPool.node) {
           nodes.push(finalizedPool.node);

@@ -137,7 +137,7 @@ export function WorkflowCanvas({
   }, [onInvalidate]);
 
   return (
-    <div className="relative h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.94),rgba(247,243,239,0.98))]">
+    <div className="relative h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(253,252,252,0.98))]">
       <ReactFlow
         fitView
         edges={edges}
@@ -155,7 +155,7 @@ export function WorkflowCanvas({
         minZoom={0.2}
         maxZoom={2.5}
       >
-        <Background color="rgba(226, 213, 203, 0.55)" gap={20} size={1} />
+        <Background color="rgba(226, 213, 203, 0.35)" gap={20} size={1} />
         <Controls className="!rounded-2xl !border !border-[var(--line-soft)] !bg-white !shadow-[var(--shadow-card)]" />
         <CanvasEventBridge
           allNodes={canvasNodes}
@@ -225,7 +225,7 @@ function AutoLayoutToolbar({
       <button
         type="button"
         onClick={handleAutoLayout}
-        className="rounded-xl border border-[var(--line-soft)] bg-white px-3 py-1.5 text-xs text-[var(--ink-700)] shadow-[var(--shadow-card)] transition hover:bg-[var(--surface-1)]"
+        className="rounded-xl border border-[var(--line-soft)] bg-white px-3 py-2 text-xs text-[var(--ink-700)] shadow-[var(--shadow-card)] transition-all duration-300 hover:bg-[var(--surface-1)] hover:shadow-[var(--shadow-card-hover)]"
       >
         一键整理
       </button>

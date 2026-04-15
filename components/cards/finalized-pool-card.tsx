@@ -15,12 +15,14 @@ import {
   generateFinalizedVariants,
 } from "@/components/cards/finalized-pool/finalized-pool-actions";
 import { FinalizedPreviewCard } from "@/components/cards/finalized-pool/finalized-preview-card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Select } from "@/components/ui/field";
 import {
   classifyExportAdaptation,
   EXPORT_SLOT_SPECS,
   type ExportSlotSpec,
+  isSpecialRatio,
 } from "@/lib/export/utils";
+import { IMAGE_MODELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
@@ -53,6 +55,7 @@ export type FinalizedPoolCardData = {
   groups: FinalizedGroup[];
   groupLabel?: string;
   projectId?: string;
+  defaultImageModel?: string | null;
 };
 
 export type FinalizedPoolCardNode = Node<FinalizedPoolCardData, "finalizedPool">;
@@ -75,26 +78,33 @@ export function FinalizedPoolCard({
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [fileFormat, setFileFormat] = useState<"jpg" | "png" | "webp">("jpg");
-  const [namingRule, setNamingRule] = useState("channel_slot_date_version");
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [actionLoadingGroupId, setActionLoadingGroupId] = useState<string | null>(null);
+  const [regeneratingImageId, setRegeneratingImageId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<FinalizedImage | null>(null);
+  const [imageModel, setImageModel] = useState<string>(data.defaultImageModel ?? IMAGE_MODELS[0]?.value ?? "doubao-seedream-4-0");
 
   const confirmedImages = useMemo(() => groups.flatMap((group) => group.images), [groups]);
+  const selectedGroups = useMemo(() => groups.filter((g) => selectedGroupIds.has(g.id)), [groups, selectedGroupIds]);
+  const selectedImages = useMemo(() => selectedGroups.flatMap((g) => g.images), [selectedGroups]);
   const availableSlots = useMemo(() => getSlotsForChannels(selectedChannels), [selectedChannels]);
   const selectedSlotSpecs = useMemo(
     () => availableSlots.filter((slot) => selectedSlots.includes(slot.slotName)),
     [availableSlots, selectedSlots],
+  );
+  const exportableSlotSpecs = useMemo(
+    () => selectedSlotSpecs.filter((slot) => !isSpecialRatio(slot.ratio)),
+    [selectedSlotSpecs],
   );
   const adaptationSummary = useMemo(() => {
     let direct = 0;
     let transform = 0;
     let postprocess = 0;
 
-    for (const slot of selectedSlotSpecs) {
-      for (const image of confirmedImages) {
+    for (const slot of exportableSlotSpecs) {
+      for (const image of selectedImages) {
         const mode = classifyExportAdaptation(image.aspectRatio, slot.ratio);
         if (mode === "direct") direct += 1;
         else if (mode === "transform") transform += 1;
@@ -103,7 +113,7 @@ export function FinalizedPoolCard({
     }
 
     return { direct, transform, postprocess };
-  }, [confirmedImages, selectedSlotSpecs]);
+  }, [selectedImages, exportableSlotSpecs]);
 
   const toggleChannel = useCallback((channel: string) => {
     setSelectedChannels((prev) =>
@@ -118,7 +128,7 @@ export function FinalizedPoolCard({
     );
   }, []);
 
-  const exportCount = displayMode === "single" ? confirmedImages.length : groups.length;
+  const exportCount = displayMode === "single" ? selectedImages.length : selectedGroups.length;
   const selectedGroupCount = selectedGroupIds.size;
 
   const toggleGroupSelection = useCallback((groupId: string) => {
@@ -136,6 +146,24 @@ export function FinalizedPoolCard({
       return new Set(groups.map((group) => group.id));
     });
   }, [groups]);
+
+  const handleRegenerateImage = useCallback(async (image: FinalizedImage) => {
+    if (!image.id || regeneratingImageId) return;
+    setRegeneratingImageId(image.id);
+    try {
+      const res = await fetch(`/api/images/${image.id}`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setFeedback(data.error ?? "重新生成失败");
+        return;
+      }
+      dispatchWorkspaceInvalidated();
+    } catch {
+      setFeedback("重新生成失败");
+    } finally {
+      setRegeneratingImageId(null);
+    }
+  }, [regeneratingImageId]);
 
   return (
     <div
@@ -174,7 +202,7 @@ export function FinalizedPoolCard({
         </div>
       ) : null}
 
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2">
         <Button variant="secondary" onClick={toggleSelectAllGroups} className="shrink-0 text-xs">
           {selectedGroupIds.size === groups.length ? "全不选" : "全选"}
         </Button>
@@ -220,7 +248,15 @@ export function FinalizedPoolCard({
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {group.images.map((image) => (
-                    <FinalizedPreviewCard key={image.id} image={image} onPreview={setPreviewImage} />
+                    <FinalizedPreviewCard
+                      key={image.id}
+                      image={image}
+                      onPreview={setPreviewImage}
+                      {...(isDerivedGroup(group) ? {
+                        onRegenerate: handleRegenerateImage,
+                        isRegenerating: regeneratingImageId === image.id,
+                      } : {})}
+                    />
                   ))}
                 </div>
                 {isDerivedGroup(group) ? (
@@ -284,7 +320,16 @@ export function FinalizedPoolCard({
                 </div>
                 <div className={cn("grid gap-2", displayMode === "double" ? "grid-cols-2" : "grid-cols-3")}>
                   {group.images.map((image) => (
-                    <FinalizedPreviewCard key={image.id} image={image} compact onPreview={setPreviewImage} />
+                    <FinalizedPreviewCard
+                      key={image.id}
+                      image={image}
+                      compact
+                      onPreview={setPreviewImage}
+                      {...(isDerivedGroup(group) ? {
+                        onRegenerate: handleRegenerateImage,
+                        isRegenerating: regeneratingImageId === image.id,
+                      } : {})}
+                    />
                   ))}
                 </div>
                 {isDerivedGroup(group) ? (
@@ -345,21 +390,30 @@ export function FinalizedPoolCard({
           <div className="space-y-2">
             {availableSlots.map((slot) => {
               const active = selectedSlots.includes(slot.slotName);
+              const isSpecial = isSpecialRatio(slot.ratio);
               const slotModes = confirmedImages.map((image) => classifyExportAdaptation(image.aspectRatio, slot.ratio));
               const hasPostprocess = slotModes.includes("postprocess");
               const hasTransform = slotModes.includes("transform");
-              const statusLabel = hasPostprocess ? "需后处理" : hasTransform ? "需适配" : "可直接导出";
+              const statusLabel = isSpecial
+                ? "暂不支持"
+                : hasPostprocess
+                  ? "需后处理"
+                  : hasTransform
+                    ? "需适配"
+                    : "可直接导出";
               return (
                 <button
                   key={`${slot.channel}-${slot.slotName}`}
                   type="button"
                   className={cn(
                     "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs transition",
-                    active
-                      ? "bg-[var(--brand-50)] text-[var(--brand-700)]"
-                      : "bg-white text-[var(--ink-600)]",
+                    isSpecial
+                      ? "cursor-not-allowed bg-[var(--surface-2)] text-[var(--ink-400)] opacity-60"
+                      : active
+                        ? "bg-[var(--brand-50)] text-[var(--brand-700)]"
+                        : "bg-white text-[var(--ink-600)]",
                   )}
-                  onClick={() => toggleSlot(slot.slotName)}
+                  onClick={() => { if (!isSpecial) toggleSlot(slot.slotName); }}
                 >
                   <span className="font-medium">{slot.channel} · {slot.slotName}</span>
                   <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio} · {slot.size} · {statusLabel}</span>
@@ -373,14 +427,14 @@ export function FinalizedPoolCard({
       <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">导出预览</p>
         <p className="text-xs text-[var(--ink-500)]">
-          将导出 {exportCount} {displayMode === "single" ? "张" : "套"} × {selectedSlotSpecs.length} 个版位
+          将导出 {exportCount} {displayMode === "single" ? "张" : "套"} × {exportableSlotSpecs.length} 个版位
         </p>
         <p className="mt-2 text-xs text-[var(--ink-500)]">
           直接导出 {adaptationSummary.direct}，需适配 {adaptationSummary.transform}，需后处理 {adaptationSummary.postprocess}
         </p>
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <Field label="文件格式">
           <Select value={fileFormat} onChange={(event) => setFileFormat(event.target.value as "jpg" | "png" | "webp")}>
             <option value="jpg">JPG</option>
@@ -388,20 +442,20 @@ export function FinalizedPoolCard({
             <option value="webp">WEBP</option>
           </Select>
         </Field>
-        <Field label="命名规则">
-          <Input
-            value={namingRule}
-            onChange={(event) => setNamingRule(event.target.value)}
-            placeholder="channel_slot_date_version"
-          />
-        </Field>
       </div>
 
       <div className="mb-3 flex items-center gap-2">
+        <Select value={imageModel} onChange={(e) => setImageModel(e.target.value)} className="h-8 text-xs">
+          {IMAGE_MODELS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </Select>
         <Button
           variant="secondary"
           className="shrink-0 text-xs"
-          disabled={isGeneratingVariants || selectedSlotSpecs.length === 0 || selectedGroupIds.size === 0 || !projectId}
+          disabled={isGeneratingVariants || exportableSlotSpecs.length === 0 || selectedGroupIds.size === 0 || !projectId}
           onClick={async () => {
             if (!projectId) return;
             setIsGeneratingVariants(true);
@@ -412,16 +466,19 @@ export function FinalizedPoolCard({
                 selectedGroupIds: [...selectedGroupIds],
                 selectedChannels,
                 slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
+                imageModel,
               });
               if (!result.ok) {
                 setFeedback(result.error ?? "生成适配版本失败");
                 return;
               }
-              if (result.groups.length === 0) {
+              if (result.skippedSlots.length > 0) {
+                setFeedback(`以下版位暂不支持，功能开发中：${result.skippedSlots.join("、")}${result.groups.length > 0 ? `。已生成 ${result.groups.length} 个适配版本。` : ""}`);
+              } else if (result.groups.length === 0) {
                 setFeedback("当前选中版位都可直接导出，无需生成适配版本。");
-                return;
+              } else {
+                setFeedback(`已生成 ${result.groups.length} 个适配版本。`);
               }
-              setFeedback(`已生成 ${result.groups.length} 个适配版本。`);
               dispatchWorkspaceInvalidated();
             } finally {
               setIsGeneratingVariants(false);
@@ -434,9 +491,20 @@ export function FinalizedPoolCard({
 
       <Button
         variant="primary"
-        className="w-full text-xs"
+        className="w-full py-3.5 text-sm font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
         onClick={async () => {
           if (selectedGroupIds.size === 0 || selectedChannels.length === 0 || !projectId) return;
+
+          // 检查是否有比例不匹配的版位需要先生成适配版本
+          const unadaptedSlots = exportableSlotSpecs.filter((slot) => {
+            return selectedImages.some((image) => classifyExportAdaptation(image.aspectRatio, slot.ratio) !== "direct");
+          });
+          if (unadaptedSlots.length > 0) {
+            const slotNames = unadaptedSlots.map((s) => `${s.slotName}(${s.ratio})`).join("、");
+            setFeedback(`以下版位比例与原图不匹配，请先生成适配版本：${slotNames}`);
+            return;
+          }
+
           setIsExporting(true);
           setFeedback(null);
           try {
@@ -444,9 +512,9 @@ export function FinalizedPoolCard({
               projectId,
               selectedGroupIds: [...selectedGroupIds],
               selectedChannels,
-              slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
+              slotNames: exportableSlotSpecs.map((slot) => slot.slotName),
               fileFormat,
-              namingRule,
+              namingRule: "channel_slot_date_version",
             });
             if (!result.ok) {
               setFeedback(result.error ?? "导出失败");
@@ -457,7 +525,7 @@ export function FinalizedPoolCard({
             setIsExporting(false);
           }
         }}
-        disabled={isExporting || selectedGroupIds.size === 0 || selectedChannels.length === 0 || selectedSlotSpecs.length === 0}
+        disabled={isExporting || selectedGroupIds.size === 0 || selectedChannels.length === 0 || exportableSlotSpecs.length === 0}
       >
         {isExporting ? "导出中..." : "确认导出"}
       </Button>

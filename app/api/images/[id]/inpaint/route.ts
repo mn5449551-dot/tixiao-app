@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
 
+import { editImage } from "@/lib/ai/image-chat";
 import { getDb } from "@/lib/db";
 import {
   finishGenerationRun,
@@ -23,14 +24,15 @@ export async function POST(
     const { id } = (await context.params) as { id: string };
     const body = await request.json();
 
-    const { mask_data_url, inpaint_instruction } = body as {
-      mask_data_url: string;
+    const { mask_data_url, inpaint_instruction, image_model } = body as {
+      mask_data_url?: string;
       inpaint_instruction: string;
+      image_model?: string;
     };
 
-    if (!mask_data_url || !inpaint_instruction?.trim()) {
+    if (!inpaint_instruction?.trim()) {
       return NextResponse.json(
-        { error: "缺少必要参数：mask_data_url 和 inpaint_instruction" },
+        { error: "缺少必要参数：inpaint_instruction" },
         { status: 400 },
       );
     }
@@ -46,13 +48,11 @@ export async function POST(
       return NextResponse.json({ error: "图片不存在" }, { status: 404 });
     }
 
-    // Get config for projectId
     const config = db.select().from(imageConfigs).where(eq(imageConfigs.id, image.imageConfigId)).get();
     if (!config) {
       return NextResponse.json({ error: "图片配置不存在" }, { status: 422 });
     }
 
-    // Get direction to derive projectId
     const direction = db.select().from(directions).where(eq(directions.id, config.directionId)).get();
     if (!direction) {
       return NextResponse.json({ error: "方向不存在" }, { status: 422 });
@@ -65,7 +65,6 @@ export async function POST(
       resourceId: image.id,
     }).id;
 
-    // Create a new image record for the inpaint result
     const newImageId = `img_inp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     db.insert(generatedImages).values({
@@ -80,14 +79,16 @@ export async function POST(
     }).run();
 
     const activeRunId = runId;
+    const resolvedModel = image_model ?? config.imageModel ?? undefined;
     after(async () => {
       await processInpaintInBackground({
         runId: activeRunId,
         imageId: newImageId,
         projectId: direction.projectId,
         imageUrl: image.fileUrl!,
-        maskDataUrl: mask_data_url,
+        maskDataUrl: mask_data_url ?? null,
         instruction: inpaint_instruction,
+        model: resolvedModel,
       });
     });
 
@@ -140,17 +141,19 @@ async function processInpaintInBackground(input: {
   imageId: string;
   projectId: string;
   imageUrl: string;
-  maskDataUrl: string;
+  maskDataUrl: string | null;
   instruction: string;
+  model?: string;
 }) {
   const db = getDb();
-  const { runId, imageId, projectId, imageUrl, maskDataUrl, instruction } = input;
+  const { runId, imageId, projectId, imageUrl, maskDataUrl, instruction, model } = input;
 
   try {
     const result = await callInpaintApi({
       imageUrl,
       maskDataUrl,
       instruction,
+      model,
     });
 
     const pngBuffer = await sharp(result.buffer).png().toBuffer();
@@ -181,16 +184,17 @@ async function processInpaintInBackground(input: {
   }
 }
 
-/**
- * Call the actual inpaint API.
- * This is a placeholder that needs real API integration.
- * When ready, implement this in lib/ai/image-chat.ts or similar.
- */
 async function callInpaintApi(input: {
   imageUrl: string;
-  maskDataUrl: string;
+  maskDataUrl: string | null;
   instruction: string;
+  model?: string;
 }): Promise<{ buffer: Buffer }> {
-  void input;
-  throw new Error("Inpaint API not configured — implement callInpaintApi() to connect to your image generation service with inpaint mode");
+  const result = await editImage({
+    prompt: input.instruction,
+    imageUrl: input.imageUrl,
+    model: input.model,
+    maskDataUrl: input.maskDataUrl ?? undefined,
+  });
+  return { buffer: result[0].buffer };
 }

@@ -19,6 +19,7 @@ import { CandidateGroupCard } from "@/components/cards/candidate-pool/candidate-
 import { CandidateImageCard } from "@/components/cards/candidate-pool/candidate-image-card";
 import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
+import { IMAGE_MODELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
@@ -39,6 +40,7 @@ export type CandidateImage = {
   slotIndex: number;
   aspectRatio?: string;
   updatedAt?: number;
+  inpaintParentId?: string | null;
 };
 
 export type CandidateGroup = {
@@ -58,6 +60,7 @@ export type CandidatePoolCardData = {
   groupLabel?: string;
   status?: CardStatus;
   imageConfigId?: string;
+  imageModel?: string | null;
 };
 
 export type CandidatePoolCardNode = Node<CandidatePoolCardData, "candidatePool">;
@@ -66,7 +69,8 @@ export function CandidatePoolCard({
   data,
   selected,
 }: NodeProps<CandidatePoolCardNode>) {
-  const { displayMode, groups, groupLabel, status = "idle" } = data;
+  const { displayMode, groups, groupLabel, status = "idle", imageModel } = data;
+  const modelLabel = imageModel ? (IMAGE_MODELS.find((m) => m.value === imageModel)?.label ?? imageModel) : null;
   const latestVariantIndex = Math.max(...groups.map((group) => group.variantIndex), 0);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -146,12 +150,24 @@ export function CandidatePoolCard({
     }
   }, []);
 
-  const handleConfirmGroup = useCallback(async (groupId: string, confirmed: boolean, targetNodeId?: string) => {
+  const handleDiscardInpaint = useCallback(async (imageId: string) => {
+    try {
+      setActionError(null);
+      setActionLoading(imageId);
+      await deleteCandidateImage(imageId);
+      dispatchWorkspaceInvalidated();
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "放弃重绘失败");
+    } finally {
+      setActionLoading(null);
+    }
+  }, []);
+
+  const handleConfirmGroup = useCallback(async (groupId: string, confirmed: boolean) => {
     try {
       setActionError(null);
       setActionLoading(groupId);
       await confirmCandidateGroup(groupId, confirmed);
-      void targetNodeId;
       dispatchWorkspaceInvalidated();
     } catch (error) {
       setActionError(error instanceof ApiError ? error.message : "更新定稿状态失败");
@@ -169,7 +185,7 @@ export function CandidatePoolCard({
       style={{ width: 440, maxWidth: '100%' } satisfies CSSProperties}
     >
       <div className={cn(
-        "absolute inset-x-0 top-0 h-[4px]",
+        "absolute inset-x-0 top-0 h-1.5",
         isError ? "bg-[#c0392b]" : isPartialSuccess ? "bg-[var(--brand-400)]" : "bg-[var(--brand-500)]",
       )} />
 
@@ -220,10 +236,11 @@ export function CandidatePoolCard({
                   onInpaint={setInpaintImageId}
                   onRegenerate={handleRegenerateImage}
                   onDelete={handleDeleteImage}
+                  onDiscardInpaint={handleDiscardInpaint}
                   footer={
                     <>
                       <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
-                        <span>第 {group.variantIndex} 组</span>
+                        <span>第 {group.variantIndex} 组{modelLabel ? ` · ${modelLabel}` : ""}</span>
                         <span>{group.isConfirmed ? "已定稿" : "候选中"}</span>
                       </div>
                       <Button
@@ -233,7 +250,6 @@ export function CandidatePoolCard({
                           handleConfirmGroup(
                             group.id,
                             !group.isConfirmed,
-                            data.imageConfigId ? `finalized-${data.imageConfigId}` : undefined,
                           )
                         }
                         disabled={img.status !== "done"}
@@ -251,16 +267,17 @@ export function CandidatePoolCard({
                 group={group}
                 displayMode={displayMode}
                 isLatest={group.variantIndex === latestVariantIndex}
+                modelLabel={modelLabel}
                 loadingKey={actionLoading}
                 onPreview={setPreviewImageId}
                 onInpaint={setInpaintImageId}
                 onRegenerate={handleRegenerateImage}
                 onDeleteGroup={handleDeleteGroup}
+                onDiscardInpaint={handleDiscardInpaint}
                 onConfirmGroup={() =>
                   handleConfirmGroup(
                     group.id,
                     !group.isConfirmed,
-                    data.imageConfigId ? `finalized-${data.imageConfigId}` : undefined,
                   )
                 }
               />
@@ -268,7 +285,7 @@ export function CandidatePoolCard({
       </div>
 
       {displayMode === "single" ? (
-        <div className="flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2.5">
           <Button variant="secondary" onClick={toggleSelectAll} className="shrink-0 text-xs">
             {selectedIds.size === doneCount ? "全不选" : "全选"}
           </Button>
@@ -280,7 +297,9 @@ export function CandidatePoolCard({
 
       {inpaintImageId && (
         <InpaintModal
+          imageId={inpaintImageId}
           imageUrl={images.find((img) => img.id === inpaintImageId)?.fileUrl ?? null}
+          imageModel={imageModel}
           onClose={() => setInpaintImageId(null)}
         />
       )}
