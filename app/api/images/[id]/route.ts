@@ -11,10 +11,8 @@ import {
   startGenerationRun,
 } from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
-import { getLogoAssetPath } from "@/lib/logo-assets";
 import { generatedImages, imageConfigs, directions, copies, imageGroups } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
-import { applyFixedLogoOverlay } from "@/lib/storage";
 import sharp from "sharp";
 
 export async function GET(
@@ -291,13 +289,6 @@ async function regenerateSingleImage(input: {
 
     const binary = binaries[0];
     let pngBuffer = await sharp(binary.buffer).png().toBuffer();
-    const outputLogo = group?.logo ?? config.logo;
-    if (outputLogo && outputLogo !== "none") {
-      pngBuffer = await applyFixedLogoOverlay({
-        buffer: pngBuffer,
-        logoPath: getLogoAssetPath(outputLogo as "onion" | "onion_app"),
-      });
-    }
     const saved = await saveImageBuffer({
       projectId,
       imageId: image.id,

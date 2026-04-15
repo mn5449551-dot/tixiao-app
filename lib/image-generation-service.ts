@@ -9,9 +9,8 @@ import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/im
 import { getDb } from "@/lib/db";
 import { finishGenerationRun } from "@/lib/generation-runs";
 import { getIpAssetMetadata } from "@/lib/ip-assets";
-import { getLogoAssetPath } from "@/lib/logo-assets";
 import { copies, directions, generatedImages, imageConfigs, imageGroups } from "@/lib/schema";
-import { applyFixedLogoOverlay, saveImageBuffer } from "@/lib/storage";
+import { saveImageBuffer } from "@/lib/storage";
 
 type ImageConfigRecord = typeof imageConfigs.$inferSelect;
 type DirectionRecord = typeof directions.$inferSelect;
@@ -298,12 +297,6 @@ export async function processPreparedImageGeneration(input: {
 
         const binary = binaries[0];
         let pngBuffer = await sharp(binary.buffer).png().toBuffer();
-        if (item.groupLogo && item.groupLogo !== "none") {
-          pngBuffer = await applyFixedLogoOverlay({
-            buffer: pngBuffer,
-            logoPath: getLogoAssetPath(item.groupLogo as "onion" | "onion_app"),
-          });
-        }
         const saved = await saveImageBuffer({
           projectId,
           imageId: item.imageId,
