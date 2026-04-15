@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { createSolidPlaceholder, saveImageBuffer } from "../storage";
 import * as projectData from "../project-data";
 import {
+  createFolder,
   createProject,
   deleteDirection,
   generateFinalizedVariants,
@@ -20,7 +21,7 @@ import {
 } from "../project-data";
 import { getDb } from "../db";
 import { finishGenerationRun, startGenerationRun } from "../generation-runs";
-import { copies, directions, generatedImages, imageConfigs, imageGroups } from "../schema";
+import { copies, directions, generatedImages, imageConfigs, imageGroups, projectFolders, projects } from "../schema";
 import { getStorageRoot } from "../storage";
 
 // NOTE: generateDirections and generateCopyCard have been removed.
@@ -78,6 +79,46 @@ test("deleteProject removes project-scoped image and export directories under .l
   assert.equal(deleted, true);
   assert.equal(fsSync.existsSync(imageDir), false);
   assert.equal(fsSync.existsSync(exportDir), false);
+});
+
+test("deleteFolder removes child projects and their project-scoped files instead of uncategorizing them", async () => {
+  const folder = createFolder(`delete-folder-${Date.now()}`);
+  assert.ok(folder);
+
+  const projectA = createProject(`folder-project-a-${Date.now()}`, folder!.id);
+  const projectB = createProject(`folder-project-b-${Date.now()}`, folder!.id);
+  assert.ok(projectA);
+  assert.ok(projectB);
+
+  const storageRoot = getStorageRoot();
+  const projectADirs = {
+    image: path.join(storageRoot, "images", projectA!.id),
+    export: path.join(storageRoot, "exports", projectA!.id),
+  };
+  const projectBDirs = {
+    image: path.join(storageRoot, "images", projectB!.id),
+    export: path.join(storageRoot, "exports", projectB!.id),
+  };
+
+  for (const dir of [projectADirs.image, projectADirs.export, projectBDirs.image, projectBDirs.export]) {
+    await fs.mkdir(dir, { recursive: true });
+  }
+
+  await fs.writeFile(path.join(projectADirs.image, "img_demo.png"), "demo");
+  await fs.writeFile(path.join(projectADirs.export, "export_demo.zip"), "demo");
+  await fs.writeFile(path.join(projectBDirs.image, "img_demo.png"), "demo");
+  await fs.writeFile(path.join(projectBDirs.export, "export_demo.zip"), "demo");
+
+  await projectData.deleteFolder(folder!.id);
+
+  const db = getDb();
+  assert.equal(db.select().from(projectFolders).where(eq(projectFolders.id, folder!.id)).get(), undefined);
+  assert.equal(db.select().from(projects).where(eq(projects.id, projectA!.id)).get(), undefined);
+  assert.equal(db.select().from(projects).where(eq(projects.id, projectB!.id)).get(), undefined);
+  assert.equal(fsSync.existsSync(projectADirs.image), false);
+  assert.equal(fsSync.existsSync(projectADirs.export), false);
+  assert.equal(fsSync.existsSync(projectBDirs.image), false);
+  assert.equal(fsSync.existsSync(projectBDirs.export), false);
 });
 
 test.skip("getCanvasData marks the direction card loading while a direction generation run is active", async () => {
