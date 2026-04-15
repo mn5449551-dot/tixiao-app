@@ -298,6 +298,14 @@ function bootstrap(connection: Database.Database) {
     connection.exec("ALTER TABLE generated_images ADD COLUMN generation_request_json TEXT;");
   }
 
+  if (!generatedImageColumns.some((column) => column.name === "thumbnail_path")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN thumbnail_path TEXT;");
+  }
+
+  if (!generatedImageColumns.some((column) => column.name === "thumbnail_url")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN thumbnail_url TEXT;");
+  }
+
   const exportRecordColumns = connection
     .prepare("PRAGMA table_info(export_records)")
     .all() as Array<{ name: string }>;

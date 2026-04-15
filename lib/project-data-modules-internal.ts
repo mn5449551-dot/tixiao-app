@@ -1274,6 +1274,8 @@ export async function generateFinalizedVariants(
                   .set({
                     filePath: result.value.saved.filePath,
                     fileUrl: result.value.saved.fileUrl,
+                    thumbnailPath: result.value.saved.thumbnailPath,
+                    thumbnailUrl: result.value.saved.thumbnailUrl,
                     status: "done",
                     finalPromptText: result.value.prompt,
                     updatedAt: Date.now(),

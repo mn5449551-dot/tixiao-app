@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
-
 import { toCssAspectRatio } from "@/lib/utils";
+
+import { LazyImage } from "@/components/ui/lazy-image";
 
 import type { FinalizedImage } from "@/components/cards/finalized-pool-card";
 
@@ -28,7 +28,7 @@ export function FinalizedPreviewCard({
         onClick={() => onPreview(image)}
       >
         {image.fileUrl ? (
-          <Image src={image.fileUrl} alt="定稿预览" fill sizes="200px" className="object-contain" />
+          <LazyImage src={image.thumbnailUrl || image.fileUrl} alt="定稿预览" fill sizes="200px" className="object-contain" />
         ) : null}
       </button>
       <div className="mt-1.5">

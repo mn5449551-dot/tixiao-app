@@ -317,6 +317,8 @@ export async function processPreparedImageGeneration(input: {
           .set({
             filePath: result.value.saved.filePath,
             fileUrl: result.value.saved.fileUrl,
+            thumbnailPath: result.value.saved.thumbnailPath,
+            thumbnailUrl: result.value.saved.thumbnailUrl,
             status: "done",
             updatedAt: Date.now(),
           })

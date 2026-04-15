@@ -37,6 +37,7 @@ export const EXPORT_CHANNELS = ["OPPO", "VIVO", "小米", "荣耀"] as const;
 export type FinalizedImage = {
   id: string;
   fileUrl: string | null;
+  thumbnailUrl?: string | null;
   aspectRatio: string;
   groupLabel?: string;
   isConfirmed: boolean;

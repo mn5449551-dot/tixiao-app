@@ -37,6 +37,7 @@ const InpaintModal = dynamic(
 export type CandidateImage = {
   id: string;
   fileUrl: string | null;
+  thumbnailUrl?: string | null;
   status: "pending" | "generating" | "done" | "failed";
   slotIndex: number;
   aspectRatio?: string;

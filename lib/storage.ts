@@ -44,9 +44,18 @@ export async function saveImageBuffer(input: {
     const metadata = await sharp(input.buffer).metadata();
     await fs.writeFile(filePath, input.buffer);
 
+    // Generate thumbnail (webp, 400px wide)
+    const thumbnailPath = path.join(dir, `${input.imageId}_thumb.webp`);
+    await sharp(input.buffer)
+      .resize({ width: 400, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toFile(thumbnailPath);
+
     return {
       filePath,
       fileUrl: `/api/images/${input.imageId}/file`,
+      thumbnailPath,
+      thumbnailUrl: `/api/images/${input.imageId}/thumbnail`,
       width: metadata.width ?? null,
       height: metadata.height ?? null,
       extension,

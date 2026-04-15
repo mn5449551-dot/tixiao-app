@@ -97,6 +97,7 @@ export function buildCandidatePoolNode(input: {
         images: group.images.map((img) => ({
           id: img.id,
           fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),
+          thumbnailUrl: toVersionedFileUrl(img.thumbnailUrl, img.updatedAt),
           status: (img.status as "pending" | "generating" | "done" | "failed") ?? "pending",
           slotIndex: img.slotIndex,
           aspectRatio: group.aspectRatio ?? config.aspectRatio,
@@ -180,6 +181,7 @@ export function buildFinalizedPoolNode(input: {
         .map((img) => ({
           id: img.id,
           fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),
+          thumbnailUrl: toVersionedFileUrl(img.thumbnailUrl, img.updatedAt),
           aspectRatio: getGroupAspectRatio(group.groupType, group.aspectRatio ?? config.aspectRatio ?? "1:1"),
           groupLabel: group.groupType.startsWith("derived|")
             ? `适配 ${getGroupAspectRatio(group.groupType, group.aspectRatio ?? config.aspectRatio ?? "1:1")}`

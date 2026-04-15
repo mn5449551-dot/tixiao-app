@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
-
 import { Button } from "@/components/ui/button";
+import { LazyImage } from "@/components/ui/lazy-image";
 import { toCssAspectRatio } from "@/lib/utils";
 
 import type { CandidateImage } from "@/components/cards/candidate-pool-card";
@@ -47,7 +46,7 @@ export function CandidateImageCard({
         disabled={!isDone}
       >
         {isDone && image.fileUrl ? (
-          <Image src={image.fileUrl} alt={`候选图 ${image.slotIndex}`} fill sizes="240px" className="object-contain" />
+          <LazyImage src={image.thumbnailUrl || image.fileUrl} alt={`候选图 ${image.slotIndex}`} fill sizes="240px" className="object-contain" />
         ) : isGenerating ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2">
             <svg className="h-6 w-6 animate-spin text-[var(--brand-500)]" viewBox="0 0 24 24" fill="none">

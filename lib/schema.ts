@@ -154,6 +154,8 @@ export const generatedImages = sqliteTable("generated_images", {
   finalNegativePrompt: text("final_negative_prompt"),
   generationRequestJson: text("generation_request_json"),
   seed: integer("seed"),
+  thumbnailPath: text("thumbnail_path"),
+  thumbnailUrl: text("thumbnail_url"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
