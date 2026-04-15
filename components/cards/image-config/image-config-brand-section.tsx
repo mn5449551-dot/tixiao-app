@@ -73,7 +73,7 @@ export function ImageConfigBrandSection({
               );
             })}
           </div>
-          <p className="text-xs text-[var(--ink-400)]">（生成阶段会纳入画面，导出阶段不再重复叠加）</p>
+          <p className="text-xs text-[var(--ink-400)]">（导出时叠加至图片固定位置）</p>
         </div>
       ) : null}
 
