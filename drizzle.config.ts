@@ -5,6 +5,6 @@ export default defineConfig({
   schema: "./lib/schema.ts",
   out: "./db/migrations",
   dbCredentials: {
-    url: "./db/onion.db",
+    url: "./.local-data/db/onion.db",
   },
 });

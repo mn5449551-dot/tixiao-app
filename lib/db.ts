@@ -350,6 +350,18 @@ function bootstrap(connection: Database.Database) {
   if (!projectColumns.some((column) => column.name === "folder_id")) {
     connection.exec("ALTER TABLE projects ADD COLUMN folder_id TEXT;");
   }
+
+  if (!directionColumns.some((column) => column.name === "adaptation_stage")) {
+    connection.exec("ALTER TABLE directions ADD COLUMN adaptation_stage TEXT;");
+  }
+
+  connection.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
 }
 
 export function isSqliteDatabaseFile(filePath: string) {
