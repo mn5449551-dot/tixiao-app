@@ -194,13 +194,16 @@ const result = await runRequirementAssistant({
 
 ## 模型配置
 
-- **模型**: Claude (通过 createChatCompletion)
-- **Temperature**: 0.4
+- **模型**: DeepSeek V3（通过 `createChatCompletion`，默认 `deepseek-v3-2-251201`）
 - **Response Format**: JSON Object
+
+## Fallback 机制
+
+当 AI 输出解析失败时，`normalizeAssistantResult` 会尝试修复常见格式问题。如果仍无法解析，`fallbackRequirementAssistant` 会基于用户最后一条消息和已有草稿生成基础回复。
 
 ## 文件位置
 
 - Agent 实现: `lib/ai/agents/assistant-agent.ts`
-- 知识库: `lib/ai/agents/assistant-knowledge.ts`
+- 知识库: `lib/ai/knowledge/assistant-knowledge.ts`
 - 常量定义: `lib/constants.ts`
 - 数据库 Schema: `lib/schema.ts` (requirementCards 表)

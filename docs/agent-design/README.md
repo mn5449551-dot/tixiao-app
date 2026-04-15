@@ -31,6 +31,7 @@ Image Agent → 图片素材
 3. [03-copy-agent.md](03-copy-agent.md) - 文案生成 Agent
 4. [04-image-description-agent.md](04-image-description-agent.md) - 图片描述/提示词生成 Agent
 5. [05-image-agent.md](05-image-agent.md) - 图片生成 Agent
+6. [06-finalized-pool.md](06-finalized-pool.md) - 定稿池设计文档
 
 ## 数据流向
 
@@ -89,36 +90,25 @@ Image Agent → 图片素材
 ### 图片提示词结构
 
 ```typescript
+// Image Description Agent 输出
 {
-  schemaVersion: "v2-slot-prompt";
-  slotMeta: {
-    slotIndex: number;
-    slotCount: number;
-    imageForm: string;
-    copyType: string | null;
-    currentSlotText: string;
-    slotRole: string;
-  };
-  sharedConsistency: {
-    characterConsistency: string;
-    sceneConsistency: string;
-    brandConsistency: string;
-    styleConsistency: string;
-  };
-  finalPrompt: string;         // 最终提示词文本
-  negativePrompt: string;       // 负面提示词
+  prompts: Array<{
+    slotIndex: number;       // 图位索引（1-based）
+    prompt: string;          // 最终连续自然语言提示词
+    negativePrompt: string;  // 负向提示词
+  }>;
 }
 ```
 
 ## 模型配置
 
-| Agent | 模型 | Temperature | Response Format |
-|-------|------|-------------|-----------------|
-| Requirement Agent | Claude | 0.4 | JSON Object |
-| Direction Agent | Claude | 0.8 | JSON Object |
-| Copy Agent | Claude | 0.8 | JSON Object |
-| Image Description Agent | Gemini 3.1 Pro Preview | 默认值 | 文本格式 |
-| Image Agent | Gemini 3 Pro Image Preview | - | 图片二进制 |
+| Agent | 模型 | modelKey | Temperature | Response Format |
+|-------|------|----------|-------------|-----------------|
+| Requirement Agent | DeepSeek V3 | `model_assistant` | 0.4 | JSON Object |
+| Direction Agent | DeepSeek V3 | `model_direction` | 0.8 | JSON Object |
+| Copy Agent | DeepSeek V3 | `model_copy` | 0.8 | JSON Object |
+| Image Description Agent | 可配置 | `model_image_description` | 0.8 | JSON Object |
+| Image Agent | 可配置 | `model_image_generation` | - | 图片二进制 |
 
 ## 常量定义
 

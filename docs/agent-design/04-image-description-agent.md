@@ -235,6 +235,10 @@ input.referenceImages
 
 编号从 1 开始，过滤后连续编号。
 
+## 多模态调用
+
+Image Description Agent 使用 `createMultimodalChatCompletion` 而非普通文本聊天接口，支持在消息中传入图片（`image_url` 类型）。这使得参考图可以直接作为多模态内容传给模型，而非通过 URL 引用。
+
 ## 输入定义
 
 ### ImageDescriptionInput 结构
