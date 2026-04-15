@@ -8,7 +8,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = (await context.params) as { id: string };
-    deleteFolder(id);
+    await deleteFolder(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(

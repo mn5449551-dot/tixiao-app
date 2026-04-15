@@ -501,13 +501,18 @@ export function createFolder(name: string) {
   return db.select().from(projectFolders).where(eq(projectFolders.id, id)).get() ?? null;
 }
 
-export function deleteFolder(folderId: string) {
+export async function deleteFolder(folderId: string) {
   const db = getDb();
-  // Move all projects in this folder to no folder
-  db.update(projects)
-    .set({ folderId: null, updatedAt: now() })
+  const projectsInFolder = db
+    .select({ id: projects.id })
+    .from(projects)
     .where(eq(projects.folderId, folderId))
-    .run();
+    .all();
+
+  for (const project of projectsInFolder) {
+    await deleteProject(project.id);
+  }
+
   db.delete(projectFolders).where(eq(projectFolders.id, folderId)).run();
 }
 
