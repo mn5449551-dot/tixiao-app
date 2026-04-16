@@ -59,10 +59,10 @@ export function CandidateGroupCard({
             image={image}
             loadingKey={loadingKey}
             onPreview={onPreview}
-            onInpaint={onInpaint}
-            onRegenerate={onRegenerate}
+            onInpaint={group.isConfirmed ? undefined : onInpaint}
+            onRegenerate={group.isConfirmed ? undefined : onRegenerate}
             onViewPromptDetails={onViewPromptDetails}
-            onDiscardInpaint={onDiscardInpaint}
+            onDiscardInpaint={group.isConfirmed ? undefined : onDiscardInpaint}
             footer={
               <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
                 <span>图 {image.slotIndex}</span>
@@ -76,9 +76,11 @@ export function CandidateGroupCard({
         <Button variant="secondary" className="h-9 px-3 text-[11px]" onClick={onConfirmGroup} disabled={groupHasGenerating}>
           {group.isConfirmed ? "取消定稿" : "选定稿"}
         </Button>
-        <Button variant="ghost" className="h-9 px-3 text-[11px]" onClick={() => onDeleteGroup(group.id)} disabled={loadingKey === group.id || groupHasGenerating}>
-          删除整套
-        </Button>
+        {group.isConfirmed ? null : (
+          <Button variant="ghost" className="h-9 px-3 text-[11px]" onClick={() => onDeleteGroup(group.id)} disabled={loadingKey === group.id || groupHasGenerating}>
+            删除整套
+          </Button>
+        )}
       </div>
     </div>
   );

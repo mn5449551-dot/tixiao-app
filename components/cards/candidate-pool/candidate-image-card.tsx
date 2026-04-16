@@ -24,8 +24,8 @@ export function CandidateImageCard({
   loadingKey: string | null;
   onToggleSelect?: (id: string) => void;
   onPreview: (id: string) => void;
-  onInpaint: (id: string) => void;
-  onRegenerate: (id: string) => void;
+  onInpaint?: (id: string) => void;
+  onRegenerate?: (id: string) => void;
   onViewPromptDetails?: (id: string) => void;
   onDelete?: (id: string) => void;
   onDiscardInpaint?: (id: string) => void;
@@ -93,12 +93,16 @@ export function CandidateImageCard({
               查看提示词
             </Button>
           ) : null}
-          <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>
-            重绘
-          </Button>
-          <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onRegenerate(image.id)} disabled={loadingKey === image.id}>
-            重生成
-          </Button>
+          {onInpaint ? (
+            <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onInpaint(image.id)} disabled={!isDone}>
+              重绘
+            </Button>
+          ) : null}
+          {onRegenerate ? (
+            <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onRegenerate(image.id)} disabled={loadingKey === image.id}>
+              重生成
+            </Button>
+          ) : null}
           {onDelete ? (
             <Button variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => onDelete(image.id)} disabled={loadingKey === image.id}>
               删除

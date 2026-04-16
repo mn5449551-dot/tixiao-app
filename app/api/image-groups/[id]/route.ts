@@ -31,8 +31,8 @@ export async function DELETE(
     return NextResponse.json({ error: "图片组不存在" }, { status: 404 });
   }
 
-  if (!group.groupType.startsWith("derived|")) {
-    return NextResponse.json({ error: "仅允许删除适配版本，原始定稿组不可删除" }, { status: 403 });
+  if (group.groupType === "finalized") {
+    return NextResponse.json({ error: "已定稿组不可删除，请先取消定稿" }, { status: 403 });
   }
 
   const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, id)).all();

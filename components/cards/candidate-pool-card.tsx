@@ -278,11 +278,11 @@ export function CandidatePoolCard({
                   loadingKey={actionLoading}
                   onToggleSelect={toggleSelect}
                   onPreview={setPreviewImageId}
-                  onInpaint={setInpaintImageId}
-                  onRegenerate={handleRegenerateImage}
+                  onInpaint={group.isConfirmed ? undefined : setInpaintImageId}
+                  onRegenerate={group.isConfirmed ? undefined : handleRegenerateImage}
                   onViewPromptDetails={setPromptDetailsImageId}
-                  onDelete={handleDeleteImage}
-                  onDiscardInpaint={handleDiscardInpaint}
+                  onDelete={group.isConfirmed ? undefined : handleDeleteImage}
+                  onDiscardInpaint={group.isConfirmed ? undefined : handleDiscardInpaint}
                   footer={
                     <>
                       <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
