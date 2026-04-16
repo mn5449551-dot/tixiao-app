@@ -1,4 +1,5 @@
 import { createChatCompletion } from "@/lib/ai/client";
+import { logAgentError } from "@/lib/ai/agent-error-log";
 
 export type CopyAgentIdea = {
   titleMain: string;
@@ -360,6 +361,8 @@ ${getExistingCopiesBlock(input, isAppend)}
 export async function generateCopyIdeas(input: CopyAgentInput) {
   const messages = buildCopyAgentMessages(input);
   const maxAttempts = 3;
+  let lastContent = "";
+  let lastError = "";
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const content = await createChatCompletion({
@@ -368,6 +371,7 @@ export async function generateCopyIdeas(input: CopyAgentInput) {
       temperature: 0.8,
       responseFormat: { type: "json_object" },
     });
+    lastContent = content;
 
     try {
       const parsed = JSON.parse(content) as Record<string, unknown>;
@@ -375,11 +379,19 @@ export async function generateCopyIdeas(input: CopyAgentInput) {
       if (Array.isArray(items) && items.length > 0) {
         return parsed as unknown as CopyAgentOutput;
       }
-    } catch {
-      // JSON parse failed, retry
+      lastError = `copies 数组为空或不存在，解析结果 keys: ${Object.keys(parsed).join(",")}`;
+    } catch (parseError) {
+      lastError = parseError instanceof Error ? parseError.message : "JSON 解析失败";
     }
 
     if (attempt === maxAttempts) {
+      logAgentError({
+        agent: "copy",
+        requestSummary: `方向: ${input.directionTitle}, 渠道: ${input.channel}, 形式: ${input.imageForm}, 数量: ${input.count}`,
+        rawResponse: lastContent,
+        errorMessage: lastError,
+        attemptCount: maxAttempts,
+      });
       throw new Error("AI 文案生成格式异常，已重试 3 次仍失败，请稍后再试");
     }
   }

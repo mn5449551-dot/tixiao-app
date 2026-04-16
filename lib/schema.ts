@@ -228,3 +228,13 @@ export const settings = sqliteTable("settings", {
   value: text("value").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const agentErrorLogs = sqliteTable("agent_error_logs", {
+  id: text("id").primaryKey(),
+  agent: text("agent").notNull(),
+  requestSummary: text("request_summary"),
+  rawResponse: text("raw_response"),
+  errorMessage: text("error_message").notNull(),
+  attemptCount: integer("attempt_count").notNull().default(1),
+  createdAt: integer("created_at").notNull(),
+});

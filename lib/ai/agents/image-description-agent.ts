@@ -1,4 +1,5 @@
 import { createMultimodalChatCompletion, type MultimodalChatMessage } from "@/lib/ai/client";
+import { logAgentError } from "@/lib/ai/agent-error-log";
 import { buildImageDescriptionKnowledgeContext, getAspectRatioRule } from "@/lib/ai/knowledge/image-description-knowledge";
 
 export type ImageDescriptionPrompt = {
@@ -1177,6 +1178,13 @@ export async function generateImageDescription(input: ImageDescriptionInput): Pr
     };
 
     if (!Array.isArray(parsed.prompts) || parsed.prompts.length !== count) {
+      logAgentError({
+        agent: "image-description",
+        requestSummary: `方向: ${input.direction.title}, 渠道: ${input.direction.channel}, 形式: ${input.config.imageForm}, 预期 ${count} 个 prompt`,
+        rawResponse: content,
+        errorMessage: Array.isArray(parsed.prompts) ? `prompts 数量不匹配: 期望 ${count}, 实际 ${parsed.prompts.length}` : `prompts 字段缺失，解析结果 keys: ${Object.keys(parsed).join(",")}`,
+        attemptCount: 1,
+      });
       return buildFallbackOutput(input);
     }
 
@@ -1191,7 +1199,14 @@ export async function generateImageDescription(input: ImageDescriptionInput): Pr
         negativePrompt: item.negativePrompt?.trim() || getDefaultNegativePrompt(input),
       })),
     };
-  } catch {
+  } catch (error) {
+    logAgentError({
+      agent: "image-description",
+      requestSummary: `方向: ${input.direction.title}, 渠道: ${input.direction.channel}, 形式: ${input.config.imageForm}`,
+      rawResponse: "",
+      errorMessage: error instanceof Error ? error.message : "JSON 解析失败",
+      attemptCount: 1,
+    });
     return buildFallbackOutput(input);
   }
 }

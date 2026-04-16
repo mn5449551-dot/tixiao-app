@@ -378,6 +378,22 @@ function bootstrap(connection: Database.Database) {
       updated_at INTEGER NOT NULL
     );
   `);
+
+  connection.exec(`
+    CREATE TABLE IF NOT EXISTS agent_error_logs (
+      id TEXT PRIMARY KEY,
+      agent TEXT NOT NULL,
+      request_summary TEXT,
+      raw_response TEXT,
+      error_message TEXT NOT NULL,
+      attempt_count INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  // Auto-cleanup error logs older than 3 days
+  const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  connection.exec(`DELETE FROM agent_error_logs WHERE created_at < ${threeDaysAgo}`);
 }
 
 export function isSqliteDatabaseFile(filePath: string) {
