@@ -1380,6 +1380,7 @@ export async function generateFinalizedVariants(
                 id: derivedGroupId,
                 imageConfigId: config.id,
                 groupType: derivedGroupType,
+                aspectRatio: ratio,
                 variantIndex: nextVariantIndex,
                 slotCount: group.slotCount,
                 isConfirmed: 1,

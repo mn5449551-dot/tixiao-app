@@ -97,6 +97,12 @@ export async function POST(
       }
     }
 
+    const exportedFiles = await fs.readdir(exportDir);
+    if (exportedFiles.length === 0) {
+      await fs.rm(exportDir, { recursive: true, force: true });
+      return jsonError("没有匹配的图片可导出，请检查图片比例与目标版位是否一致", 422);
+    }
+
     const zipPath = path.join(getStorageRoot(), "exports", id, `${safeProjectTitle}_${exportId}.zip`);
     await zipAndCleanupDirectory({ sourceDir: exportDir, outputZipPath: zipPath });
 
