@@ -272,7 +272,6 @@ export function ImageConfigCard({
               imageModel,
               count,
               ipRole: showIpAssetSelector ? ipRole : null,
-              referenceImageUrl: null,
               ctaEnabled: supportsCta ? ctaEnabled : false,
               ctaText: supportsCta ? ctaText : null,
             });
