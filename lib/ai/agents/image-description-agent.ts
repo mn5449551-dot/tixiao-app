@@ -33,7 +33,6 @@ export type ImageDescriptionInput = {
     aspectRatio: string;
     styleMode: "normal" | "ip";
     imageStyle: string;
-    logo: "onion" | "onion_app" | "none";
     ctaEnabled: boolean;
     ctaText: string | null;
   };
@@ -80,21 +79,9 @@ function validateImageDescriptionInput(input: ImageDescriptionInput) {
   if (!input.copySet.titleMain?.trim()) {
     throw new Error("图片描述生成失败：缺少 titleMain");
   }
-
-  if (input.config.imageForm === "double" && !input.copySet.titleSub?.trim()) {
-    throw new Error("图片描述生成失败：double 缺少 titleSub");
-  }
-
-  if (input.config.imageForm === "triple" && (!input.copySet.titleSub?.trim() || !input.copySet.titleExtra?.trim())) {
-    throw new Error("图片描述生成失败：triple 缺少 titleSub 或 titleExtra");
-  }
-
-  if ((input.config.imageForm === "double" || input.config.imageForm === "triple") && !input.copySet.copyType?.trim()) {
-    throw new Error("图片描述生成失败：系列图缺少 copyType");
-  }
 }
 
-function resolveSeriesSlotRoles(copyType: string | null | undefined, count: number) {
+export function resolveSeriesSlotRoles(copyType: string | null | undefined, count: number) {
   const normalized = (copyType ?? "").trim();
   if (count === 2) {
     if (normalized.includes("因果")) return ["问题图", "解法图"];
@@ -189,28 +176,42 @@ function getFallbackCtaDescription(input: ImageDescriptionInput): string {
 function buildRoutingMeta(input: ImageDescriptionInput): ImageDescriptionRouteMeta {
   validateImageDescriptionInput(input);
 
-  const count = getPromptCount(input.config.imageForm);
   const allowCTA =
     input.direction.channel === "信息流（广点通）" &&
     input.config.imageForm === "single" &&
     input.config.ctaEnabled &&
     Boolean(input.config.ctaText);
 
+  const isSeries = input.config.imageForm === "double" || input.config.imageForm === "triple";
+
+  if (isSeries) {
+    const slotCount = getPromptCount(input.config.imageForm);
+    return {
+      agentType: "series",
+      allowCTA: false,
+      referenceMode: input.config.styleMode === "ip" ? "ip_identity" : "style_reference",
+      primaryReferenceLabel: input.referenceImages.length > 0 ? "参考图1" : null,
+      seriesGoal: getSeriesGoal(input.config.imageForm),
+      slotRoles: getSlotRoles(input.config.imageForm, input.copySet.copyType, slotCount),
+      consistencySummary: getConsistencySummary(input.config.imageForm),
+    };
+  }
+
   return {
-    agentType: input.config.imageForm === "single" ? "poster" : "series",
+    agentType: "poster",
     allowCTA,
     referenceMode: input.config.styleMode === "ip" ? "ip_identity" : "style_reference",
     primaryReferenceLabel: input.referenceImages.length > 0 ? "参考图1" : null,
-    seriesGoal: getSeriesGoal(input.config.imageForm),
-    slotRoles: getSlotRoles(input.config.imageForm, input.copySet.copyType, count),
-    consistencySummary: getConsistencySummary(input.config.imageForm),
+    seriesGoal: null,
+    slotRoles: ["完整海报图"],
+    consistencySummary: null,
   };
 }
 
 function buildPosterSystemPrompt() {
-  return `你是”单图广告海报提示词生成 Agent”。
+  return `你是"单图广告海报提示词生成 Agent"。
 
-你的任务不是写普通插画描述，而是根据方向卡、文案卡、渠道、图片配置和参考图，生成一条可以直接用于文生图模型的”广告海报级最终提示词”。
+你的任务不是写普通插画描述，而是根据方向卡、文案卡、渠道、图片配置和参考图，生成一条可以直接用于文生图模型的"广告海报级最终提示词"。
 
 你只负责生图阶段的画面描述。
 你的输出必须服务于广告表达、文案呈现和生图执行。
@@ -225,7 +226,7 @@ function buildPosterSystemPrompt() {
 3. 文案在画面中有明确、清晰、易读的呈现方式
 4. 画面风格、镜头、情绪与渠道匹配
 5. 若存在参考图，参考图用途明确且不滥用
-6. CTA 只有在”信息流 + single + ctaEnabled=true”时才进入 prompt
+6. CTA 只有在"信息流 + single + ctaEnabled=true"时才进入 prompt
 
 --------------------------------
 【输入信息】
@@ -251,7 +252,7 @@ function buildPosterSystemPrompt() {
 --------------------------------
 【第一原则：这是广告海报，不是普通插画】
 --------------------------------
-你的输出必须优先服务”广告表达”。
+你的输出必须优先服务"广告表达"。
 
 优先保证：
 - 主视觉中心明确
@@ -318,7 +319,7 @@ single 必须同时处理：
 - 表情可以变化
 
 也就是说：
-参考图1用于锁”这是谁”，不是锁”这一张里怎么站、穿什么、拿什么”。
+参考图1用于锁"这是谁"，不是锁"这一张里怎么站、穿什么、拿什么"。
 
 2. 如果 styleMode = normal
 只有一张风格参考图。
@@ -334,7 +335,7 @@ single 必须同时处理：
 
 注意：
 - normal 模式下参考图1不是人物身份参考
-- 不要把 normal 模式参考图写成”人物特征参考图1”
+- 不要把 normal 模式参考图写成"人物特征参考图1"
 - 不要把参考图1理解成必须复刻相同构图
 - 只参考整体风格气质，不照搬内容
 
@@ -558,7 +559,7 @@ IP 模式 + 应用商店：
 --------------------------------
 禁止出现以下问题：
 1. 只描述人物和场景，不处理文案呈现
-2. 只说”标题醒目”，不写标题内容和层级
+2. 只说"标题醒目"，不写标题内容和层级
 3. CTA 未开启却写 CTA
 4. normal 模式把参考图1写成人物特征参考
 5. ip 模式把参考图1写成风格参考
@@ -582,17 +583,17 @@ IP 模式 + 应用商店：
 --------------------------------
 【single 示例 1：IP 模式，无 CTA】
 --------------------------------
-高质量动漫风格广告海报，一个初中女生（人物特征参考图1，保留脸部特征、脸型、双马尾和圆框眼镜的识别度，服装可根据当前校园场景调整）正在校园操场上向前冲刺，表情兴奋、自信、带有”终于赶上了”的轻快感，画面主事件是开学前冲刺提分的状态，背景是晴朗明亮的校园和跑道，带有少量彩带、速度线和轻微高光特效，人物中近景，俯拍，大透视，鱼眼镜头，镜头聚焦人物表情和前冲动作，主标题内容是”领跑新学期 开学前冲刺！”，放在画面上方主视觉区，面积大、醒目、高对比，采用粗描边圆润膨胀卡通字体，笔画粗壮饱满，带 3D 立体浮雕质感和白色外发光效果，字体为白色配深色描边，主标题周围散布少量星星粒子和速度线增强动感，副标题内容是”暑期最后一波福利”，放在主标题下方，用带橙黄渐变底色的圆角标签条呈现，层级清晰、可读性强，整体标题设计清晰完整，不乱码、不拆字，缩略图状态下仍易读，整张图构图干净，主体突出，商业海报感强，4k，结构清晰，细节丰富
+高质量动漫风格广告海报，一个初中女生（人物特征参考图1，保留脸部特征、脸型、双马尾和圆框眼镜的识别度，服装可根据当前校园场景调整）正在校园操场上向前冲刺，表情兴奋、自信、带有"终于赶上了"的轻快感，画面主事件是开学前冲刺提分的状态，背景是晴朗明亮的校园和跑道，带有少量彩带、速度线和轻微高光特效，人物中近景，俯拍，大透视，鱼眼镜头，镜头聚焦人物表情和前冲动作，主标题内容是"领跑新学期 开学前冲刺！"，放在画面上方主视觉区，面积大、醒目、高对比，采用粗描边圆润膨胀卡通字体，笔画粗壮饱满，带 3D 立体浮雕质感和白色外发光效果，字体为白色配深色描边，主标题周围散布少量星星粒子和速度线增强动感，副标题内容是"暑期最后一波福利"，放在主标题下方，用带橙黄渐变底色的圆角标签条呈现，层级清晰、可读性强，整体标题设计清晰完整，不乱码、不拆字，缩略图状态下仍易读，整张图构图干净，主体突出，商业海报感强，4k，结构清晰，细节丰富
 
 --------------------------------
 【single 示例 2：normal 模式，应用商店】
 --------------------------------
-高质量商业广告海报，整体画风与商业海报质感参考图1，一个初中男生坐在书桌前使用手机拍题，桌面上有练习册和卷子，表情从焦虑转为专注和开窍，画面主事件是”拍题后立刻看懂关键步骤”，背景是干净明亮的学习桌与室内学习场景，画面清晰、可信、有产品使用语义，中景，平视，柔和但清晰的自然光，少量光效和信息提示元素增强产品感，主标题内容是”拍一下 难题不再卡住”，放在上方清晰区域，采用现代无衬线品牌字体，线条简洁有力，带适度深色投影增强立体感和可读性，主标题旁点缀少量信息图标元素增强产品功能语义，副标题内容是”关键步骤拆开讲，作业继续写下去”，放在主标题下方，用细线分隔、小字号标签式排列，层级明确、清晰易读，整体构图平衡，广告表达清楚，4k，结构清晰，细节丰富
+高质量商业广告海报，整体画风与商业海报质感参考图1，一个初中男生坐在书桌前使用手机拍题，桌面上有练习册和卷子，表情从焦虑转为专注和开窍，画面主事件是"拍题后立刻看懂关键步骤"，背景是干净明亮的学习桌与室内学习场景，画面清晰、可信、有产品使用语义，中景，平视，柔和但清晰的自然光，少量光效和信息提示元素增强产品感，主标题内容是"拍一下 难题不再卡住"，放在上方清晰区域，采用现代无衬线品牌字体，线条简洁有力，带适度深色投影增强立体感和可读性，主标题旁点缀少量信息图标元素增强产品功能语义，副标题内容是"关键步骤拆开讲，作业继续写下去"，放在主标题下方，用细线分隔、小字号标签式排列，层级明确、清晰易读，整体构图平衡，广告表达清楚，4k，结构清晰，细节丰富
 
 --------------------------------
 【single 示例 3：信息流，CTA 开启】
 --------------------------------
-高质量动漫风格广告海报，一个初中男老师（人物特征参考图1，保留脸部特征和标志性发型，服装与动作根据当前知识通道场景重新设计）从蓝色科技感知识通道中向前奔跑，手里拿着书籍，表情热情、自信、带有强烈号召感，背景中漂浮着数学知识点和轻微发光线条，整体画面具有明亮、清晰、未来感的教育海报气质，人物近景偏中景，仰视，鱼眼镜头，镜头聚焦人物表情和前冲动作，主标题内容是”AI私教 随叫随到”，放在画面上方中央，采用 3D 立体浮雕字体，棱角分明，蓝色金属光泽质感，带外发光和层叠阴影效果，周围漂浮少量发光粒子增强科技感，副标题内容是”每日学习AI私教随时Call”，放在主标题下方，用带半透明深色底条的白色小字呈现，风格统一、清晰完整，不乱码不拆字，画面底部加入清晰但不过度抢眼的按钮式行动引导文案，内容是”立即查看”，CTA 视觉权重低于主标题但足够可读，整张图构图和谐不拥挤，广告海报完成度高，4k，细节丰富
+高质量动漫风格广告海报，一个初中男老师（人物特征参考图1，保留脸部特征和标志性发型，服装与动作根据当前知识通道场景重新设计）从蓝色科技感知识通道中向前奔跑，手里拿着书籍，表情热情、自信、带有强烈号召感，背景中漂浮着数学知识点和轻微发光线条，整体画面具有明亮、清晰、未来感的教育海报气质，人物近景偏中景，仰视，鱼眼镜头，镜头聚焦人物表情和前冲动作，主标题内容是"AI私教 随叫随到"，放在画面上方中央，采用 3D 立体浮雕字体，棱角分明，蓝色金属光泽质感，带外发光和层叠阴影效果，周围漂浮少量发光粒子增强科技感，副标题内容是"每日学习AI私教随时Call"，放在主标题下方，用带半透明深色底条的白色小字呈现，风格统一、清晰完整，不乱码不拆字，画面底部加入清晰但不过度抢眼的按钮式行动引导文案，内容是"立即查看"，CTA 视觉权重低于主标题但足够可读，整张图构图和谐不拥挤，广告海报完成度高，4k，细节丰富
 
 --------------------------------
 【输出要求】
@@ -601,11 +602,11 @@ IP 模式 + 应用商店：
 
 输出格式：
 {
-  “prompts”: [
+  "prompts": [
     {
-      “slotIndex”: 1,
-      “prompt”: “最终连续自然语言提示词”,
-      “negativePrompt”: “负向提示词”
+      "slotIndex": 1,
+      "prompt": "最终连续自然语言提示词",
+      "negativePrompt": "负向提示词"
     }
   ]
 }
@@ -634,11 +635,11 @@ realistic photo look, photorealistic skin texture, style drift
 }
 
 function buildSeriesSystemPrompt() {
-  return `你是”系列组图广告提示词生成 Agent”。
+  return `你是"系列组图广告提示词生成 Agent"。
 
 你的任务不是分别写出几张独立好看的图，
 而是根据方向卡、文案卡、渠道、图片配置和参考图，
-生成一组可直接用于文生图模型的”系列广告组图提示词”。
+生成一组可直接用于文生图模型的"系列广告组图提示词"。
 
 你服务的对象是：
 - double
@@ -690,7 +691,7 @@ function buildSeriesSystemPrompt() {
 --------------------------------
 【第一原则：系列优先于单张】
 --------------------------------
-每一张图都必须先服从”它属于同一套物料”。
+每一张图都必须先服从"它属于同一套物料"。
 
 你必须优先保证：
 - 主角色身份一致
@@ -744,7 +745,7 @@ double / triple 不需要 CTA。
 - 道具可以变化
 
 也就是说：
-锁”身份”，不锁”表演”。
+锁"身份"，不锁"表演"。
 
 2. 如果 styleMode = normal
 只有一张风格参考图。
@@ -998,27 +999,27 @@ IP 模式 + 应用商店：
 --------------------------------
 【double 示例 - ip 模式，slot1 问题图】
 --------------------------------
-高质量动漫风格系列广告海报，同一个初中男生主角（人物特征参考图1，保留脸部特征、脸型和标志性短发识别度，服装可根据当前场景调整）在学校走廊里一边跑一边崩溃大哭，表情夸张、痛苦、焦虑，画面主事件是成绩下滑后的慌张和压力感，背景是教学楼走廊，明亮商业动漫风基调，俯拍，大透视，鱼眼镜头，人物近景偏全身，镜头聚焦人物表情和奔跑动作，标题内容是”太痛了！”，放在画面上方中央，采用粗描边潮流创意字体，笔画粗壮饱满、粗细对比强烈，带 3D 立体浮雕质感和红色外发光效果，标题周围有速度线和少量飞溅墨点增强冲击感，与人物避让合理，整张图作为组图第一张，重点表达问题和压力，必须与后续图位保持同一角色身份与整体风格，4k，结构清晰，细节丰富
+高质量动漫风格系列广告海报，同一个初中男生主角（人物特征参考图1，保留脸部特征、脸型和标志性短发识别度，服装可根据当前场景调整）在学校走廊里一边跑一边崩溃大哭，表情夸张、痛苦、焦虑，画面主事件是成绩下滑后的慌张和压力感，背景是教学楼走廊，明亮商业动漫风基调，俯拍，大透视，鱼眼镜头，人物近景偏全身，镜头聚焦人物表情和奔跑动作，标题内容是"太痛了！"，放在画面上方中央，采用粗描边潮流创意字体，笔画粗壮饱满、粗细对比强烈，带 3D 立体浮雕质感和红色外发光效果，标题周围有速度线和少量飞溅墨点增强冲击感，与人物避让合理，整张图作为组图第一张，重点表达问题和压力，必须与后续图位保持同一角色身份与整体风格，4k，结构清晰，细节丰富
 
 --------------------------------
 【double 示例 - ip 模式，slot2 解法图】
 --------------------------------
-高质量动漫风格系列广告海报，保持同一个初中男生主角（人物特征参考图1，保留脸部特征和标志性短发，服装与动作根据当前解决场景调整），仍然在同一校园场景 family 中，但情绪从崩溃转为惊喜和希望，人物手里拿着手机或学习资料，画面主事件是找到提分方法后的转机感，背景延续同样的校园空间和色调，但更明亮、更开阔，镜头保持系列一致的大透视风格，可轻微调整角度，标题内容是”点击查看提分秘籍”，放在画面上方中央，标题样式与第一张完全统一：粗描边潮流创意字体，笔画粗壮饱满，带 3D 立体浮雕质感，但颜色从红色转为明亮的蓝绿渐变，周围有少量发光粒子点缀，清晰完整，不乱码不拆字，整张图作为第二张，重点表达解决路径和转机，必须和第一张看起来像同一套物料，4k，结构清晰，细节丰富
+高质量动漫风格系列广告海报，保持同一个初中男生主角（人物特征参考图1，保留脸部特征和标志性短发，服装与动作根据当前解决场景调整），仍然在同一校园场景 family 中，但情绪从崩溃转为惊喜和希望，人物手里拿着手机或学习资料，画面主事件是找到提分方法后的转机感，背景延续同样的校园空间和色调，但更明亮、更开阔，镜头保持系列一致的大透视风格，可轻微调整角度，标题内容是"点击查看提分秘籍"，放在画面上方中央，标题样式与第一张完全统一：粗描边潮流创意字体，笔画粗壮饱满，带 3D 立体浮雕质感，但颜色从红色转为明亮的蓝绿渐变，周围有少量发光粒子点缀，清晰完整，不乱码不拆字，整张图作为第二张，重点表达解决路径和转机，必须和第一张看起来像同一套物料，4k，结构清晰，细节丰富
 
 --------------------------------
 【triple 示例 - normal 模式，slot1 问题图】
 --------------------------------
-高质量商业系列广告海报，整体画风与商业海报质感参考图1，一个初中女生在教室书桌前被一道题卡住，皱眉、焦虑，手里握着笔，桌面上有卷子和练习册，画面主事件是刷题中途卡壳，平视，中景，暖白教室灯光，标题内容是”刷题又卡壳？”，放在上方主视觉区，采用现代无衬线品牌字体，线条简洁有力，带适度深色投影增强可读性，副标题用小字号标签式排列，字体醒目、统一、有设计感，整张图作为第一张，强调问题状态，整体风格、光线和构图系统要与后两张保持一致，4k，结构清晰，细节丰富
+高质量商业系列广告海报，整体画风与商业海报质感参考图1，一个初中女生在教室书桌前被一道题卡住，皱眉、焦虑，手里握着笔，桌面上有卷子和练习册，画面主事件是刷题中途卡壳，平视，中景，暖白教室灯光，标题内容是"刷题又卡壳？"，放在上方主视觉区，采用现代无衬线品牌字体，线条简洁有力，带适度深色投影增强可读性，副标题用小字号标签式排列，字体醒目、统一、有设计感，整张图作为第一张，强调问题状态，整体风格、光线和构图系统要与后两张保持一致，4k，结构清晰，细节丰富
 
 --------------------------------
 【triple 示例 - normal 模式，slot2 解法图】
 --------------------------------
-高质量商业系列广告海报，整体画风与商业海报质感参考图1，仍然在同一教室 / 书桌场景 family 中，人物正在使用手机拍题或查看解析，表情从焦虑转为专注、开窍，画面主事件是拍题精学介入，镜头更聚焦人物与手机动作，标题内容是”洋葱一拍秒学懂”，放在上方区域，标题风格与整组统一：现代无衬线品牌字体，线条简洁有力，带适度深色投影，标题旁点缀少量信息图标元素增强产品语义，整张图作为第二张，重点表达产品动作和解法，4k，结构清晰，细节丰富
+高质量商业系列广告海报，整体画风与商业海报质感参考图1，仍然在同一教室 / 书桌场景 family 中，人物正在使用手机拍题或查看解析，表情从焦虑转为专注、开窍，画面主事件是拍题精学介入，镜头更聚焦人物与手机动作，标题内容是"洋葱一拍秒学懂"，放在上方区域，标题风格与整组统一：现代无衬线品牌字体，线条简洁有力，带适度深色投影，标题旁点缀少量信息图标元素增强产品语义，整张图作为第二张，重点表达产品动作和解法，4k，结构清晰，细节丰富
 
 --------------------------------
 【triple 示例 - normal 模式，slot3 结果图】
 --------------------------------
-高质量商业系列广告海报，整体画风与商业海报质感参考图1，仍在同一场景 family 中，但情绪已经变得轻松、自信，人物顺畅地继续刷题或露出完成任务后的笑容，画面主事件是不卡壳后的高效推进，镜头略更开阔一些，整体光线仍保持统一但更舒展，标题内容是”今晚刷题更顺了”，放在上方区域，标题风格与前两张完全统一：现代无衬线品牌字体，线条简洁有力，带适度深色投影，颜色更明亮温暖，整张图作为第三张，强调结果与变化，整组三张图必须像同一套物料，4k，结构清晰，细节丰富
+高质量商业系列广告海报，整体画风与商业海报质感参考图1，仍在同一场景 family 中，但情绪已经变得轻松、自信，人物顺畅地继续刷题或露出完成任务后的笑容，画面主事件是不卡壳后的高效推进，镜头略更开阔一些，整体光线仍保持统一但更舒展，标题内容是"今晚刷题更顺了"，放在上方区域，标题风格与前两张完全统一：现代无衬线品牌字体，线条简洁有力，带适度深色投影，颜色更明亮温暖，整张图作为第三张，强调结果与变化，整组三张图必须像同一套物料，4k，结构清晰，细节丰富
 
 --------------------------------
 【输出要求】
@@ -1027,11 +1028,11 @@ IP 模式 + 应用商店：
 
 输出格式：
 {
-  “prompts”: [
+  "prompts": [
     {
-      “slotIndex”: 1,
-      “prompt”: “该图位最终连续自然语言提示词”,
-      “negativePrompt”: “该图位负向提示词”
+      "slotIndex": 1,
+      "prompt": "该图位最终连续自然语言提示词",
+      "negativePrompt": "该图位负向提示词"
     }
   ]
 }
@@ -1075,13 +1076,13 @@ function buildPosterUserPrompt(
 差异化解法：${input.direction.differentiation}
 奇效：${input.direction.effect}
 渠道：${input.direction.channel}
-图片形式：single
+图片形式：${input.config.imageForm}（仅生成第 1 张图的 prompt）
 画幅比例：${input.config.aspectRatio}（${getAspectRatioRule(input.config.aspectRatio)}）
 风格模式：${input.config.styleMode}
 图片风格：${input.config.imageStyle}
 主标题：${input.copySet.titleMain}
 副标题：${input.copySet.titleSub ?? ""}
-CTA是否允许：${meta.allowCTA ? `是，文案为“${input.config.ctaText ?? ""}”` : "否"}
+CTA是否允许：${meta.allowCTA ? `是，文案为"${input.config.ctaText ?? ""}"` : "否"}
 参考图规则：${meta.primaryReferenceLabel ? referenceRule : "无参考图"}
 ${input.referenceImages.filter((ref) => ref.role !== "logo").length > 0
   ? `参考图：\n${input.referenceImages.filter((ref) => ref.role !== "logo").map((ref, index) => `- 参考图${index + 1}（${ref.role}）：${ref.usage}`).join("\n")}`
@@ -1163,7 +1164,6 @@ export function buildImageDescriptionMessages(input: ImageDescriptionInput): Mul
 
 export async function generateImageDescription(input: ImageDescriptionInput): Promise<ImageDescriptionOutput> {
   const messages = buildImageDescriptionMessages(input);
-  const count = getPromptCount(input.config.imageForm);
 
   try {
     const content = await createMultimodalChatCompletion({
@@ -1177,25 +1177,27 @@ export async function generateImageDescription(input: ImageDescriptionInput): Pr
       prompts?: Array<{ slotIndex?: number; prompt?: string; negativePrompt?: string }>;
     };
 
-    if (!Array.isArray(parsed.prompts) || parsed.prompts.length !== count) {
+    if (!Array.isArray(parsed.prompts) || parsed.prompts.length < 1) {
       logAgentError({
         agent: "image-description",
-        requestSummary: `方向: ${input.direction.title}, 渠道: ${input.direction.channel}, 形式: ${input.config.imageForm}, 预期 ${count} 个 prompt`,
+        requestSummary: `方向: ${input.direction.title}, 渠道: ${input.direction.channel}, 形式: ${input.config.imageForm}, 预期 1 个 prompt`,
         rawResponse: content,
-        errorMessage: Array.isArray(parsed.prompts) ? `prompts 数量不匹配: 期望 ${count}, 实际 ${parsed.prompts.length}` : `prompts 字段缺失，解析结果 keys: ${Object.keys(parsed).join(",")}`,
+        errorMessage: Array.isArray(parsed.prompts) ? `prompts 数量不匹配: 期望 1, 实际 ${parsed.prompts.length}` : `prompts 字段缺失，解析结果 keys: ${Object.keys(parsed).join(",")}`,
         attemptCount: 1,
       });
       return buildFallbackOutput(input);
     }
 
     const fallback = buildFallbackOutput(input);
+    const expectedCount = getPromptCount(input.config.imageForm);
+    const returned = parsed.prompts.slice(0, expectedCount);
+    if (returned.length === 0) {
+      return fallback;
+    }
     return {
-      prompts: parsed.prompts.map((item, index) => ({
-        slotIndex:
-          typeof item.slotIndex === "number" && item.slotIndex >= 1
-            ? item.slotIndex
-            : index + 1,
-        prompt: item.prompt?.trim() || fallback.prompts[index]?.prompt || fallback.prompts[0]!.prompt,
+      prompts: returned.map((item, index) => ({
+        slotIndex: item.slotIndex ?? (index + 1),
+        prompt: item.prompt?.trim() || fallback.prompts[Math.min(index, fallback.prompts.length - 1)]!.prompt,
         negativePrompt: item.negativePrompt?.trim() || getDefaultNegativePrompt(input),
       })),
     };
@@ -1232,22 +1234,23 @@ function getFallbackRoleText(count: number, index: number): string {
 }
 
 function buildFallbackOutput(input: ImageDescriptionInput): ImageDescriptionOutput {
-  const count = getPromptCount(input.config.imageForm);
-  const copyTexts = [input.copySet.titleMain, input.copySet.titleSub ?? "", input.copySet.titleExtra ?? ""].filter(Boolean);
   const referenceDesc = getReferenceDescription(input.referenceImages);
   const ctaDesc = getFallbackCtaDescription(input);
   const stylePrefix = input.config.styleMode === "ip" ? "高质量动漫风格广告海报，" : "高质量商业广告海报，";
+  const count = getPromptCount(input.config.imageForm);
+  const texts = [input.copySet.titleMain, input.copySet.titleSub ?? "", input.copySet.titleExtra ?? ""];
 
   const prompts: ImageDescriptionPrompt[] = [];
   for (let i = 0; i < count; i += 1) {
-    const text = copyTexts[i] ?? copyTexts[0] ?? "";
-    const roleText = getFallbackRoleText(count, i);
-    const prompt = `${stylePrefix}${input.direction.targetAudience}，场景是${input.direction.scenarioProblem}，突出${input.direction.differentiation}带来的${input.direction.effect}，当前图位承担${roleText}，标题内容是"${text}"，画幅比例${input.config.aspectRatio}，${referenceDesc ? `参考${referenceDesc}，` : ""}构图清晰，标题完整易读，商业海报感强${ctaDesc}，4k分辨率，结构清晰，细节丰富`;
+    const text = texts[i] ?? texts[0] ?? "";
+    const role = getFallbackRoleText(count, i);
+    const prompt = `${stylePrefix}${input.direction.targetAudience}，场景是${input.direction.scenarioProblem}，突出${input.direction.differentiation}带来的${input.direction.effect}，${role}，标题内容是"${text}"，画幅比例${input.config.aspectRatio}，${referenceDesc ? `参考${referenceDesc}，` : ""}构图清晰，标题完整易读，商业海报感强${i === 0 ? ctaDesc : ""}，4k分辨率，结构清晰，细节丰富`;
     prompts.push({
       slotIndex: i + 1,
       prompt,
       negativePrompt: getDefaultNegativePrompt(input),
     });
   }
+
   return { prompts };
 }

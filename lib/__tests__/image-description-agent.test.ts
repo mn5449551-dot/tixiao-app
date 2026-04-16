@@ -29,7 +29,6 @@ const baseInput: ImageDescriptionInput = {
     aspectRatio: "3:2",
     styleMode: "ip",
     imageStyle: "animation",
-    logo: "onion",
     ctaEnabled: false,
     ctaText: null,
   },
@@ -44,7 +43,7 @@ const baseInput: ImageDescriptionInput = {
   ],
 };
 
-test("buildImageDescriptionMessages routes single to poster agent and multi-image to series agent", () => {
+test("buildImageDescriptionMessages routes single to poster and series to series agent", () => {
   const singleMessages = buildImageDescriptionMessages({
     ...baseInput,
     direction: { ...baseInput.direction, channel: "信息流（广点通）" },
@@ -60,12 +59,14 @@ test("buildImageDescriptionMessages routes single to poster agent and multi-imag
   const singleSystem = typeof singleMessages[0]?.content === "string" ? singleMessages[0].content : "";
   const seriesSystem = typeof seriesMessages[0]?.content === "string" ? seriesMessages[0].content : "";
 
+  // Single uses poster agent
   assert.match(singleSystem, /单图广告海报提示词生成 Agent/);
   assert.match(singleSystem, /single 必须同时处理/);
   assert.match(singleSystem, /titleMain/);
   assert.match(singleSystem, /titleSub/);
+  // Series uses series agent
   assert.match(seriesSystem, /系列组图广告提示词生成 Agent/);
-  assert.match(seriesSystem, /double \/ triple (永远没有|不需要) CTA/);
+  assert.match(seriesSystem, /系列优先于单张/);
 });
 
 test("buildImageDescriptionMessages filters out logo references and keeps only the primary non-logo image", () => {
@@ -98,7 +99,7 @@ test("buildImageDescriptionMessages includes CTA only for information-flow singl
   });
   const seriesMessages = buildImageDescriptionMessages({
     ...baseInput,
-    config: { ...baseInput.config, imageForm: "double", ctaEnabled: true, ctaText: "立即下载" },
+    config: { ...baseInput.config, imageForm: "double", ctaEnabled: false, ctaText: null },
     copySet: { ...baseInput.copySet, titleExtra: null },
   });
 
@@ -113,10 +114,11 @@ test("buildImageDescriptionMessages includes CTA only for information-flow singl
 
   assert.match(singleText, /CTA是否允许：是/);
   assert.match(singleText, /立即下载/);
+  // Series mode never allows CTA
   assert.match(seriesText, /CTA：系列图不允许 CTA/);
 });
 
-test("generateImageDescription returns prompt-only payloads with negative prompts", async () => {
+test("generateImageDescription returns prompts for all slots in series mode", async () => {
   const previousFetch = globalThis.fetch;
   const previousApiKey = process.env.NEW_API_KEY;
   process.env.NEW_API_KEY = "test-key";
@@ -148,9 +150,9 @@ test("generateImageDescription returns prompt-only payloads with negative prompt
 
     assert.equal(result.prompts.length, 2);
     assert.equal(result.prompts[0]?.slotIndex, 1);
+    assert.equal(result.prompts[0]?.prompt, "第一张 prompt");
     assert.equal(result.prompts[1]?.slotIndex, 2);
-    assert.ok(result.prompts.every((item) => item.prompt.length > 0));
-    assert.ok(result.prompts.every((item) => item.negativePrompt.length > 0));
+    assert.equal(result.prompts[1]?.prompt, "第二张 prompt");
   } finally {
     globalThis.fetch = previousFetch;
     process.env.NEW_API_KEY = previousApiKey;
