@@ -84,6 +84,7 @@ export type GraphNodeData =
         aspectRatio?: string;
         styleMode?: string;
         imageStyle?: string;
+        imageModel?: string | null;
         images: Array<{
           id: string;
           fileUrl: string | null;

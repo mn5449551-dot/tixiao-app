@@ -94,7 +94,7 @@ export function buildCandidatePoolNode(input: {
       aspectRatio: group.aspectRatio ?? config.aspectRatio,
         styleMode: group.styleMode ?? config.styleMode,
         imageStyle: group.imageStyle ?? config.imageStyle,
-        imageModel: group.imageModel ?? config.imageModel ?? null,
+        imageModel: group.imageModel ?? null,
         images: group.images.map((img) => ({
           id: img.id,
           fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),

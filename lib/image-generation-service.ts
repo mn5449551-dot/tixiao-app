@@ -298,12 +298,14 @@ export async function processPreparedImageGeneration(input: {
       negativePrompt: string | null;
       referenceImageUrls: string[];
       groupLogo: string;
+      groupModel: string | null;
     }> = [];
 
     for (const group of groups) {
       const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
       const groupReferenceImageUrl = group.referenceImageUrl ?? config.referenceImageUrl ?? null;
       const groupLogo = group.logo ?? config.logo ?? "none";
+      const groupModel = group.imageModel ?? config.imageModel ?? null;
       const groupReferenceImageUrls = [groupReferenceImageUrl].filter(Boolean) as string[];
 
       for (const image of images) {
@@ -314,6 +316,7 @@ export async function processPreparedImageGeneration(input: {
           negativePrompt: promptEntry.negativePrompt,
           referenceImageUrls: groupReferenceImageUrls,
           groupLogo,
+          groupModel,
         });
       }
     }
@@ -327,7 +330,7 @@ export async function processPreparedImageGeneration(input: {
           generationRequestJson: buildGenerationRequestJson({
             promptText: item.prompt,
             negativePrompt: item.negativePrompt,
-            model: config.imageModel ?? null,
+            model: item.groupModel,
             aspectRatio: config.aspectRatio,
             referenceImages: item.referenceImageUrls.map((url) => ({ url })),
           }),
@@ -345,11 +348,11 @@ export async function processPreparedImageGeneration(input: {
               instruction: item.prompt,
               imageUrls: item.referenceImageUrls,
               aspectRatio: config.aspectRatio,
-              model: config.imageModel ?? undefined,
+              model: item.groupModel ?? undefined,
             })
           : await generateImageFromPrompt(item.prompt, {
               aspectRatio: config.aspectRatio,
-              model: config.imageModel ?? undefined,
+              model: item.groupModel ?? undefined,
             });
 
         const binary = binaries[0];
