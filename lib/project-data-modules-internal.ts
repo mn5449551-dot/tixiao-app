@@ -6,6 +6,7 @@ import { generateCopyIdeas } from "@/lib/ai/agents/copy-agent";
 import { generateImageFromReference } from "@/lib/ai/image-chat";
 import { buildCopyKnowledgeContext } from "@/lib/ai/agents/copy-knowledge";
 import { generateDirectionIdeas } from "@/lib/ai/agents/direction-agent";
+import { logAgentError } from "@/lib/ai/agent-error-log";
 import {
   CHANNELS,
   DEFAULT_REQUIREMENT,
@@ -260,7 +261,7 @@ function isMultiCopyWithinLimits(idea: CopyIdea, imageForm: string) {
 
   return titles.every((title) => {
     const length = getTextLength(title);
-    return length >= 4 && length <= 10;
+    return length >= 2 && length <= 15;
   });
 }
 
@@ -296,7 +297,7 @@ export function normalizeCopyIdeas(payload: unknown, count: number, imageForm: s
     .map((item) => normalizeCopyIdea(item, imageForm))
     .filter(Boolean) as CopyIdea[];
 
-  return ideas.length >= count ? ideas.slice(0, count) : null;
+  return ideas.length > 0 ? ideas.slice(0, count) : null;
 }
 
 function getResolvedReferenceImageUrlInput(
@@ -831,6 +832,13 @@ export async function generateDirectionsSmart(
   });
   const ideas = normalizeDirectionIdeas(raw, requirement.directionCount);
   if (!ideas) {
+    logAgentError({
+      agent: "direction",
+      requestSummary: `生成方向, 目标人群: ${requirement.targetAudience}, 功能: ${requirement.feature}, 数量: ${requirement.directionCount}`,
+      rawResponse: JSON.stringify(raw).slice(0, 5000),
+      errorMessage: "normalizeDirectionIdeas 返回 null：方向校验失败",
+      attemptCount: 1,
+    });
     throw new Error("AI 生成的方向格式不正确，请重试");
   }
   return persistDirections(
@@ -874,6 +882,13 @@ export async function appendDirectionSmart(
   });
   const ideas = normalizeDirectionIdeas(raw, 1);
   if (!ideas) {
+    logAgentError({
+      agent: "direction",
+      requestSummary: `追加方向, projectId: ${projectId}`,
+      rawResponse: JSON.stringify(raw).slice(0, 5000),
+      errorMessage: "normalizeDirectionIdeas 返回 null：追加方向校验失败",
+      attemptCount: 1,
+    });
     throw new Error("AI 生成的方向格式不正确，请重试");
   }
   return appendDirections(
@@ -1021,6 +1036,13 @@ export async function generateCopyCardSmart(directionId: string, count: number) 
   });
   const ideas = normalizeCopyIdeas(raw, actualCount, direction.imageForm ?? "single");
   if (!ideas) {
+    logAgentError({
+      agent: "copy",
+      requestSummary: `方向: ${direction.title}, 渠道: ${direction.channel}, 形式: ${direction.imageForm}, 数量: ${actualCount}`,
+      rawResponse: JSON.stringify(raw).slice(0, 5000),
+      errorMessage: "normalizeCopyIdeas 返回 null：AI 返回的文案全部未通过校验（字段缺失或字数超限）",
+      attemptCount: 1,
+    });
     throw new Error("AI 生成的文案格式不正确，请重试");
   }
   return persistCopyCard(direction, actualCount, ideas);
@@ -1068,6 +1090,13 @@ export async function appendCopyToCardSmart(copyCardId: string) {
   });
   const nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0];
   if (!nextIdea) {
+    logAgentError({
+      agent: "copy",
+      requestSummary: `追加文案, 方向: ${direction.title}, 渠道: ${direction.channel}, 形式: ${direction.imageForm}`,
+      rawResponse: JSON.stringify(raw).slice(0, 5000),
+      errorMessage: "normalizeCopyIdeas 返回 null：追加文案未通过校验",
+      attemptCount: 1,
+    });
     throw new Error("AI 生成的文案格式不正确，请重试");
   }
 
@@ -1096,6 +1125,13 @@ export async function regenerateCopy(copyId: string) {
   });
   const nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0];
   if (!nextIdea) {
+    logAgentError({
+      agent: "copy",
+      requestSummary: `重新生成文案, copyId: ${copyId}, 渠道: ${direction.channel}, 形式: ${direction.imageForm}`,
+      rawResponse: JSON.stringify(raw).slice(0, 5000),
+      errorMessage: "normalizeCopyIdeas 返回 null：重新生成文案未通过校验",
+      attemptCount: 1,
+    });
     throw new Error("AI 生成的文案格式不正确，请重试");
   }
 
