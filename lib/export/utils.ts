@@ -116,3 +116,52 @@ export function buildExportFileName(input: {
 export function isSpecialRatio(ratio: string): boolean {
   return ratio === "16:11" || ratio === "√2:1";
 }
+
+export function findUncoveredExportSlots(input: {
+  selectedImageRatios: string[];
+  slotSpecs: ExportSlotSpec[];
+}) {
+  return input.slotSpecs.filter((slot) =>
+    !input.selectedImageRatios.some((ratio) => classifyExportAdaptation(ratio, slot.ratio) === "direct"),
+  );
+}
+
+export function splitExportSlotSpecsByCoverage(input: {
+  selectedImageRatios: string[];
+  slotSpecs: ExportSlotSpec[];
+}) {
+  const specialSlots: ExportSlotSpec[] = [];
+  const directSlots: ExportSlotSpec[] = [];
+  const adaptationRequiredSlots: ExportSlotSpec[] = [];
+
+  for (const slot of input.slotSpecs) {
+    if (isSpecialRatio(slot.ratio)) {
+      specialSlots.push(slot);
+      continue;
+    }
+
+    if (input.selectedImageRatios.some((ratio) => classifyExportAdaptation(ratio, slot.ratio) === "direct")) {
+      directSlots.push(slot);
+      continue;
+    }
+
+    adaptationRequiredSlots.push(slot);
+  }
+
+  return {
+    directSlots,
+    adaptationRequiredSlots,
+    specialSlots,
+  };
+}
+
+export function mergeSelectedGroupIds(
+  currentSelectedGroupIds: Iterable<string>,
+  generatedGroupIds: Iterable<string>,
+) {
+  const next = new Set(currentSelectedGroupIds);
+  for (const groupId of generatedGroupIds) {
+    next.add(groupId);
+  }
+  return [...next];
+}

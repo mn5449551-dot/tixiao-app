@@ -102,6 +102,23 @@ test("finalized pool defaults to manual slot selection instead of selecting all 
   const source = await readFile(finalizedPoolCardPath, "utf8");
 
   assert.match(source, /const \[selectedSlots, setSelectedSlots\] = useState<string\[]>\(\[\]\)/);
-  assert.match(source, /availableSlots\.filter/);
-  assert.doesNotMatch(source, /selectedSlots\.length > 0 \? availableSlots\.filter\([^)]+\) : availableSlots/);
+  assert.match(source, /directSlots\.filter/);
+  assert.doesNotMatch(source, /selectedSlots\.length > 0 \? directSlots\.filter\([^)]+\) : directSlots/);
+});
+
+test("finalized pool auto-selects generated variants and checks export coverage per slot", async () => {
+  const source = await readFile(finalizedPoolCardPath, "utf8");
+
+  assert.match(source, /splitExportSlotSpecsByCoverage/);
+  assert.match(source, /mergeSelectedGroupIds/);
+  assert.match(source, /可直接导出版位/);
+  assert.match(source, /需适配后导出/);
+  assert.match(source, /splitExportSlotSpecsByCoverage\(\{ selectedImageRatios, slotSpecs: availableSlots \}\)/);
+  assert.match(
+    source,
+    /setSelectedGroupIds\(\(prev\) => new Set\(mergeSelectedGroupIds\(prev,\s*result\.groups\.map\(\(group\) => group\.id\)\)\)\)/,
+  );
+  assert.match(source, /slotNames:\s*adaptationRequiredSlots\.map\(\(slot\) => slot\.slotName\)/);
+  assert.match(source, /slotNames:\s*selectedDirectSlotSpecs\.map\(\(slot\) => slot\.slotName\)/);
+  assert.doesNotMatch(source, /以下版位比例与原图不匹配，请先生成适配版本/);
 });

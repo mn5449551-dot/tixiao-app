@@ -17,10 +17,10 @@ import {
 import { FinalizedPreviewCard } from "@/components/cards/finalized-pool/finalized-preview-card";
 import { Field, Select } from "@/components/ui/field";
 import {
-  classifyExportAdaptation,
   EXPORT_SLOT_SPECS,
+  mergeSelectedGroupIds,
+  splitExportSlotSpecsByCoverage,
   type ExportSlotSpec,
-  isSpecialRatio,
 } from "@/lib/export/utils";
 import { IMAGE_MODELS } from "@/lib/constants";
 import { LOGO_ASSET_OPTIONS } from "@/lib/logo-asset-metadata";
@@ -113,26 +113,6 @@ function getFinalizedGroupSelectButtonClass(selected: boolean): string {
   );
 }
 
-function getSlotStatusLabel(
-  isSpecial: boolean,
-  hasPostprocess: boolean,
-  hasTransform: boolean,
-): string {
-  if (isSpecial) {
-    return "暂不支持";
-  }
-
-  if (hasPostprocess) {
-    return "需后处理";
-  }
-
-  if (hasTransform) {
-    return "需适配";
-  }
-
-  return "可直接导出";
-}
-
 export function FinalizedPoolCard({
   data,
   selected,
@@ -151,34 +131,21 @@ export function FinalizedPoolCard({
   const [previewImage, setPreviewImage] = useState<FinalizedImage | null>(null);
   const [imageModel, setImageModel] = useState<string>(data.defaultImageModel ?? IMAGE_MODELS[0]?.value ?? "doubao-seedream-4-0");
 
-  const confirmedImages = useMemo(() => groups.flatMap((group) => group.images), [groups]);
   const selectedGroups = useMemo(() => groups.filter((g) => selectedGroupIds.has(g.id)), [groups, selectedGroupIds]);
   const selectedImages = useMemo(() => selectedGroups.flatMap((g) => g.images), [selectedGroups]);
+  const selectedImageRatios = useMemo(
+    () => Array.from(new Set(selectedImages.map((image) => image.aspectRatio))),
+    [selectedImages],
+  );
   const availableSlots = useMemo(() => getSlotsForChannels(selectedChannels), [selectedChannels]);
-  const selectedSlotSpecs = useMemo(
-    () => availableSlots.filter((slot) => selectedSlots.includes(slot.slotName)),
-    [availableSlots, selectedSlots],
+  const { directSlots, adaptationRequiredSlots, specialSlots } = useMemo(
+    () => splitExportSlotSpecsByCoverage({ selectedImageRatios, slotSpecs: availableSlots }),
+    [availableSlots, selectedImageRatios],
   );
-  const exportableSlotSpecs = useMemo(
-    () => selectedSlotSpecs.filter((slot) => !isSpecialRatio(slot.ratio)),
-    [selectedSlotSpecs],
+  const selectedDirectSlotSpecs = useMemo(
+    () => directSlots.filter((slot) => selectedSlots.includes(slot.slotName)),
+    [directSlots, selectedSlots],
   );
-  const adaptationSummary = useMemo(() => {
-    let direct = 0;
-    let transform = 0;
-    let postprocess = 0;
-
-    for (const slot of exportableSlotSpecs) {
-      for (const image of selectedImages) {
-        const mode = classifyExportAdaptation(image.aspectRatio, slot.ratio);
-        if (mode === "direct") direct += 1;
-        else if (mode === "transform") transform += 1;
-        else postprocess += 1;
-      }
-    }
-
-    return { direct, transform, postprocess };
-  }, [selectedImages, exportableSlotSpecs]);
 
   const toggleChannel = useCallback((channel: string) => {
     setSelectedChannels((prev) =>
@@ -266,7 +233,7 @@ export function FinalizedPoolCard({
             <h3 className="text-sm font-semibold text-[#4a3728]">定稿池</h3>
           </div>
           <p className="text-[11px] text-[var(--ink-400)]">
-            {getFinalizedSummaryText(displayMode, confirmedImages.length, groups.length, selectedGroupCount)}
+            {getFinalizedSummaryText(displayMode, groups.flatMap((group) => group.images).length, groups.length, selectedGroupCount)}
           </p>
         </div>
         {groupLabel ? <Badge tone="success">{groupLabel}</Badge> : null}
@@ -423,33 +390,72 @@ export function FinalizedPoolCard({
       {availableSlots.length > 0 && (
         <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
           <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">投放版位</p>
-          <div className="space-y-2">
-            {availableSlots.map((slot) => {
-              const active = selectedSlots.includes(slot.slotName);
-              const isSpecial = isSpecialRatio(slot.ratio);
-              const slotModes = confirmedImages.map((image) => classifyExportAdaptation(image.aspectRatio, slot.ratio));
-              const hasPostprocess = slotModes.includes("postprocess");
-              const hasTransform = slotModes.includes("transform");
-              const statusLabel = getSlotStatusLabel(isSpecial, hasPostprocess, hasTransform);
-              return (
-                <button
-                  key={`${slot.channel}-${slot.slotName}`}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs transition",
-                    isSpecial
-                      ? "cursor-not-allowed bg-[var(--surface-2)] text-[var(--ink-400)] opacity-60"
-                      : active
-                        ? "bg-[var(--brand-50)] text-[var(--brand-700)]"
-                        : "bg-white text-[var(--ink-600)]",
-                  )}
-                  onClick={() => { if (!isSpecial) toggleSlot(slot.slotName); }}
-                >
-                  <span className="font-medium">{slot.channel} · {slot.slotName}</span>
-                  <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio} · {slot.size} · {statusLabel}</span>
-                </button>
-              );
-            })}
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-[#d8eadf] bg-[#f7fdf9] p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-[#39624a]">可直接导出版位</p>
+                  <p className="text-[11px] text-[#6b8b77]">这里展示的版位现在就能导出，可按需勾选。</p>
+                </div>
+                <Badge tone="success">{directSlots.length} 项</Badge>
+              </div>
+              {directSlots.length > 0 ? (
+                <div className="space-y-2">
+                  {directSlots.map((slot) => {
+                    const active = selectedSlots.includes(slot.slotName);
+                    return (
+                      <button
+                        key={`${slot.channel}-${slot.slotName}`}
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition",
+                          active
+                            ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                            : "border-[#d8eadf] bg-white text-[var(--ink-600)]",
+                        )}
+                        onClick={() => toggleSlot(slot.slotName)}
+                      >
+                        <span className="font-medium">{slot.channel} · {slot.slotName}</span>
+                        <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio} · {slot.size}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--ink-500)]">当前已选图片还没有覆盖到可直接导出的版位。</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-[#edd8ba] bg-[#fffaf2] p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-[#9b6513]">需适配后导出</p>
+                  <p className="text-[11px] text-[#b07a2c]">这些版位当前还缺少对应比例的图片，需要先生成适配版本。</p>
+                </div>
+                <Badge tone="brand">{adaptationRequiredSlots.length} 项</Badge>
+              </div>
+              {adaptationRequiredSlots.length > 0 ? (
+                <div className="space-y-2">
+                  {adaptationRequiredSlots.map((slot) => (
+                    <div
+                      key={`${slot.channel}-${slot.slotName}`}
+                      className="flex items-center justify-between rounded-lg border border-[#edd8ba] bg-white px-3 py-2 text-xs text-[var(--ink-600)]"
+                    >
+                      <span className="font-medium">{slot.channel} · {slot.slotName}</span>
+                      <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio} · {slot.size}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--ink-500)]">当前已选图片已覆盖所有非特殊比例版位，无需再生成适配版本。</p>
+              )}
+            </div>
+
+            {specialSlots.length > 0 ? (
+              <p className="text-[11px] text-[var(--ink-400)]">
+                特殊比例暂不支持：{specialSlots.map((slot) => `${slot.channel} · ${slot.slotName}`).join("、")}
+              </p>
+            ) : null}
           </div>
         </div>
       )}
@@ -457,10 +463,10 @@ export function FinalizedPoolCard({
       <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">导出预览</p>
         <p className="text-xs text-[var(--ink-500)]">
-          将导出 {exportCount} {displayMode === "single" ? "张" : "套"} × {exportableSlotSpecs.length} 个版位
+          已选 {exportCount} {displayMode === "single" ? "张" : "套"}，可直接导出 {selectedDirectSlotSpecs.length} 个版位
         </p>
         <p className="mt-2 text-xs text-[var(--ink-500)]">
-          直接导出 {adaptationSummary.direct}，需适配 {adaptationSummary.transform}，需后处理 {adaptationSummary.postprocess}
+          待适配版位 {adaptationRequiredSlots.length} 个，特殊比例 {specialSlots.length} 个
         </p>
       </div>
 
@@ -498,7 +504,7 @@ export function FinalizedPoolCard({
         <Button
           variant="secondary"
           className="shrink-0 text-xs"
-          disabled={isGeneratingVariants || exportableSlotSpecs.length === 0 || selectedGroupIds.size === 0 || !projectId}
+          disabled={isGeneratingVariants || adaptationRequiredSlots.length === 0 || selectedGroupIds.size === 0 || !projectId}
           onClick={async () => {
             if (!projectId) return;
             setIsGeneratingVariants(true);
@@ -508,19 +514,22 @@ export function FinalizedPoolCard({
                 projectId,
                 selectedGroupIds: selectedGroupIdList,
                 selectedChannels,
-                slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
+                slotNames: adaptationRequiredSlots.map((slot) => slot.slotName),
                 imageModel,
               });
               if (!result.ok) {
                 setFeedback(result.error ?? "生成适配版本失败");
                 return;
               }
+              if (result.groups.length > 0) {
+                setSelectedGroupIds((prev) => new Set(mergeSelectedGroupIds(prev, result.groups.map((group) => group.id))));
+              }
               if (result.skippedSlots.length > 0) {
-                setFeedback(`以下版位暂不支持，功能开发中：${result.skippedSlots.join("、")}${result.groups.length > 0 ? `。已生成 ${result.groups.length} 个适配版本。` : ""}`);
+                setFeedback(`以下版位暂不支持，功能开发中：${result.skippedSlots.join("、")}${result.groups.length > 0 ? `。已生成 ${result.groups.length} 个适配版本，并加入当前选择。` : ""}`);
               } else if (result.groups.length === 0) {
                 setFeedback("当前选中版位都可直接导出，无需生成适配版本。");
               } else {
-                setFeedback(`已生成 ${result.groups.length} 个适配版本。`);
+                setFeedback(`已生成 ${result.groups.length} 个适配版本，并加入当前选择。`);
               }
               dispatchWorkspaceInvalidated();
             } finally {
@@ -538,16 +547,6 @@ export function FinalizedPoolCard({
         onClick={async () => {
           if (selectedGroupIds.size === 0 || selectedChannels.length === 0 || !projectId) return;
 
-          // 检查是否有比例不匹配的版位需要先生成适配版本
-          const unadaptedSlots = exportableSlotSpecs.filter((slot) => {
-            return selectedImages.some((image) => classifyExportAdaptation(image.aspectRatio, slot.ratio) !== "direct");
-          });
-          if (unadaptedSlots.length > 0) {
-            const slotNames = unadaptedSlots.map((s) => `${s.slotName}(${s.ratio})`).join("、");
-            setFeedback(`以下版位比例与原图不匹配，请先生成适配版本：${slotNames}`);
-            return;
-          }
-
           setIsExporting(true);
           setFeedback(null);
           try {
@@ -555,7 +554,7 @@ export function FinalizedPoolCard({
               projectId,
               selectedGroupIds: selectedGroupIdList,
               selectedChannels,
-              slotNames: exportableSlotSpecs.map((slot) => slot.slotName),
+              slotNames: selectedDirectSlotSpecs.map((slot) => slot.slotName),
               logo: exportLogo,
               fileFormat,
               namingRule: "channel_slot_date_version",
@@ -569,7 +568,7 @@ export function FinalizedPoolCard({
             setIsExporting(false);
           }
         }}
-        disabled={isExporting || selectedGroupIds.size === 0 || selectedChannels.length === 0 || exportableSlotSpecs.length === 0}
+        disabled={isExporting || selectedGroupIds.size === 0 || selectedChannels.length === 0 || selectedDirectSlotSpecs.length === 0}
       >
         {isExporting ? "导出中..." : "确认导出"}
       </Button>
