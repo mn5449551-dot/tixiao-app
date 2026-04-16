@@ -46,7 +46,7 @@ Optional:
 
 ### Data Layer
 - SQLite via `better-sqlite3` with Drizzle ORM
-- Schema in `lib/schema.ts` — 13 tables: projectFolders, projects, requirementCards, directions, copyCards, copies, imageConfigs, imageGroups, generatedImages, exportRecords, assistantStates, canvasStates, projectGenerationRuns, settings
+- Schema in `lib/schema.ts` — 15 tables: projectFolders, projects, requirementCards, directions, copyCards, copies, imageConfigs, imageGroups, generatedImages, exportRecords, assistantStates, canvasStates, projectGenerationRuns, settings, agentErrorLogs
 - Public API facade: `lib/project-data.ts` re-exports from `lib/project-data-modules/`
 - Database file: `.local-data/db/onion.db` (auto-migration on startup via `lib/db.ts` bootstrap)
 
@@ -57,7 +57,9 @@ Optional:
 - Client: `lib/ai/client.ts` — chat completions and multimodal calls via AI gateway
 - Image transport: `lib/ai/image-chat.ts` — multi-transport image generation (images_generations, chat_completions, images/edits)
 - 5 agents in `lib/ai/agents/`: assistant (requirement), direction, copy, image-description, image
+- Additional: `requirement-agent.ts` (requirement card parsing)
 - Knowledge in `lib/ai/knowledge/` and `lib/ai/agents/*-knowledge.ts`
+- Error logging: `lib/ai/agent-error-log.ts` records failed AI generation attempts to `agent_error_logs` table (auto-cleanup after 3 days)
 - All agents output strict JSON. All prompts are in Chinese.
 - Default text model: `deepseek-v3-2-251201`, default image model: `gpt-image-1` (configurable via Settings page)
 
@@ -67,6 +69,11 @@ Optional:
 - **qwen-image-2.0**: `images_generations` + `images/edits`, all ratios, returns b64_json
 - **gemini-3.1-flash / gemini-3-pro**: `chat_completions`, returns inlineData (base64)
 - **gpt-image-1.5**: `images_generations`, only 1:1, returns b64_json
+
+### Generation Polling
+- `lib/hooks/use-generation-polling.ts` — polls `/api/projects/[id]/generation-status` every 3s while images are pending
+- `lib/workspace-graph-sync.ts` — merges status updates (fileUrl, status) into graph; triggers full reload when all images complete
+- When last pending image finishes, full graph reload is triggered to load prompt data (`finalPromptText`, `generationRequestJson`)
 
 ### Workflow Canvas
 - React Flow graph built in `lib/workflow-graph.ts` from workspace data
