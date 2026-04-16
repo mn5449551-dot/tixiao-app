@@ -405,7 +405,9 @@ function createCandidateGroupsForConfig(input: {
   timestamp: number;
 }) {
   const groups = listImageConfigGroups(input.imageConfigId);
-  const startIndex = input.append ? groups.length + 1 : 1;
+  const startIndex = input.append
+    ? Math.max(...groups.map((g) => g.variantIndex), 0) + 1
+    : 1;
   const groupCount = input.append ? (input.requestedCount ?? 1) : input.configCount;
   const slotCount = imageSlotCount(input.directionImageForm);
   const createdGroups: Array<typeof imageGroups.$inferSelect> = [];

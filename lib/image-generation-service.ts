@@ -1,10 +1,16 @@
 import { eq, inArray } from "drizzle-orm";
+import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 
 import {
   generateImageDescription,
+  resolveSeriesSlotRoles,
   type ImageDescriptionInput,
 } from "@/lib/ai/agents/image-description-agent";
+import {
+  generateSeriesDeltaPrompts,
+  type SeriesImageAgentInput,
+} from "@/lib/ai/agents/series-image-agent";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
 import { getDb } from "@/lib/db";
 import { finishGenerationRun } from "@/lib/generation-runs";
@@ -228,7 +234,6 @@ async function buildSharedBaseContext(input: {
       aspectRatio: input.config.aspectRatio,
       styleMode: (input.config.styleMode ?? "normal") as "normal" | "ip",
       imageStyle: input.config.imageStyle,
-      logo: (input.config.logo ?? "none") as "onion" | "onion_app" | "none",
       ctaEnabled: input.config.ctaEnabled === 1,
       ctaText: input.config.ctaText,
     },
@@ -239,6 +244,16 @@ async function buildSharedBaseContext(input: {
     },
     referenceImages,
   };
+}
+
+function isSeriesMode(direction: DirectionRecord): boolean {
+  return direction.imageForm === "double" || direction.imageForm === "triple";
+}
+
+function getSeriesSlotCount(imageForm: string | null | undefined): number {
+  if (imageForm === "triple") return 3;
+  if (imageForm === "double") return 2;
+  return 1;
 }
 
 export async function processPreparedImageGeneration(input: {
@@ -263,8 +278,7 @@ export async function processPreparedImageGeneration(input: {
     const promptMap = new Map(
       descriptionResult.prompts.map((prompt) => [prompt.slotIndex, prompt]),
     );
-    const primaryPrompt = promptMap.get(1) ?? descriptionResult.prompts[0];
-    if (!primaryPrompt) {
+    if (descriptionResult.prompts.length === 0) {
       throw new Error("图片描述生成失败：未生成任何 prompt");
     }
 
@@ -284,49 +298,53 @@ export async function processPreparedImageGeneration(input: {
         .set({
           promptBundleJson,
           referenceImageUrl: config.referenceImageUrl ?? null,
-          logo: config.logo ?? "none",
           updatedAt: snapshotTimestamp,
         })
         .where(eq(imageGroups.id, group.id))
         .run();
     }
 
-    // Build work items for all images across all groups, then generate in parallel
-    const workItems: Array<{
+    const isSeries = isSeriesMode(direction);
+    const slotCount = isSeries ? getSeriesSlotCount(direction.imageForm) : 1;
+
+    // Phase 1: Build work items for slot 1 only
+    const slot1WorkItems: Array<{
       imageId: string;
+      groupId: string;
       prompt: string;
       negativePrompt: string | null;
       referenceImageUrls: string[];
-      groupLogo: string;
       groupModel: string | null;
     }> = [];
 
     for (const group of groups) {
       const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
       const groupReferenceImageUrl = group.referenceImageUrl ?? config.referenceImageUrl ?? null;
-      const groupLogo = group.logo ?? config.logo ?? "none";
       const groupModel = group.imageModel ?? config.imageModel ?? null;
       const groupReferenceImageUrls = [groupReferenceImageUrl].filter(Boolean) as string[];
 
       for (const image of images) {
-        const promptEntry = promptMap.get(image.slotIndex) ?? primaryPrompt;
-        workItems.push({
+        if (image.slotIndex !== 1) continue;
+        const slot1Prompt = promptMap.get(1);
+        if (!slot1Prompt) continue;
+        slot1WorkItems.push({
           imageId: image.id,
-          prompt: promptEntry.prompt,
-          negativePrompt: promptEntry.negativePrompt,
+          groupId: group.id,
+          prompt: slot1Prompt.prompt,
+          negativePrompt: slot1Prompt.negativePrompt,
           referenceImageUrls: groupReferenceImageUrls,
-          groupLogo,
           groupModel,
         });
       }
     }
 
-    // Save prompt snapshots before generating
-    for (const item of workItems) {
+    // Save slot 1 prompt snapshots
+    for (const item of slot1WorkItems) {
       db.update(generatedImages)
         .set({
           finalPromptText: item.prompt,
           finalNegativePrompt: item.negativePrompt,
+          promptType: "full",
           generationRequestJson: buildGenerationRequestJson({
             promptText: item.prompt,
             negativePrompt: item.negativePrompt,
@@ -340,9 +358,9 @@ export async function processPreparedImageGeneration(input: {
         .run();
     }
 
-    // Generate all images in parallel
-    const generationResults = await Promise.allSettled(
-      workItems.map(async (item) => {
+    // Generate slot 1 images in parallel
+    const slot1Results = await Promise.allSettled(
+      slot1WorkItems.map(async (item) => {
         const binaries = item.referenceImageUrls.length > 0
           ? await generateImageFromReference({
               instruction: item.prompt,
@@ -367,17 +385,161 @@ export async function processPreparedImageGeneration(input: {
       }),
     );
 
-    // Update DB with results sequentially (SQLite doesn't support concurrent writes)
-    for (let i = 0; i < generationResults.length; i += 1) {
-      const result = generationResults[i];
-      const imageId = workItems[i].imageId;
+    // Process slot 1 results into per-group map
+    const slot1DoneMap = new Map<string, { fileUrl: string; filePath: string; imageId: string }>();
+
+    for (let i = 0; i < slot1Results.length; i += 1) {
+      const result = slot1Results[i];
+      const item = slot1WorkItems[i];
+      const imageId = item.imageId;
+      const groupId = item.groupId;
 
       if (result.status === "fulfilled") {
         markGeneratedImageDone({ imageId, saved: result.value.saved });
+        const updatedImage = db.select().from(generatedImages).where(eq(generatedImages.id, imageId)).get();
+        slot1DoneMap.set(groupId, {
+          fileUrl: result.value.saved.fileUrl,
+          filePath: updatedImage?.filePath ?? "",
+          imageId,
+        });
       } else {
         const message = result.reason instanceof Error ? result.reason.message : "图片生成失败";
         hadFailure = true;
         markGeneratedImageFailed(imageId, message);
+      }
+    }
+
+    // Phase 2: For series mode, generate slot 2+ per group with its own delta prompt
+    if (isSeries) {
+      for (const group of groups) {
+        const slot1Info = slot1DoneMap.get(group.id);
+        if (!slot1Info) {
+          // Slot 1 failed for this group — mark all slot 2+ as failed
+          const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+          for (const image of images) {
+            if (image.slotIndex > 1 && image.status !== "done") {
+              markGeneratedImageFailed(image.id, "系列图第 1 张生成失败，后续图无法生成");
+            }
+          }
+          hadFailure = true;
+          continue;
+        }
+
+        // Build delta prompt for this group via series-image-agent
+        const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+        const slot1Prompt = promptMap.get(1)?.prompt ?? descriptionResult.prompts[0]!.prompt;
+        const copyTexts = [copy.titleMain, copy.titleSub ?? "", copy.titleExtra ?? ""].filter(Boolean);
+        const targetTexts = new Map<number, string>();
+        for (let i = 1; i < slotCount; i += 1) {
+          const text = copyTexts[i] ?? copyTexts[0] ?? "";
+          targetTexts.set(i + 1, text);
+        }
+
+        const slotRoles = resolveSeriesSlotRoles(copy.copyType, slotCount);
+        const deltaResult = await generateSeriesDeltaPrompts({
+          slot1Prompt,
+          slot1ImageUrl: slot1Info.fileUrl,
+          targetTexts,
+          copyType: copy.copyType,
+          slotRoles,
+        });
+
+        const deltaMap = new Map(deltaResult.deltas.map((d) => [d.slotIndex, d]));
+
+        // Update promptBundleJson with delta prompts for this group
+        const groupPromptBundleJson = JSON.stringify({
+          agentType: "series",
+          prompts: [
+            { slotIndex: 1, prompt: slot1Prompt, negativePrompt: promptMap.get(1)?.negativePrompt },
+            ...deltaResult.deltas.map((d) => ({ slotIndex: d.slotIndex, prompt: d.prompt, negativePrompt: d.negativePrompt })),
+          ],
+        });
+
+        db.update(imageGroups)
+          .set({ promptBundleJson: groupPromptBundleJson, updatedAt: Date.now() })
+          .where(eq(imageGroups.id, group.id))
+          .run();
+
+        // Build slot 2+ work items for this group
+        const slot2PlusItems: Array<{
+          imageId: string;
+          slotIndex: number;
+          prompt: string;
+          negativePrompt: string;
+        }> = [];
+
+        for (const image of images) {
+          if (image.slotIndex <= 1) continue;
+          const delta = deltaMap.get(image.slotIndex);
+          if (!delta) continue;
+
+          slot2PlusItems.push({
+            imageId: image.id,
+            slotIndex: image.slotIndex,
+            prompt: delta.prompt,
+            negativePrompt: delta.negativePrompt,
+          });
+        }
+
+        // Save slot 2+ prompt snapshots for this group
+        for (const item of slot2PlusItems) {
+          db.update(generatedImages)
+            .set({
+              finalPromptText: item.prompt,
+              finalNegativePrompt: item.negativePrompt,
+              promptType: "delta",
+              generationRequestJson: buildGenerationRequestJson({
+                promptText: item.prompt,
+                negativePrompt: item.negativePrompt,
+                model: "qwen-image-2.0",
+                aspectRatio: config.aspectRatio,
+                referenceImages: [{ url: slot1Info.fileUrl }],
+              }),
+              updatedAt: Date.now(),
+            })
+            .where(eq(generatedImages.id, item.imageId))
+            .run();
+        }
+
+        // Generate slot 2+ for this group via qwen-image-2.0 images/edits
+        const slot2PlusResults = await Promise.allSettled(
+          slot2PlusItems.map(async (item) => {
+            const imageBuffer = await readFile(slot1Info.filePath);
+            const ext = slot1Info.filePath.split(".").pop()?.toLowerCase();
+            const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png";
+            const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
+            const binaries = await generateImageFromReference({
+              instruction: item.prompt,
+              imageUrl: dataUrl,
+              aspectRatio: config.aspectRatio,
+              model: "qwen-image-2.0",
+            });
+
+            const binary = binaries[0];
+            const pngBuffer = await sharp(binary.buffer).png().toBuffer();
+            const saved = await saveImageBuffer({
+              projectId,
+              imageId: item.imageId,
+              buffer: pngBuffer,
+              extension: "png",
+            });
+            return { imageId: item.imageId, saved };
+          }),
+        );
+
+        for (let i = 0; i < slot2PlusResults.length; i += 1) {
+          const result = slot2PlusResults[i];
+          const imageId = slot2PlusItems[i].imageId;
+
+          if (result.status === "fulfilled") {
+            markGeneratedImageDone({ imageId, saved: result.value.saved });
+          } else {
+            const message = result.reason instanceof Error ? result.reason.message : "图片生成失败";
+            hadFailure = true;
+            markGeneratedImageFailed(imageId, message);
+          }
+        }
       }
     }
   } catch (error) {
