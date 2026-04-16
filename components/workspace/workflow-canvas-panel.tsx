@@ -85,10 +85,15 @@ export function WorkflowCanvasPanel({ projectId }: { projectId: string }): React
   const handleStatuses = useCallback((payload: GenerationStatusData) => {
     setGraph((current) => {
       if (!current) return current;
+      const wasPending = current.hasPendingImages;
       const mergedGraph = mergeGenerationStatusesIntoGraph(current, payload);
       if (shouldReloadGraphAfterStatusPoll(current, payload)) {
         queueMicrotask(loadGraph);
         return mergedGraph;
+      }
+      // When all images finish generating, reload full graph to get prompt data
+      if (wasPending && !mergedGraph.hasPendingImages) {
+        queueMicrotask(loadGraph);
       }
       return mergedGraph;
     });
