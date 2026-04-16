@@ -9,7 +9,6 @@ import {
 } from "@/lib/ai/agents/image-description-agent";
 import {
   generateSeriesDeltaPrompts,
-  type SeriesImageAgentInput,
 } from "@/lib/ai/agents/series-image-agent";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
 import { getDb } from "@/lib/db";
