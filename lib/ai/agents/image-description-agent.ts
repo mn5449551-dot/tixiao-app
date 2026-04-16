@@ -182,21 +182,6 @@ function buildRoutingMeta(input: ImageDescriptionInput): ImageDescriptionRouteMe
     input.config.ctaEnabled &&
     Boolean(input.config.ctaText);
 
-  const isSeries = input.config.imageForm === "double" || input.config.imageForm === "triple";
-
-  if (isSeries) {
-    const slotCount = getPromptCount(input.config.imageForm);
-    return {
-      agentType: "series",
-      allowCTA: false,
-      referenceMode: input.config.styleMode === "ip" ? "ip_identity" : "style_reference",
-      primaryReferenceLabel: input.referenceImages.length > 0 ? "参考图1" : null,
-      seriesGoal: getSeriesGoal(input.config.imageForm),
-      slotRoles: getSlotRoles(input.config.imageForm, input.copySet.copyType, slotCount),
-      consistencySummary: getConsistencySummary(input.config.imageForm),
-    };
-  }
-
   return {
     agentType: "poster",
     allowCTA,
@@ -1189,15 +1174,10 @@ export async function generateImageDescription(input: ImageDescriptionInput): Pr
     }
 
     const fallback = buildFallbackOutput(input);
-    const expectedCount = getPromptCount(input.config.imageForm);
-    const returned = parsed.prompts.slice(0, expectedCount);
-    if (returned.length === 0) {
-      return fallback;
-    }
     return {
-      prompts: returned.map((item, index) => ({
-        slotIndex: item.slotIndex ?? (index + 1),
-        prompt: item.prompt?.trim() || fallback.prompts[Math.min(index, fallback.prompts.length - 1)]!.prompt,
+      prompts: parsed.prompts.slice(0, 1).map((item, index) => ({
+        slotIndex: 1,
+        prompt: item.prompt?.trim() || fallback.prompts[0]!.prompt,
         negativePrompt: item.negativePrompt?.trim() || getDefaultNegativePrompt(input),
       })),
     };
@@ -1237,20 +1217,15 @@ function buildFallbackOutput(input: ImageDescriptionInput): ImageDescriptionOutp
   const referenceDesc = getReferenceDescription(input.referenceImages);
   const ctaDesc = getFallbackCtaDescription(input);
   const stylePrefix = input.config.styleMode === "ip" ? "高质量动漫风格广告海报，" : "高质量商业广告海报，";
-  const count = getPromptCount(input.config.imageForm);
-  const texts = [input.copySet.titleMain, input.copySet.titleSub ?? "", input.copySet.titleExtra ?? ""];
+  const text = input.copySet.titleMain;
 
-  const prompts: ImageDescriptionPrompt[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const text = texts[i] ?? texts[0] ?? "";
-    const role = getFallbackRoleText(count, i);
-    const prompt = `${stylePrefix}${input.direction.targetAudience}，场景是${input.direction.scenarioProblem}，突出${input.direction.differentiation}带来的${input.direction.effect}，${role}，标题内容是"${text}"，画幅比例${input.config.aspectRatio}，${referenceDesc ? `参考${referenceDesc}，` : ""}构图清晰，标题完整易读，商业海报感强${i === 0 ? ctaDesc : ""}，4k分辨率，结构清晰，细节丰富`;
-    prompts.push({
-      slotIndex: i + 1,
+  const prompt = `${stylePrefix}${input.direction.targetAudience}，场景是${input.direction.scenarioProblem}，突出${input.direction.differentiation}带来的${input.direction.effect}，标题内容是"${text}"，画幅比例${input.config.aspectRatio}，${referenceDesc ? `参考${referenceDesc}，` : ""}构图清晰，标题完整易读，商业海报感强${ctaDesc}，4k分辨率，结构清晰，细节丰富`;
+
+  return {
+    prompts: [{
+      slotIndex: 1,
       prompt,
       negativePrompt: getDefaultNegativePrompt(input),
-    });
-  }
-
-  return { prompts };
+    }],
+  };
 }

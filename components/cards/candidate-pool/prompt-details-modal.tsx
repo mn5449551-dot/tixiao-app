@@ -12,6 +12,7 @@ export type PromptDetails = {
   aspectRatio: string | null;
   referenceImages: Array<{ url: string }>;
   hasSnapshot: boolean;
+  promptType?: string | null;
 };
 
 export function PromptDetailsModal({
@@ -39,8 +40,8 @@ export function PromptDetailsModal({
       isOpen={isOpen}
       onClose={onClose}
       scrollable
-      title="生图提示词"
-      description="查看该候选图真实传入模型的提示词与参考信息。"
+      title={details?.promptType === "delta" ? "差异提示词（基于第 1 张图的变化）" : "生图提示词"}
+      description={details?.promptType === "delta" ? "此图基于第 1 张图通过图生图生成，以下为差异部分的描述。" : "查看该候选图真实传入模型的提示词与参考信息。"}
     >
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-3 rounded-2xl bg-[var(--surface-1)] p-4 text-sm">
@@ -92,14 +93,23 @@ export function PromptDetailsModal({
           <h3 className="text-sm font-semibold text-[var(--ink-900)]">参考图</h3>
           {referenceImages.length > 0 ? (
             <div className="flex flex-wrap gap-3">
-              {referenceImages.map((item) => (
-                <div
-                  key={item.url}
-                  className="relative h-24 w-24 overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)]"
-                >
-                  <Image src={item.url} alt="参考图" fill sizes="96px" className="object-contain" />
-                </div>
-              ))}
+              {referenceImages.map((item) => {
+                const isValidUrl = item.url.startsWith("/") || item.url.startsWith("http://") || item.url.startsWith("https://");
+                return (
+                  <div
+                    key={item.url}
+                    className="relative h-24 w-24 overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)]"
+                  >
+                    {isValidUrl ? (
+                      <Image src={item.url} alt="参考图" fill sizes="96px" className="object-contain" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center p-2 text-center text-[10px] text-[var(--ink-500)]">
+                        无效参考图地址
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-[var(--line-soft)] px-4 py-4 text-sm text-[var(--ink-500)]">

@@ -43,7 +43,7 @@ const baseInput: ImageDescriptionInput = {
   ],
 };
 
-test("buildImageDescriptionMessages routes single to poster and series to series agent", () => {
+test("buildImageDescriptionMessages routes single and multi-image to poster agent for slot 1 generation", () => {
   const singleMessages = buildImageDescriptionMessages({
     ...baseInput,
     direction: { ...baseInput.direction, channel: "信息流（广点通）" },
@@ -59,14 +59,18 @@ test("buildImageDescriptionMessages routes single to poster and series to series
   const singleSystem = typeof singleMessages[0]?.content === "string" ? singleMessages[0].content : "";
   const seriesSystem = typeof seriesMessages[0]?.content === "string" ? seriesMessages[0].content : "";
 
-  // Single uses poster agent
   assert.match(singleSystem, /单图广告海报提示词生成 Agent/);
   assert.match(singleSystem, /single 必须同时处理/);
   assert.match(singleSystem, /titleMain/);
   assert.match(singleSystem, /titleSub/);
-  // Series uses series agent
-  assert.match(seriesSystem, /系列组图广告提示词生成 Agent/);
-  assert.match(seriesSystem, /系列优先于单张/);
+  // Both single and series use poster agent (series only generates slot 1)
+  assert.match(seriesSystem, /单图广告海报提示词生成 Agent/);
+
+  const seriesUserText = (seriesMessages[1]?.content as ChatContentPart[])
+    .filter((part) => part.type === "text")
+    .map((part) => (part as { type: "text"; text: string }).text)
+    .join(" ");
+  assert.match(seriesUserText, /仅生成第 1 张图/);
 });
 
 test("buildImageDescriptionMessages filters out logo references and keeps only the primary non-logo image", () => {
@@ -114,11 +118,11 @@ test("buildImageDescriptionMessages includes CTA only for information-flow singl
 
   assert.match(singleText, /CTA是否允许：是/);
   assert.match(singleText, /立即下载/);
-  // Series mode never allows CTA
-  assert.match(seriesText, /CTA：系列图不允许 CTA/);
+  // Double mode uses poster agent with CTA disabled, so CTA should show "否"
+  assert.match(seriesText, /CTA是否允许：否/);
 });
 
-test("generateImageDescription returns prompts for all slots in series mode", async () => {
+test("generateImageDescription returns only slot 1 prompt (series mode delegates slot 2+ to series-image-agent)", async () => {
   const previousFetch = globalThis.fetch;
   const previousApiKey = process.env.NEW_API_KEY;
   process.env.NEW_API_KEY = "test-key";
@@ -131,7 +135,6 @@ test("generateImageDescription returns prompts for all slots in series mode", as
               content: JSON.stringify({
                 prompts: [
                   { slotIndex: 1, prompt: "第一张 prompt", negativePrompt: "第一张 negative" },
-                  { slotIndex: 2, prompt: "第二张 prompt", negativePrompt: "第二张 negative" },
                 ],
               }),
             },
@@ -148,11 +151,10 @@ test("generateImageDescription returns prompts for all slots in series mode", as
       copySet: { ...baseInput.copySet, titleExtra: null },
     });
 
-    assert.equal(result.prompts.length, 2);
+    assert.equal(result.prompts.length, 1);
     assert.equal(result.prompts[0]?.slotIndex, 1);
     assert.equal(result.prompts[0]?.prompt, "第一张 prompt");
-    assert.equal(result.prompts[1]?.slotIndex, 2);
-    assert.equal(result.prompts[1]?.prompt, "第二张 prompt");
+    assert.equal(result.prompts[0]?.negativePrompt, "第一张 negative");
   } finally {
     globalThis.fetch = previousFetch;
     process.env.NEW_API_KEY = previousApiKey;

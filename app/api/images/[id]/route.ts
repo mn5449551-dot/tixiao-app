@@ -297,6 +297,45 @@ async function regenerateSingleImage(input: {
       return;
     }
 
+    // 系列图差异重绘（slot 2/3）：拿同组 slot 1 作参考图
+    if (image.promptType === "delta" && image.slotIndex > 1) {
+      const slot1Image = db
+        .select()
+        .from(generatedImages)
+        .where(eq(generatedImages.imageGroupId, image.imageGroupId))
+        .all()
+        .find((img) => img.slotIndex === 1);
+
+      if (!slot1Image?.filePath) {
+        throw new Error("系列图第 1 张不存在，无法重绘后续图");
+      }
+
+      const prompt = image.finalPromptText ?? "保持与参考图一致的风格，重新生成";
+      const imageBuffer = await readFile(slot1Image.filePath);
+      const mimeType = getMimeTypeFromPath(slot1Image.filePath);
+      const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
+      const binaries = await generateImageFromReference({
+        instruction: prompt,
+        imageUrls: [dataUrl],
+        aspectRatio: group?.aspectRatio ?? config.aspectRatio,
+        model: "qwen-image-2.0",
+      });
+
+      const binary = binaries[0];
+      const pngBuffer = await sharp(binary.buffer).png().toBuffer();
+      const saved = await saveImageBuffer({
+        projectId,
+        imageId: image.id,
+        buffer: pngBuffer,
+        extension: "png",
+      });
+
+      setImageDone(image.id, saved);
+      finishGenerationRun(runId, { status: "done" });
+      return;
+    }
+
     // 常规候选图重新生成：复用 prompt 快照
     const copy = db.select().from(copies).where(eq(copies.id, config.copyId)).get();
 

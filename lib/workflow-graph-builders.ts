@@ -104,13 +104,16 @@ export function buildCandidatePoolNode(input: {
           aspectRatio: group.aspectRatio ?? config.aspectRatio,
           updatedAt: img.updatedAt,
           inpaintParentId: img.inpaintParentId ?? null,
-          promptDetails: parseGenerationRequestSnapshot(img.generationRequestJson) ?? {
-            promptText: null,
-            negativePrompt: null,
-            model: null,
-            aspectRatio: null,
-            referenceImages: [],
-            hasSnapshot: false,
+          promptDetails: {
+            ...(parseGenerationRequestSnapshot(img.generationRequestJson) ?? {
+              promptText: null,
+              negativePrompt: null,
+              model: null,
+              aspectRatio: null,
+              referenceImages: [],
+              hasSnapshot: false,
+            }),
+            promptType: img.promptType ?? null,
           },
         })),
     }));

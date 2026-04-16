@@ -274,12 +274,13 @@ export async function processPreparedImageGeneration(input: {
       ipMetadata,
     });
     const descriptionResult = await generateImageDescription(sharedBase);
-    const promptMap = new Map(
-      descriptionResult.prompts.map((prompt) => [prompt.slotIndex, prompt]),
-    );
     if (descriptionResult.prompts.length === 0) {
       throw new Error("图片描述生成失败：未生成任何 prompt");
     }
+    const primaryPrompt = descriptionResult.prompts[0]!;
+    const promptMap = new Map(
+      descriptionResult.prompts.map((prompt) => [prompt.slotIndex, prompt]),
+    );
 
     const promptBundleJson = JSON.stringify({
       agentType: (direction.imageForm ?? "single") === "single" ? "poster" : "series",
@@ -324,13 +325,11 @@ export async function processPreparedImageGeneration(input: {
 
       for (const image of images) {
         if (image.slotIndex !== 1) continue;
-        const slot1Prompt = promptMap.get(1);
-        if (!slot1Prompt) continue;
         slot1WorkItems.push({
           imageId: image.id,
           groupId: group.id,
-          prompt: slot1Prompt.prompt,
-          negativePrompt: slot1Prompt.negativePrompt,
+          prompt: primaryPrompt.prompt,
+          negativePrompt: primaryPrompt.negativePrompt,
           referenceImageUrls: groupReferenceImageUrls,
           groupModel,
         });
@@ -426,7 +425,7 @@ export async function processPreparedImageGeneration(input: {
 
         // Build delta prompt for this group via series-image-agent
         const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-        const slot1Prompt = promptMap.get(1)?.prompt ?? descriptionResult.prompts[0]!.prompt;
+        const slot1Prompt = primaryPrompt.prompt;
         const copyTexts = [copy.titleMain, copy.titleSub ?? "", copy.titleExtra ?? ""].filter(Boolean);
         const targetTexts = new Map<number, string>();
         for (let i = 1; i < slotCount; i += 1) {

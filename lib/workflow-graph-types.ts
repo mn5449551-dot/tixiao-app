@@ -25,6 +25,7 @@ type CandidateImagePromptDetails = {
   aspectRatio: string | null;
   referenceImages: Array<{ url: string }>;
   hasSnapshot: boolean;
+  promptType?: string | null;
 };
 
 export type GraphNodeData =

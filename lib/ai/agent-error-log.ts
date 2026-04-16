@@ -2,7 +2,7 @@ import { getDb } from "@/lib/db";
 import { agentErrorLogs } from "@/lib/schema";
 import { createId } from "@/lib/id";
 
-export type AgentName = "direction" | "copy" | "image-description" | "requirement";
+export type AgentName = "direction" | "copy" | "image-description" | "requirement" | "series-image";
 
 export function logAgentError(input: {
   agent: AgentName;

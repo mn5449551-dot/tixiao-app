@@ -306,6 +306,10 @@ function bootstrap(connection: Database.Database) {
     connection.exec("ALTER TABLE generated_images ADD COLUMN thumbnail_url TEXT;");
   }
 
+  if (!generatedImageColumns.some((column) => column.name === "prompt_type")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN prompt_type TEXT;");
+  }
+
   const imageGroupColumns2 = connection
     .prepare("PRAGMA table_info(image_groups)")
     .all() as Array<{ name: string }>;

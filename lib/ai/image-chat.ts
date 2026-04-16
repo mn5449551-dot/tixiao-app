@@ -280,28 +280,28 @@ async function generateImageViaEdits(input: {
     throw new Error("缺少 NEW_API_KEY，无法调用图片模型");
   }
 
-  const body: Record<string, unknown> = {
-    model: input.model,
-    prompt: input.prompt,
-    image: input.imageUrl,
-    size: input.size,
-    n: 1,
-  };
-  if (input.maskDataUrl) {
-    body.mask = input.maskDataUrl;
-  }
-  const requestBody = JSON.stringify(body);
-
   for (let attempt = 1; attempt <= IMAGE_REQUEST_RETRY_ATTEMPTS; attempt += 1) {
     let response: Response;
     try {
+      // 使用 multipart/form-data 格式，image 作为文件上传
+      const imageBlob = await imageUrlToBlob(input.imageUrl);
+      const formData = new FormData();
+      formData.append("model", input.model);
+      formData.append("prompt", input.prompt);
+      formData.append("image", imageBlob, "image.png");
+      formData.append("size", input.size);
+      formData.append("n", "1");
+      if (input.maskDataUrl) {
+        const maskBlob = await imageUrlToBlob(input.maskDataUrl);
+        formData.append("mask", maskBlob, "mask.png");
+      }
+
       response = await fetch(`${DEFAULT_BASE_URL}/v1/images/edits`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: requestBody,
+        body: formData,
         signal: AbortSignal.timeout(300_000),
       });
     } catch (error) {
@@ -331,6 +331,19 @@ async function generateImageViaEdits(input: {
   }
 
   throw new Error("图片编辑网络请求失败");
+}
+
+/** 将 data URL 或 HTTP URL 转为 Blob，用于 multipart/form-data 上传 */
+async function imageUrlToBlob(dataOrUrl: string): Promise<Blob> {
+  if (dataOrUrl.startsWith("data:")) {
+    const match = dataOrUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) throw new Error("无法解析 data URL");
+    const buffer = Buffer.from(match[2], "base64");
+    return new Blob([buffer], { type: match[1] });
+  }
+  const resp = await fetch(dataOrUrl, { signal: AbortSignal.timeout(120_000) });
+  if (!resp.ok) throw new Error(`下载图片失败: ${resp.status} ${dataOrUrl.slice(0, 200)}`);
+  return await resp.blob();
 }
 
 export async function editImage(input: {
