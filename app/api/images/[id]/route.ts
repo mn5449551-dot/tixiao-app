@@ -210,7 +210,6 @@ export async function POST(
         runId: activeRunId,
         image,
         config,
-        direction,
         projectId: direction.projectId,
       });
     });
