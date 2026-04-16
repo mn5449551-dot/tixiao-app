@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
+import { getRouteErrorMessage, jsonError, readIdParam } from "@/lib/api-route";
 import { getDb } from "@/lib/db";
 import { deleteImageConfigCascade, regenerateCopy } from "@/lib/project-data";
 import { copies, imageConfigs } from "@/lib/schema";
@@ -10,7 +11,7 @@ export async function PUT(
   context: { params: Promise<unknown> },
 ) {
   try {
-    const { id } = (await context.params) as { id: string };
+    const id = await readIdParam(context);
     const body = (await request.json()) as {
       title_main?: string;
       title_sub?: string;
@@ -31,7 +32,7 @@ export async function PUT(
 
     const existing = db.select().from(copies).where(eq(copies.id, id)).get();
     if (!existing) {
-      return NextResponse.json({ error: "Copy not found" }, { status: 404 });
+      return jsonError("Copy not found", 404);
     }
 
     const updates: Record<string, unknown> = { updatedAt: Date.now() };
@@ -44,10 +45,7 @@ export async function PUT(
     const updated = db.select().from(copies).where(eq(copies.id, id)).get();
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update copy" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "Failed to update copy"));
   }
 }
 
@@ -56,12 +54,12 @@ export async function DELETE(
   context: { params: Promise<unknown> },
 ) {
   try {
-    const { id } = (await context.params) as { id: string };
+    const id = await readIdParam(context);
 
     const db = getDb();
     const copy = db.select().from(copies).where(eq(copies.id, id)).get();
     if (!copy) {
-      return NextResponse.json({ error: "文案不存在" }, { status: 404 });
+      return jsonError("文案不存在", 404);
     }
 
     // Check if locked — must delete image config first
@@ -81,9 +79,6 @@ export async function DELETE(
     db.delete(copies).where(eq(copies.id, id)).run();
     return NextResponse.json({ deleted: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "删除文案失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "删除文案失败"));
   }
 }

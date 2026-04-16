@@ -29,6 +29,35 @@ type CopyAgentInput = {
   knowledgeContext?: string;
 };
 
+function formatExistingCopy(
+  item: NonNullable<CopyAgentInput["existingCopies"]>[number],
+  index: number,
+): string {
+  return `${index + 1}. ${item.titleMain}${item.titleSub ? `｜${item.titleSub}` : ""}${item.titleExtra ? `｜${item.titleExtra}` : ""}${item.copyType ? `｜${item.copyType}` : ""}`;
+}
+
+function getCopyKnowledgeContextBlock(knowledgeContext: string | undefined): string {
+  if (!knowledgeContext) {
+    return "";
+  }
+
+  return `
+
+知识补充上下文：
+${knowledgeContext}`;
+}
+
+function getExistingCopiesBlock(input: CopyAgentInput, isAppend: boolean): string {
+  if (!isAppend) {
+    return "";
+  }
+
+  return `
+
+当前已生成文案：
+${input.existingCopies?.map((item, index) => formatExistingCopy(item, index)).join("\n")}`;
+}
+
 export function buildCopyAgentMessages(input: CopyAgentInput) {
   const isAppend = Boolean(input.existingCopies && input.existingCopies.length > 0);
 
@@ -312,19 +341,13 @@ triple:
 - 场景问题：${input.scenarioProblem}
 - 差异化解法：${input.differentiation}
 - 奇效：${input.effect}
-${input.knowledgeContext ? `
-
-知识补充上下文：
-${input.knowledgeContext}` : ""}
+${getCopyKnowledgeContextBlock(input.knowledgeContext)}
 
 投放约束：
 - 渠道：${input.channel}
 - 图片形式：${input.imageForm}
 - 需要生成文案数：${input.count}
-${isAppend ? `
-
-当前已生成文案：
-${input.existingCopies?.map((item, index) => `${index + 1}. ${item.titleMain}${item.titleSub ? `｜${item.titleSub}` : ""}${item.titleExtra ? `｜${item.titleExtra}` : ""}${item.copyType ? `｜${item.copyType}` : ""}`).join("\n")}` : ""}
+${getExistingCopiesBlock(input, isAppend)}
 
 请输出 ${input.count} 套真正可用于投放的图文文案，确保文案与方向逻辑强绑定，而不是只复述功能。`;
 

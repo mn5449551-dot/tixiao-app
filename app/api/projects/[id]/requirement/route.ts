@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 
 import { recommendRequirementFields } from "@/lib/ai/agents/requirement-agent";
+import { getRouteErrorMessage, jsonError, jsonNoStore, readIdParam } from "@/lib/api-route";
 import { getRequirement, upsertRequirement } from "@/lib/project-data";
 
 export const dynamic = "force-dynamic";
@@ -13,19 +14,14 @@ export async function GET(
 ) {
   noStore();
 
-  const { id } = await context.params;
+  const id = await readIdParam(context);
   const requirement = getRequirement(id);
 
   if (!requirement) {
-    return NextResponse.json(
-      { error: "需求卡不存在" },
-      { status: 404, headers: { "Cache-Control": "no-store, max-age=0" } },
-    );
+    return jsonNoStore({ error: "需求卡不存在" }, { status: 404 });
   }
 
-  return NextResponse.json(requirement, {
-    headers: { "Cache-Control": "no-store, max-age=0" },
-  });
+  return jsonNoStore(requirement);
 }
 
 export async function POST(
@@ -33,7 +29,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await context.params;
+    const id = await readIdParam(context);
     const body = (await request.json()) as {
       raw_input?: string;
       business_goal?: string;
@@ -63,9 +59,6 @@ export async function POST(
       updated_at: requirement?.updatedAt,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "需求卡保存失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "需求卡保存失败"));
   }
 }

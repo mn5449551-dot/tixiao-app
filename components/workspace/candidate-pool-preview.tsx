@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Image from "next/image";
+import type { ReactElement } from "react";
+import { useMemo, useState } from "react";
 import type { getProjectWorkspace } from "@/lib/project-data";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,19 @@ type SelectedImage = {
   groupLabel: string;
 };
 
-export function CandidatePoolPreview({ workspace }: { workspace: WorkspaceData }) {
+function getCandidateGroupGridClass(slotCount: number): string {
+  if (slotCount >= 3) {
+    return "grid-cols-3";
+  }
+
+  if (slotCount === 2) {
+    return "grid-cols-2";
+  }
+
+  return "grid-cols-1";
+}
+
+export function CandidatePoolPreview({ workspace }: { workspace: WorkspaceData }): ReactElement {
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const [instruction, setInstruction] = useState("");
 
@@ -130,9 +143,7 @@ function CandidateGroupCard({
         </Badge>
       </div>
       <div
-        className={`grid gap-2 ${
-          group.slotCount >= 3 ? "grid-cols-3" : group.slotCount === 2 ? "grid-cols-2" : "grid-cols-1"
-        }`}
+        className={`grid gap-2 ${getCandidateGroupGridClass(group.slotCount)}`}
       >
         {group.images.map((image) => (
           <div key={image.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[#f7f3ef]">

@@ -132,6 +132,63 @@ export function resetImageGroupsToPending(groupIds: string[]) {
     .run();
 }
 
+function buildGenerationRequestJson(input: {
+  promptText: string;
+  negativePrompt: string | null;
+  model: string | null;
+  aspectRatio: string;
+  referenceImages: Array<{ url: string }>;
+}): string {
+  return JSON.stringify({
+    promptText: input.promptText,
+    negativePrompt: input.negativePrompt,
+    model: input.model,
+    aspectRatio: input.aspectRatio,
+    referenceImages: input.referenceImages,
+  });
+}
+
+function markGeneratedImageDone(input: {
+  imageId: string;
+  saved: Awaited<ReturnType<typeof saveImageBuffer>>;
+}): void {
+  const db = getDb();
+
+  db.update(generatedImages)
+    .set({
+      filePath: input.saved.filePath,
+      fileUrl: input.saved.fileUrl,
+      thumbnailPath: input.saved.thumbnailPath,
+      thumbnailUrl: input.saved.thumbnailUrl,
+      status: "done",
+      updatedAt: Date.now(),
+    })
+    .where(eq(generatedImages.id, input.imageId))
+    .run();
+}
+
+function markGeneratedImageFailed(imageId: string, message: string): void {
+  const db = getDb();
+
+  db.update(generatedImages)
+    .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
+    .where(eq(generatedImages.id, imageId))
+    .run();
+}
+
+function markUndoneGroupImagesFailed(groups: ImageGroupRecord[], message: string): void {
+  const db = getDb();
+
+  for (const group of groups) {
+    const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+    for (const image of images) {
+      if (image.status !== "done") {
+        markGeneratedImageFailed(image.id, message);
+      }
+    }
+  }
+}
+
 async function buildSharedBaseContext(input: {
   config: ImageConfigRecord;
   direction: DirectionRecord;
@@ -267,7 +324,7 @@ export async function processPreparedImageGeneration(input: {
         .set({
           finalPromptText: item.prompt,
           finalNegativePrompt: item.negativePrompt,
-          generationRequestJson: JSON.stringify({
+          generationRequestJson: buildGenerationRequestJson({
             promptText: item.prompt,
             negativePrompt: item.negativePrompt,
             model: config.imageModel ?? null,
@@ -296,7 +353,7 @@ export async function processPreparedImageGeneration(input: {
             });
 
         const binary = binaries[0];
-        let pngBuffer = await sharp(binary.buffer).png().toBuffer();
+        const pngBuffer = await sharp(binary.buffer).png().toBuffer();
         const saved = await saveImageBuffer({
           projectId,
           imageId: item.imageId,
@@ -313,42 +370,18 @@ export async function processPreparedImageGeneration(input: {
       const imageId = workItems[i].imageId;
 
       if (result.status === "fulfilled") {
-        db.update(generatedImages)
-          .set({
-            filePath: result.value.saved.filePath,
-            fileUrl: result.value.saved.fileUrl,
-            thumbnailPath: result.value.saved.thumbnailPath,
-            thumbnailUrl: result.value.saved.thumbnailUrl,
-            status: "done",
-            updatedAt: Date.now(),
-          })
-          .where(eq(generatedImages.id, imageId))
-          .run();
+        markGeneratedImageDone({ imageId, saved: result.value.saved });
       } else {
         const message = result.reason instanceof Error ? result.reason.message : "图片生成失败";
         hadFailure = true;
-        db.update(generatedImages)
-          .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
-          .where(eq(generatedImages.id, imageId))
-          .run();
+        markGeneratedImageFailed(imageId, message);
       }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "图片生成流程失败";
     hadFailure = true;
     batchErrorMessage = message;
-
-    for (const group of groups) {
-      const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
-      for (const image of images) {
-        if (image.status !== "done") {
-          db.update(generatedImages)
-            .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
-            .where(eq(generatedImages.id, image.id))
-            .run();
-        }
-      }
-    }
+    markUndoneGroupImagesFailed(groups, message);
   } finally {
     finishGenerationRun(runId, {
       status: hadFailure ? "failed" : "done",

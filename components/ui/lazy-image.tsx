@@ -47,7 +47,7 @@ export function LazyImage({
       style={{ position: "relative", width: "100%", height: "100%" }}
     >
       {isVisible ? (
-        <Image {...props} />
+        <Image {...props} alt={props.alt ?? ""} />
       ) : (
         <div
           style={{

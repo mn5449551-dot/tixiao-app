@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { getProjectTreeData } from "@/lib/project-data";
@@ -9,6 +10,8 @@ import { WORKSPACE_TREE_INVALIDATED } from "@/lib/workspace-events";
 import { createRequestCoordinator } from "@/lib/workspace-request-coordinator";
 
 type ProjectTreeData = NonNullable<ReturnType<typeof getProjectTreeData>>;
+type ProjectTreeResponse = ProjectTreeData | { error?: string };
+const TREE_LOAD_ERROR = "获取项目树失败";
 
 type ProjectTreePanelProps = {
   projectId: string;
@@ -20,11 +23,23 @@ function isProjectTreeData(value: unknown): value is ProjectTreeData {
   return typeof value === "object" && value !== null && "project" in value && "directions" in value;
 }
 
+function getProjectTreeErrorMessage(payload: ProjectTreeResponse): string {
+  if (isProjectTreeData(payload)) {
+    return TREE_LOAD_ERROR;
+  }
+
+  return payload.error ?? TREE_LOAD_ERROR;
+}
+
+function isAbortError(controller: AbortController, error: unknown): boolean {
+  return controller.signal.aborted || (error instanceof Error && error.name === "AbortError");
+}
+
 export function ProjectTreePanel({
   projectId,
   collapsed,
   onToggleCollapse,
-}: ProjectTreePanelProps) {
+}: ProjectTreePanelProps): ReactElement {
   const [tree, setTree] = useState<ProjectTreeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const requestCoordinatorRef = useRef(createRequestCoordinator());
@@ -41,9 +56,9 @@ export function ProjectTreePanel({
       signal: controller.signal,
     })
       .then(async (response) => {
-        const payload = (await response.json()) as ProjectTreeData | { error?: string };
+        const payload = (await response.json()) as ProjectTreeResponse;
         if (!response.ok || !isProjectTreeData(payload)) {
-          throw new Error(!isProjectTreeData(payload) && "error" in payload ? payload.error ?? "获取项目树失败" : "获取项目树失败");
+          throw new Error(getProjectTreeErrorMessage(payload));
         }
         if (requestCoordinatorRef.current.isLatest(requestToken)) {
           setTree(payload);
@@ -51,15 +66,12 @@ export function ProjectTreePanel({
         }
       })
       .catch((fetchError) => {
-        if (
-          controller.signal.aborted ||
-          (fetchError instanceof Error && fetchError.name === "AbortError")
-        ) {
+        if (isAbortError(controller, fetchError)) {
           return;
         }
 
         if (requestCoordinatorRef.current.isLatest(requestToken)) {
-          setError(fetchError instanceof Error ? fetchError.message : "获取项目树失败");
+          setError(fetchError instanceof Error ? fetchError.message : TREE_LOAD_ERROR);
         }
       });
 
@@ -76,7 +88,7 @@ export function ProjectTreePanel({
   }, [loadTree]);
 
   useEffect(() => {
-    const handleInvalidated = () => {
+    const handleInvalidated = (): void => {
       loadTree();
     };
 

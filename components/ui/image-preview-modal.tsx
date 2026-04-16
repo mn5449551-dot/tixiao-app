@@ -117,7 +117,6 @@ function PreviewSurface({
   const [baseFitScale, setBaseFitScale] = useState(1);
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -173,6 +172,10 @@ function PreviewSurface({
 
     return () => observer.disconnect();
   }, [naturalSize]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   useEffect(() => {
     if (!isDragging || !naturalSize || !stageSize.width || !stageSize.height) return;

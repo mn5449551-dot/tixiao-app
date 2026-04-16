@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { useCallback, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
@@ -17,7 +17,7 @@ import {
 } from "@/components/cards/candidate-pool/candidate-pool-actions";
 import { CandidateGroupCard } from "@/components/cards/candidate-pool/candidate-group-card";
 import { CandidateImageCard } from "@/components/cards/candidate-pool/candidate-image-card";
-import { PromptDetailsModal, type PromptDetails } from "@/components/cards/candidate-pool/prompt-details-modal";
+import { PromptDetailsModal } from "@/components/cards/candidate-pool/prompt-details-modal";
 import { ApiError } from "@/lib/api-fetch";
 import type { CardStatus } from "@/lib/constants";
 import { IMAGE_MODELS } from "@/lib/constants";
@@ -61,6 +61,7 @@ export type CandidateGroup = {
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
+  imageModel?: string | null;
   images: CandidateImage[];
 };
 
@@ -75,12 +76,52 @@ export type CandidatePoolCardData = {
 
 export type CandidatePoolCardNode = Node<CandidatePoolCardData, "candidatePool">;
 
+function getCandidatePoolBorderClass(status: CardStatus, selected: boolean): string {
+  if (status === "error") {
+    return "border-[#c0392b]";
+  }
+
+  if (status === "partial-success") {
+    return "border-[var(--brand-400)]";
+  }
+
+  if (selected) {
+    return "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]";
+  }
+
+  return "border-[var(--line-soft)]";
+}
+
+function getCandidatePoolTopBarClass(status: CardStatus): string {
+  if (status === "error") {
+    return "bg-[#c0392b]";
+  }
+
+  if (status === "partial-success") {
+    return "bg-[var(--brand-400)]";
+  }
+
+  return "bg-[var(--brand-500)]";
+}
+
+function getCandidatePoolSummaryText(
+  displayMode: CandidatePoolCardData["displayMode"],
+  groups: CandidateGroup[],
+  images: CandidateImage[],
+  doneCount: number,
+): string {
+  const totalText = displayMode === "single" ? `${images.length}张` : `${groups.length}套`;
+  return `共${totalText} · 可用${doneCount}张`;
+}
+
 export function CandidatePoolCard({
   data,
   selected,
-}: NodeProps<CandidatePoolCardNode>) {
+}: NodeProps<CandidatePoolCardNode>): ReactElement {
   const { displayMode, groups, groupLabel, status = "idle", imageModel } = data;
-  const modelLabel = imageModel ? (IMAGE_MODELS.find((m) => m.value === imageModel)?.label ?? imageModel) : null;
+  const getModelLabel = useCallback((model: string | null | undefined) =>
+    model ? (IMAGE_MODELS.find((m) => m.value === model)?.label ?? model) : null,
+  []);
   const latestVariantIndex = Math.max(...groups.map((group) => group.variantIndex), 0);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -98,17 +139,34 @@ export function CandidatePoolCard({
     () => (promptDetailsImageId ? images.find((img) => img.id === promptDetailsImageId) ?? null : null),
     [images, promptDetailsImageId],
   );
-  const isError = status === "error";
-  const isPartialSuccess = status === "partial-success";
+  const previewImage = useMemo(
+    () => (previewImageId ? images.find((img) => img.id === previewImageId) ?? null : null),
+    [images, previewImageId],
+  );
+  const inpaintImage = useMemo(
+    () => (inpaintImageId ? images.find((img) => img.id === inpaintImageId) ?? null : null),
+    [images, inpaintImageId],
+  );
   const isDone = status === "done";
   const doneCount = images.filter((img) => img.status === "done").length;
-  const borderColorClass = isError
-    ? "border-[#c0392b]"
-    : isPartialSuccess
-      ? "border-[var(--brand-400)]"
-      : selected
-        ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
-        : "border-[var(--line-soft)]";
+  const borderColorClass = getCandidatePoolBorderClass(status, selected);
+
+  const runCandidateAction = useCallback(async (
+    loadingKey: string,
+    action: () => Promise<unknown>,
+    fallbackMessage: string,
+  ): Promise<void> => {
+    try {
+      setActionError(null);
+      setActionLoading(loadingKey);
+      await action();
+      dispatchWorkspaceInvalidated();
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : fallbackMessage);
+    } finally {
+      setActionLoading(null);
+    }
+  }, []);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -128,69 +186,24 @@ export function CandidatePoolCard({
   }, [images]);
 
   const handleDeleteImage = useCallback(async (imageId: string) => {
-    try {
-      setActionError(null);
-      setActionLoading(imageId);
-      await deleteCandidateImage(imageId);
-      dispatchWorkspaceInvalidated();
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "删除图片失败");
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
+    await runCandidateAction(imageId, () => deleteCandidateImage(imageId), "删除图片失败");
+  }, [runCandidateAction]);
 
   const handleDeleteGroup = useCallback(async (groupId: string) => {
-    try {
-      setActionError(null);
-      setActionLoading(groupId);
-      await deleteCandidateGroup(groupId);
-      dispatchWorkspaceInvalidated();
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "删除候选组失败");
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
+    await runCandidateAction(groupId, () => deleteCandidateGroup(groupId), "删除候选组失败");
+  }, [runCandidateAction]);
 
   const handleRegenerateImage = useCallback(async (imageId: string) => {
-    try {
-      setActionError(null);
-      setActionLoading(imageId);
-      await regenerateCandidateImage(imageId);
-      dispatchWorkspaceInvalidated();
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "重生成失败");
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
+    await runCandidateAction(imageId, () => regenerateCandidateImage(imageId), "重生成失败");
+  }, [runCandidateAction]);
 
   const handleDiscardInpaint = useCallback(async (imageId: string) => {
-    try {
-      setActionError(null);
-      setActionLoading(imageId);
-      await deleteCandidateImage(imageId);
-      dispatchWorkspaceInvalidated();
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "放弃重绘失败");
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
+    await runCandidateAction(imageId, () => deleteCandidateImage(imageId), "放弃重绘失败");
+  }, [runCandidateAction]);
 
   const handleConfirmGroup = useCallback(async (groupId: string, confirmed: boolean) => {
-    try {
-      setActionError(null);
-      setActionLoading(groupId);
-      await confirmCandidateGroup(groupId, confirmed);
-      dispatchWorkspaceInvalidated();
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "更新定稿状态失败");
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
+    await runCandidateAction(groupId, () => confirmCandidateGroup(groupId, confirmed), "更新定稿状态失败");
+  }, [runCandidateAction]);
 
   const handleCopyPromptText = useCallback(async (label: string, value: string) => {
     try {
@@ -212,7 +225,7 @@ export function CandidatePoolCard({
     >
       <div className={cn(
         "absolute inset-x-0 top-0 h-1.5",
-        isError ? "bg-[#c0392b]" : isPartialSuccess ? "bg-[var(--brand-400)]" : "bg-[var(--brand-500)]",
+        getCandidatePoolTopBarClass(status),
       )} />
 
       <Handle
@@ -236,7 +249,7 @@ export function CandidatePoolCard({
             )}
           </div>
           <p className="text-[11px] text-[var(--ink-400)]">
-            共{displayMode === "single" ? `${images.length}张` : `${groups.length}套`} · 可用{doneCount}张
+            {getCandidatePoolSummaryText(displayMode, groups, images, doneCount)}
           </p>
         </div>
         {groupLabel ? <Badge tone="neutral">{groupLabel}</Badge> : null}
@@ -273,7 +286,7 @@ export function CandidatePoolCard({
                   footer={
                     <>
                       <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
-                        <span>第 {group.variantIndex} 组{modelLabel ? ` · ${modelLabel}` : ""}</span>
+                        <span>第 {group.variantIndex} 组{getModelLabel(group.imageModel) ? ` · ${getModelLabel(group.imageModel)}` : ""}</span>
                         <span>{group.isConfirmed ? "已定稿" : "候选中"}</span>
                       </div>
                       <Button
@@ -300,7 +313,7 @@ export function CandidatePoolCard({
                 group={group}
                 displayMode={displayMode}
                 isLatest={group.variantIndex === latestVariantIndex}
-                modelLabel={modelLabel}
+                modelLabel={getModelLabel(group.imageModel)}
                 loadingKey={actionLoading}
                 onPreview={setPreviewImageId}
                 onInpaint={setInpaintImageId}
@@ -332,7 +345,7 @@ export function CandidatePoolCard({
       {inpaintImageId && (
         <InpaintModal
           imageId={inpaintImageId}
-          imageUrl={images.find((img) => img.id === inpaintImageId)?.fileUrl ?? null}
+          imageUrl={inpaintImage?.fileUrl ?? null}
           imageModel={imageModel}
           onClose={() => setInpaintImageId(null)}
         />
@@ -340,9 +353,9 @@ export function CandidatePoolCard({
 
       {previewImageId ? (
         <ImagePreviewModal
-          imageUrl={images.find((img) => img.id === previewImageId)?.fileUrl ?? null}
+          imageUrl={previewImage?.fileUrl ?? null}
           title="候选图预览"
-          aspectRatio={images.find((img) => img.id === previewImageId)?.aspectRatio}
+          aspectRatio={previewImage?.aspectRatio}
           onClose={() => setPreviewImageId(null)}
         />
       ) : null}

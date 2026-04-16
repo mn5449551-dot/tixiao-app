@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { apiFetchOk } from "@/lib/api-fetch";
 import { formatRelativeDate } from "@/lib/utils";
 

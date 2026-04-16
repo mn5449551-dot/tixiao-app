@@ -29,6 +29,24 @@ type DirectionAgentInput = {
   }>;
 };
 
+function formatExistingDirection(
+  item: NonNullable<DirectionAgentInput["existingDirections"]>[number],
+  index: number,
+): string {
+  return `${index + 1}. ${item.title}｜${item.targetAudience}｜${item.adaptationStage}｜${item.scenarioProblem}｜${item.differentiation}｜${item.effect}`;
+}
+
+function getExistingDirectionsBlock(input: DirectionAgentInput, isAppend: boolean): string {
+  if (!isAppend) {
+    return "";
+  }
+
+  return `
+当前已生成方向：
+${input.existingDirections?.map((item, index) => formatExistingDirection(item, index)).join("\n")}
+`;
+}
+
 export function buildDirectionAgentMessages(input: DirectionAgentInput) {
   const sellingPoints = input.sellingPoints?.filter(Boolean).join("、") || "未额外指定";
   const isAppend = Boolean(input.existingDirections && input.existingDirections.length > 0);
@@ -255,10 +273,7 @@ effect：
 - 卖点：${sellingPoints}
 - 适配阶段 / 时间节点：${input.timeNode}
 - 需要生成方向数：${input.count}
-${isAppend ? `
-当前已生成方向：
-${input.existingDirections?.map((item, index) => `${index + 1}. ${item.title}｜${item.targetAudience}｜${item.adaptationStage}｜${item.scenarioProblem}｜${item.differentiation}｜${item.effect}`).join("\n")}
-` : ""}
+${getExistingDirectionsBlock(input, isAppend)}
 
 请基于以上信息，推导 ${input.count} 条真实可投放的方向。`;
 

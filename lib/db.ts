@@ -306,6 +306,14 @@ function bootstrap(connection: Database.Database) {
     connection.exec("ALTER TABLE generated_images ADD COLUMN thumbnail_url TEXT;");
   }
 
+  const imageGroupColumns2 = connection
+    .prepare("PRAGMA table_info(image_groups)")
+    .all() as Array<{ name: string }>;
+
+  if (!imageGroupColumns2.some((column) => column.name === "image_model")) {
+    connection.exec("ALTER TABLE image_groups ADD COLUMN image_model TEXT;");
+  }
+
   const exportRecordColumns = connection
     .prepare("PRAGMA table_info(export_records)")
     .all() as Array<{ name: string }>;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
@@ -56,10 +56,22 @@ const DIRECTION_FIELD_LABELS = {
   effect: "3 因此带来了哪个场景下的什么奇效？",
 } as const;
 
+function getImageFormLabel(imageForm: string): string {
+  if (imageForm === "single") {
+    return "单图";
+  }
+
+  if (imageForm === "double") {
+    return "双图";
+  }
+
+  return "三图";
+}
+
 export function DirectionCard({
   data,
   selected,
-}: NodeProps<Node<DirectionCardData, "directionCard">>) {
+}: NodeProps<Node<DirectionCardData, "directionCard">>): ReactElement {
   const directions = useMemo(() => data.directions ?? [], [data.directions]);
   const status = data.status ?? "idle";
 
@@ -276,7 +288,7 @@ export function DirectionCard({
           >
             {availableImageForms.map((form) => (
               <option key={form} value={form}>
-                {form === "single" ? "单图" : form === "double" ? "双图" : "三图"}
+                {getImageFormLabel(form)}
               </option>
             ))}
           </Select>

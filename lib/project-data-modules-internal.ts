@@ -8,14 +8,12 @@ import { buildCopyKnowledgeContext } from "@/lib/ai/agents/copy-knowledge";
 import { generateDirectionIdeas } from "@/lib/ai/agents/direction-agent";
 import {
   CHANNELS,
-  DEFAULT_IMAGE_MODEL_VALUE,
   DEFAULT_REQUIREMENT,
   FEATURE_LIBRARY,
   IMAGE_MODELS,
   IMAGE_STYLES,
   IP_ROLES,
   LOGO_OPTIONS,
-  TARGET_AUDIENCES,
 } from "@/lib/constants";
 import { getDb } from "@/lib/db";
 import { classifyExportAdaptation, isSpecialRatio, resolveExportSlotSpecs } from "@/lib/export/utils";
@@ -95,17 +93,16 @@ function now() {
   return Date.now();
 }
 
-function audienceLabel(value: string | null | undefined) {
-  return TARGET_AUDIENCES.find((item) => item.value === value)?.label ?? "家长";
-}
+function getDefaultCopyType(imageForm: string): string {
+  if (imageForm === "single") {
+    return "单图主副标题";
+  }
 
-function featureLabel(featureId: string | null | undefined) {
-  if (!featureId) return FEATURE_LIBRARY[0].name;
+  if (imageForm === "double") {
+    return "双图因果";
+  }
 
-  return (
-    FEATURE_LIBRARY.find((item) => item.id === featureId)?.name ??
-    featureId
-  );
+  return "三图递进";
 }
 
 function serializeRequirement(record: typeof requirementCards.$inferSelect | null) {
@@ -140,6 +137,7 @@ function createCandidateGroupWithImages(input: {
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
+  imageModel: string | null;
   timestamp: number;
 }) {
   const db = getDb();
@@ -155,6 +153,7 @@ function createCandidateGroupWithImages(input: {
       aspectRatio: input.aspectRatio,
       styleMode: input.styleMode,
       imageStyle: input.imageStyle,
+      imageModel: input.imageModel,
       isConfirmed: 0,
       createdAt: input.timestamp,
       updatedAt: input.timestamp,
@@ -189,31 +188,55 @@ function getNextCandidateVariantIndex(imageConfigId: string) {
   return Math.max(...rows.map((row) => row.variantIndex), 0) + 1;
 }
 
-function normalizeDirectionIdeas(payload: unknown, count: number) {
-  const array = Array.isArray(payload)
-    ? payload
-    : payload && typeof payload === "object"
-      ? ((payload as { items?: unknown; directions?: unknown; ideas?: unknown }).items ??
-          (payload as { items?: unknown; directions?: unknown; ideas?: unknown }).directions ??
-          (payload as { items?: unknown; directions?: unknown; ideas?: unknown }).ideas)
-      : null;
+function getArrayPayload(
+  payload: unknown,
+  keys: string[],
+): unknown[] | null {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
 
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function normalizeDirectionIdea(item: unknown): DirectionIdea | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const idea = item as Partial<DirectionIdea>;
+  if (!idea.title || !idea.scenarioProblem || !idea.differentiation || !idea.effect) {
+    return null;
+  }
+
+  return {
+    title: idea.title,
+    targetAudience: idea.targetAudience ?? "细分人群待补充",
+    adaptationStage: idea.adaptationStage ?? "通用",
+    scenarioProblem: idea.scenarioProblem,
+    differentiation: idea.differentiation,
+    effect: idea.effect,
+  } satisfies DirectionIdea;
+}
+
+function normalizeDirectionIdeas(payload: unknown, count: number) {
+  const array = getArrayPayload(payload, ["items", "directions", "ideas"]);
   if (!Array.isArray(array)) return null;
 
   const ideas = array
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const idea = item as Partial<DirectionIdea>;
-      if (!idea.title || !idea.scenarioProblem || !idea.differentiation || !idea.effect) return null;
-      return {
-        title: idea.title,
-        targetAudience: idea.targetAudience ?? "细分人群待补充",
-        adaptationStage: idea.adaptationStage ?? "通用",
-        scenarioProblem: idea.scenarioProblem,
-        differentiation: idea.differentiation,
-        effect: idea.effect,
-      } satisfies DirectionIdea;
-    })
+    .map((item) => normalizeDirectionIdea(item))
     .filter(Boolean) as DirectionIdea[];
 
   return ideas.length >= count ? ideas.slice(0, count) : null;
@@ -241,40 +264,168 @@ function isMultiCopyWithinLimits(idea: CopyIdea, imageForm: string) {
   });
 }
 
-export function normalizeCopyIdeas(payload: unknown, count: number, imageForm: string) {
-  const array = Array.isArray(payload)
-    ? payload
-    : payload && typeof payload === "object"
-      ? ((payload as { items?: unknown; copies?: unknown }).items ??
-          (payload as { items?: unknown; copies?: unknown }).copies)
-      : null;
+function normalizeCopyIdea(item: unknown, imageForm: string): CopyIdea | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
 
+  const idea = item as Partial<CopyIdea>;
+  if (!idea.titleMain) return null;
+  if (imageForm !== "single" && !idea.titleSub) return null;
+  if (imageForm === "triple" && !idea.titleExtra) return null;
+
+  const normalized = {
+    titleMain: idea.titleMain,
+    titleSub: idea.titleSub ?? null,
+    titleExtra: imageForm === "triple" ? (idea.titleExtra ?? null) : null,
+    copyType: idea.copyType ?? getDefaultCopyType(imageForm),
+  } satisfies CopyIdea;
+
+  if (imageForm === "single") {
+    return isSingleCopyWithinLimits(normalized) ? normalized : null;
+  }
+
+  return isMultiCopyWithinLimits(normalized, imageForm) ? normalized : null;
+}
+
+export function normalizeCopyIdeas(payload: unknown, count: number, imageForm: string) {
+  const array = getArrayPayload(payload, ["items", "copies"]);
   if (!Array.isArray(array)) return null;
 
   const ideas = array
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const idea = item as Partial<CopyIdea>;
-      if (!idea.titleMain) return null;
-      if (imageForm !== "single" && !idea.titleSub) return null;
-      if (imageForm === "triple" && !idea.titleExtra) return null;
-
-      const normalized = {
-        titleMain: idea.titleMain,
-        titleSub: idea.titleSub ?? null,
-        titleExtra: imageForm === "triple" ? (idea.titleExtra ?? null) : null,
-        copyType: idea.copyType ?? (imageForm === "single" ? "单图主副标题" : imageForm === "double" ? "双图因果" : "三图递进"),
-      } satisfies CopyIdea;
-
-      if (imageForm === "single") {
-        return isSingleCopyWithinLimits(normalized) ? normalized : null;
-      }
-
-      return isMultiCopyWithinLimits(normalized, imageForm) ? normalized : null;
-    })
+    .map((item) => normalizeCopyIdea(item, imageForm))
     .filter(Boolean) as CopyIdea[];
 
   return ideas.length >= count ? ideas.slice(0, count) : null;
+}
+
+function getResolvedReferenceImageUrlInput(
+  input: Partial<{ referenceImageUrl: string | null }>,
+  current: { referenceImageUrl: string | null } | null,
+): string | null {
+  if (input.referenceImageUrl !== undefined) {
+    return input.referenceImageUrl;
+  }
+
+  return current?.referenceImageUrl ?? null;
+}
+
+function getResolvedImageModel(
+  input: Partial<{ imageModel: string | null }>,
+  current: { imageModel: string | null } | null,
+): string | null {
+  if (input.imageModel !== undefined) {
+    return input.imageModel;
+  }
+
+  return current?.imageModel ?? null;
+}
+
+function listImageConfigGroups(imageConfigId: string) {
+  const db = getDb();
+  return db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, imageConfigId)).all();
+}
+
+function buildImageConfigInsertValues(input: {
+  configId: string;
+  copyId: string;
+  directionId: string;
+  aspectRatio: string;
+  styleMode: string;
+  ipRole: string | null;
+  logo: string;
+  imageStyle: string;
+  imageModel: string | null;
+  referenceImageUrl: string | null;
+  ctaEnabled: boolean;
+  ctaText: string | null;
+  count: number;
+  timestamp: number;
+}) {
+  return {
+    id: input.configId,
+    copyId: input.copyId,
+    directionId: input.directionId,
+    aspectRatio: input.aspectRatio,
+    styleMode: input.styleMode,
+    ipRole: input.ipRole,
+    logo: input.logo,
+    imageStyle: input.imageStyle,
+    imageModel: input.imageModel,
+    referenceImageUrl: input.referenceImageUrl,
+    ctaEnabled: input.ctaEnabled ? 1 : 0,
+    ctaText: input.ctaText,
+    promptBundleJson: null,
+    count: input.count,
+    createdAt: input.timestamp,
+    updatedAt: input.timestamp,
+  } satisfies typeof imageConfigs.$inferInsert;
+}
+
+function buildImageConfigUpdateValues(input: {
+  current: typeof imageConfigs.$inferSelect;
+  aspectRatio: string | undefined;
+  styleMode: string;
+  ipRole: string | null;
+  logo: string | undefined;
+  imageStyle: string;
+  imageModel: string | null;
+  referenceImageUrl: string | null;
+  ctaEnabled: boolean;
+  ctaText: string | null;
+  count: number;
+  timestamp: number;
+}) {
+  return {
+    aspectRatio: input.aspectRatio ?? input.current.aspectRatio,
+    styleMode: input.styleMode,
+    ipRole: input.ipRole,
+    logo: input.logo ?? input.current.logo,
+    imageStyle: input.imageStyle,
+    imageModel: input.imageModel,
+    referenceImageUrl: input.referenceImageUrl,
+    ctaEnabled: input.ctaEnabled ? 1 : 0,
+    ctaText: input.ctaText,
+    count: input.count,
+    updatedAt: input.timestamp,
+  } satisfies Partial<typeof imageConfigs.$inferInsert>;
+}
+
+function createCandidateGroupsForConfig(input: {
+  imageConfigId: string;
+  directionImageForm: string | null | undefined;
+  aspectRatio: string;
+  styleMode: string;
+  imageStyle: string;
+  imageModel: string | null;
+  append: boolean;
+  requestedCount: number | undefined;
+  configCount: number;
+  timestamp: number;
+}) {
+  const groups = listImageConfigGroups(input.imageConfigId);
+  const startIndex = input.append ? groups.length + 1 : 1;
+  const groupCount = input.append ? (input.requestedCount ?? 1) : input.configCount;
+  const slotCount = imageSlotCount(input.directionImageForm);
+  const createdGroups: Array<typeof imageGroups.$inferSelect> = [];
+
+  for (let offset = 0; offset < groupCount; offset += 1) {
+    const group = createCandidateGroupWithImages({
+      imageConfigId: input.imageConfigId,
+      variantIndex: startIndex + offset,
+      slotCount,
+      aspectRatio: input.aspectRatio,
+      styleMode: input.styleMode,
+      imageStyle: input.imageStyle,
+      imageModel: input.imageModel,
+      timestamp: input.timestamp,
+    });
+    if (group) {
+      createdGroups.push(group);
+    }
+  }
+
+  return createdGroups;
 }
 
 function persistDirections(
@@ -1004,18 +1155,18 @@ export async function saveImageConfig(
   const nextReferenceImageUrl = shouldClearIp ? null : await resolveReferenceImageUrl({
     styleMode: nextStyleMode,
     ipRole: nextIpRole,
-    referenceImageUrl: input.referenceImageUrl !== undefined ? input.referenceImageUrl : (current?.referenceImageUrl ?? null),
+    referenceImageUrl: getResolvedReferenceImageUrlInput(input, current),
   });
   const nextCount = Math.max(1, Math.min(5, Math.trunc(input.count ?? current?.count ?? 1)));
   const nextCtaEnabled = Boolean(input.ctaEnabled ?? current?.ctaEnabled ?? 0);
   const nextCtaText = nextCtaEnabled ? (input.ctaText ?? current?.ctaText ?? "立即下载") : null;
-  const nextImageModel = input.imageModel !== undefined ? input.imageModel : current?.imageModel ?? null;
+  const nextImageModel = getResolvedImageModel(input, current);
 
   if (!current) {
     const configId = createId("imgcfg");
     db.insert(imageConfigs)
-      .values({
-        id: configId,
+      .values(buildImageConfigInsertValues({
+        configId,
         copyId,
         directionId: copy.directionId,
         aspectRatio: input.aspectRatio ?? IMAGE_MODELS[0].aspectRatios[0],
@@ -1025,31 +1176,30 @@ export async function saveImageConfig(
         imageStyle: nextImageStyle,
         imageModel: nextImageModel,
         referenceImageUrl: nextReferenceImageUrl,
-        ctaEnabled: nextCtaEnabled ? 1 : 0,
+        ctaEnabled: nextCtaEnabled,
         ctaText: nextCtaText,
-        promptBundleJson: null,
         count: nextCount,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      })
+        timestamp,
+      }))
       .run();
 
     db.update(copies).set({ isLocked: 1, updatedAt: timestamp }).where(eq(copies.id, copyId)).run();
   } else {
     db.update(imageConfigs)
-      .set({
-        aspectRatio: input.aspectRatio ?? current.aspectRatio,
+      .set(buildImageConfigUpdateValues({
+        current,
+        aspectRatio: input.aspectRatio,
         styleMode: nextStyleMode,
         ipRole: nextIpRole,
-        logo: input.logo ?? current.logo,
+        logo: input.logo,
         imageStyle: nextImageStyle,
         imageModel: nextImageModel,
         referenceImageUrl: nextReferenceImageUrl,
-        ctaEnabled: nextCtaEnabled ? 1 : 0,
+        ctaEnabled: nextCtaEnabled,
         ctaText: nextCtaText,
         count: nextCount,
-        updatedAt: timestamp,
-      })
+        timestamp,
+      }))
       .where(eq(imageConfigs.id, current.id))
       .run();
   }
@@ -1063,7 +1213,7 @@ export async function saveImageConfig(
     return {
       ...config,
       createdGroups: [] as Array<typeof imageGroups.$inferSelect>,
-      groups: db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all(),
+      groups: listImageConfigGroups(config.id),
     };
   }
 
@@ -1071,31 +1221,23 @@ export async function saveImageConfig(
     db.delete(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).run();
   }
 
-  const existingGroups = db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all();
-  const startIndex = input.append ? existingGroups.length + 1 : 1;
-  const groupCount = input.append ? (input.count ?? 1) : config.count;
-  const slotCount = imageSlotCount(direction.imageForm);
-  const createdGroups: Array<typeof imageGroups.$inferSelect> = [];
-
-  for (let offset = 0; offset < groupCount; offset += 1) {
-    const group = createCandidateGroupWithImages({
-      imageConfigId: config.id,
-      variantIndex: startIndex + offset,
-      slotCount,
-      aspectRatio: config.aspectRatio,
-      styleMode: config.styleMode,
-      imageStyle: config.imageStyle,
-      timestamp,
-    });
-    if (group) {
-      createdGroups.push(group);
-    }
-  }
+  const createdGroups = createCandidateGroupsForConfig({
+    imageConfigId: config.id,
+    directionImageForm: direction.imageForm,
+    aspectRatio: config.aspectRatio,
+    styleMode: config.styleMode,
+    imageStyle: config.imageStyle,
+    imageModel: config.imageModel,
+    append: Boolean(input.append),
+    requestedCount: input.count,
+    configCount: config.count,
+    timestamp,
+  });
 
   return {
     ...config,
     createdGroups,
-    groups: db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all(),
+    groups: listImageConfigGroups(config.id),
   };
 }
 
@@ -1115,13 +1257,14 @@ export async function appendImageConfigGroup(imageConfigId: string) {
     aspectRatio: config.aspectRatio,
     styleMode: config.styleMode,
     imageStyle: config.imageStyle,
+    imageModel: config.imageModel,
     timestamp,
   });
 
   return {
     ...config,
     group,
-    groups: db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).all(),
+    groups: listImageConfigGroups(config.id),
   };
 }
 
@@ -1177,7 +1320,7 @@ export async function generateFinalizedVariants(
 
           if (sourceImages.length === 0) continue;
 
-          for (const [ratio, slotSpec] of ratioSpecs) {
+          for (const [ratio] of ratioSpecs) {
             if (classifyExportAdaptation(config.aspectRatio, ratio) === "direct") continue;
 
             const derivedGroupType = `derived|${group.id}|${ratio}`;

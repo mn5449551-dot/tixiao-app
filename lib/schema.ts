@@ -131,6 +131,7 @@ export const imageGroups = sqliteTable("image_groups", {
   promptBundleJson: text("prompt_bundle_json"),
   referenceImageUrl: text("reference_image_url"),
   logo: text("logo"),
+  imageModel: text("image_model"),
   isConfirmed: integer("is_confirmed").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

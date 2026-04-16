@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getRouteErrorMessage, jsonError, readIdParam } from "@/lib/api-route";
 import {
   finishGenerationRun,
   GenerationConflictError,
@@ -8,6 +9,15 @@ import {
 } from "@/lib/generation-runs";
 import { appendDirectionSmart, generateDirectionsSmart } from "@/lib/project-data";
 
+function finishFailedDirectionRun(runId: string | null, errorMessage: string): void {
+  if (runId) {
+    finishGenerationRun(runId, {
+      status: "failed",
+      errorMessage,
+    });
+  }
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -15,7 +25,7 @@ export async function POST(
   let runId: string | null = null;
 
   try {
-    const { id } = await context.params;
+    const id = await readIdParam(context);
     const body = (await request.json()) as {
       channel?: string;
       image_form?: string;
@@ -39,13 +49,8 @@ export async function POST(
       );
 
       if (!direction) {
-        if (runId) {
-          finishGenerationRun(runId, {
-            status: "failed",
-            errorMessage: "方向追加失败",
-          });
-        }
-        return NextResponse.json({ error: "方向追加失败" }, { status: 500 });
+        finishFailedDirectionRun(runId, "方向追加失败");
+        return jsonError("方向追加失败");
       }
 
       if (runId) {
@@ -74,12 +79,7 @@ export async function POST(
       direction_ids: created.map((item) => item.id),
     });
   } catch (error) {
-    if (runId) {
-      finishGenerationRun(runId, {
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message : "方向生成失败",
-      });
-    }
+    finishFailedDirectionRun(runId, getRouteErrorMessage(error, "方向生成失败"));
 
     if (error instanceof GenerationConflictError) {
       return NextResponse.json(
@@ -105,9 +105,6 @@ export async function POST(
       );
     }
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "方向生成失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "方向生成失败"));
   }
 }

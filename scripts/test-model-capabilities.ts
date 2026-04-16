@@ -29,8 +29,6 @@ const MODELS = [
   "doubao-seedream-5-0-lite",
 ] as const;
 
-type ModelName = (typeof MODELS)[number];
-
 // 调用方式枚举
 type TransportMethod = "openai_generations" | "chat_completions" | "qwen_format" | "openai_edits";
 
@@ -208,49 +206,6 @@ type TestResult = {
   imageSaved?: string;
   responseData?: unknown;
 };
-
-function extractImageUrl(data: unknown): string | null {
-  if (!data || typeof data !== "object") return null;
-  const obj = data as Record<string, unknown>;
-
-  // OpenAI format: data[0].url or data[0].b64_json
-  if (Array.isArray(obj.data) && obj.data.length > 0) {
-    const item = obj.data[0] as Record<string, unknown>;
-    if (typeof item.url === "string" && item.url.startsWith("http")) return item.url;
-    if (typeof item.b64_json === "string") return `b64:${item.b64_json.slice(0, 20)}...`;
-  }
-
-  // Chat completions: choices[0].message.content might contain image
-  if (Array.isArray(obj.choices) && obj.choices.length > 0) {
-    const choice = obj.choices[0] as Record<string, unknown>;
-    const msg = choice.message as Record<string, unknown> | undefined;
-    if (msg && typeof msg.content === "string") {
-      // Check for base64 or markdown image
-      const mdMatch = msg.content.match(/!\[.*?\]\((data:image\/[^)]+)\)/);
-      if (mdMatch) return `dataurl:${mdMatch[1].slice(0, 50)}...`;
-      if (msg.content.includes("data:image")) return "inline_data_image";
-    }
-    // Check parts for inline data
-    if (msg && Array.isArray(msg.parts)) {
-      for (const part of msg.parts as Array<Record<string, unknown>>) {
-        if (part.inlineData) return "inline_data_image";
-      }
-    }
-  }
-
-  // Gemini format: candidates[0].content.parts[].inlineData
-  if (Array.isArray(obj.candidates) && obj.candidates.length > 0) {
-    const cand = obj.candidates[0] as Record<string, unknown>;
-    const content = cand.content as Record<string, unknown> | undefined;
-    if (content && Array.isArray(content.parts)) {
-      for (const part of content.parts as Array<Record<string, unknown>>) {
-        if (part.inlineData) return "inline_data_image";
-      }
-    }
-  }
-
-  return null;
-}
 
 async function saveImage(data: unknown, model: string, testId: string): Promise<{ path: string; actualSize?: string } | null> {
   if (!data || typeof data !== "object") return null;

@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 
+import { getRouteErrorMessage, jsonError, readIdParam } from "@/lib/api-route";
 import { deleteFileIfExists, saveImageBuffer } from "@/lib/storage";
 import { getDb } from "@/lib/db";
 import {
@@ -10,17 +11,104 @@ import {
   GenerationLimitError,
   startGenerationRun,
 } from "@/lib/generation-runs";
-import { getIpAssetMetadata } from "@/lib/ip-assets";
 import { generatedImages, imageConfigs, directions, copies, imageGroups } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
 import sharp from "sharp";
+
+function getMimeTypeFromPath(filePath: string | null | undefined): string {
+  const ext = filePath?.split(".").pop()?.toLowerCase();
+
+  if (ext === "jpg" || ext === "jpeg") {
+    return "image/jpeg";
+  }
+
+  if (ext === "webp") {
+    return "image/webp";
+  }
+
+  return "image/png";
+}
+
+function getImageById(imageId: string) {
+  const db = getDb();
+  return db
+    .select()
+    .from(generatedImages)
+    .where(eq(generatedImages.id, imageId))
+    .get();
+}
+
+function setImageRegenerating(imageId: string): void {
+  const db = getDb();
+  db.update(generatedImages)
+    .set({
+      status: "generating",
+      filePath: null,
+      fileUrl: null,
+      thumbnailPath: null,
+      thumbnailUrl: null,
+      errorMessage: null,
+      updatedAt: Date.now(),
+    })
+    .where(eq(generatedImages.id, imageId))
+    .run();
+}
+
+function setImageDone(imageId: string, saved: Awaited<ReturnType<typeof saveImageBuffer>>): void {
+  const db = getDb();
+  db.update(generatedImages)
+    .set({
+      filePath: saved.filePath,
+      fileUrl: saved.fileUrl,
+      thumbnailPath: saved.thumbnailPath,
+      thumbnailUrl: saved.thumbnailUrl,
+      status: "done",
+      updatedAt: Date.now(),
+    })
+    .where(eq(generatedImages.id, imageId))
+    .run();
+}
+
+function setImageFailed(imageId: string, message: string): void {
+  const db = getDb();
+  db.update(generatedImages)
+    .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
+    .where(eq(generatedImages.id, imageId))
+    .run();
+}
+
+function finishFailedImageRun(runId: string | null, error: unknown, fallbackMessage: string): void {
+  if (!runId) {
+    return;
+  }
+
+  finishGenerationRun(runId, {
+    status: "failed",
+    errorMessage: getRouteErrorMessage(error, fallbackMessage),
+  });
+}
+
+function loadRegenerationContext(imageId: string) {
+  const db = getDb();
+  const image = getImageById(imageId);
+  if (!image) {
+    return null;
+  }
+
+  const config = db.select().from(imageConfigs).where(eq(imageConfigs.id, image.imageConfigId)).get();
+  const direction = config
+    ? db.select().from(directions).where(eq(directions.id, config.directionId)).get()
+    : null;
+
+  return { image, config, direction };
+}
 
 export async function GET(
   _request: Request,
   context: { params: Promise<unknown> },
 ) {
   try {
-    const { id } = (await context.params) as { id: string };
+    const id = await readIdParam(context);
 
     const db = getDb();
     const image = db
@@ -42,15 +130,12 @@ export async function GET(
       .get();
 
     if (!image) {
-      return NextResponse.json({ error: "图片不存在" }, { status: 404 });
+      return jsonError("图片不存在", 404);
     }
 
     return NextResponse.json({ image });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "获取图片失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "获取图片失败"));
   }
 }
 
@@ -59,17 +144,13 @@ export async function DELETE(
   context: { params: Promise<unknown> },
 ) {
   try {
-    const { id } = (await context.params) as { id: string };
+    const id = await readIdParam(context);
 
     const db = getDb();
-    const image = db
-      .select()
-      .from(generatedImages)
-      .where(eq(generatedImages.id, id))
-      .get();
+    const image = getImageById(id);
 
     if (!image) {
-      return NextResponse.json({ error: "图片不存在" }, { status: 404 });
+      return jsonError("图片不存在", 404);
     }
 
     await deleteFileIfExists(image.filePath);
@@ -79,10 +160,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "删除图片失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "删除图片失败"));
   }
 }
 
@@ -91,59 +169,31 @@ export async function POST(
   context: { params: Promise<unknown> },
 ) {
   let runId: string | null = null;
-  let runFinished = false;
 
   try {
-    const { id } = (await context.params) as { id: string };
+    const id = await readIdParam(context);
     await request.json().catch(() => ({}));
 
-    const db = getDb();
-    const image = db
-      .select()
-      .from(generatedImages)
-      .where(eq(generatedImages.id, id))
-      .get();
-
-    if (!image) {
-      return NextResponse.json({ error: "图片不存在" }, { status: 404 });
+    const regenerationContext = loadRegenerationContext(id);
+    if (!regenerationContext) {
+      return jsonError("图片不存在", 404);
     }
+    const { image, config, direction } = regenerationContext;
 
     // Clear old file
     await deleteFileIfExists(image.filePath);
     await deleteFileIfExists(image.thumbnailPath);
 
-    // Mark as generating
-    db.update(generatedImages)
-      .set({
-        status: "generating",
-        filePath: null,
-        fileUrl: null,
-        thumbnailPath: null,
-        thumbnailUrl: null,
-        errorMessage: null,
-        updatedAt: Date.now(),
-      })
-      .where(eq(generatedImages.id, id))
-      .run();
+    setImageRegenerating(id);
 
-    // Get the image config
-    const config = db.select().from(imageConfigs).where(eq(imageConfigs.id, image.imageConfigId)).get();
     if (!config) {
-      db.update(generatedImages)
-        .set({ status: "failed", errorMessage: "图片配置不存在", updatedAt: Date.now() })
-        .where(eq(generatedImages.id, id))
-        .run();
-      return NextResponse.json({ error: "图片配置不存在" }, { status: 422 });
+      setImageFailed(id, "图片配置不存在");
+      return jsonError("图片配置不存在", 422);
     }
 
-    // Get direction for projectId
-    const direction = db.select().from(directions).where(eq(directions.id, config.directionId)).get();
     if (!direction) {
-      db.update(generatedImages)
-        .set({ status: "failed", errorMessage: "方向不存在", updatedAt: Date.now() })
-        .where(eq(generatedImages.id, id))
-        .run();
-      return NextResponse.json({ error: "方向不存在" }, { status: 422 });
+      setImageFailed(id, "方向不存在");
+      return jsonError("方向不存在", 422);
     }
 
     runId = startGenerationRun({
@@ -170,13 +220,7 @@ export async function POST(
       { status: 202 },
     );
   } catch (error) {
-    if (runId && !runFinished) {
-      finishGenerationRun(runId, {
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message : "重新生成失败",
-      });
-      runFinished = true;
-    }
+    finishFailedImageRun(runId, error, "重新生成失败");
 
     if (error instanceof GenerationConflictError) {
       return NextResponse.json(
@@ -202,10 +246,7 @@ export async function POST(
       );
     }
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "重新生成失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "重新生成失败"));
   }
 }
 
@@ -213,11 +254,10 @@ async function regenerateSingleImage(input: {
   runId: string;
   image: typeof generatedImages.$inferSelect;
   config: typeof imageConfigs.$inferSelect;
-  direction: typeof directions.$inferSelect;
   projectId: string;
 }) {
   const db = getDb();
-  const { runId, image, config, direction, projectId } = input;
+  const { runId, image, config, projectId } = input;
 
   try {
     const group = db.select().from(imageGroups).where(eq(imageGroups.id, image.imageGroupId)).get();
@@ -231,8 +271,7 @@ async function regenerateSingleImage(input: {
 
       const prompt = image.finalPromptText ?? "保持原图内容和构图不变，扩展画面适配目标比例，画面必须铺满整个画幅，不能有黑边。";
       const imageBuffer = await readFile(parentImage.filePath);
-      const ext = parentImage.filePath.split(".").pop()?.toLowerCase();
-      const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png";
+      const mimeType = getMimeTypeFromPath(parentImage.filePath);
       const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
 
       // 从 groupType 提取目标比例：derived|{groupId}|{ratio}
@@ -254,17 +293,7 @@ async function regenerateSingleImage(input: {
         extension: "png",
       });
 
-      db.update(generatedImages)
-        .set({
-          filePath: saved.filePath,
-          fileUrl: saved.fileUrl,
-          thumbnailPath: saved.thumbnailPath,
-          thumbnailUrl: saved.thumbnailUrl,
-          status: "done",
-          updatedAt: Date.now(),
-        })
-        .where(eq(generatedImages.id, image.id))
-        .run();
+      setImageDone(image.id, saved);
       finishGenerationRun(runId, { status: "done" });
       return;
     }
@@ -279,8 +308,6 @@ async function regenerateSingleImage(input: {
     if (!image.finalPromptText) {
       throw new Error("当前图片缺少最终提示词快照，旧版图片请重新生成候选图");
     }
-
-    const ipMetadata = config.ipRole ? getIpAssetMetadata(config.ipRole) : null;
 
     const referenceImageUrls = [
       group?.referenceImageUrl ?? config.referenceImageUrl ?? null,
@@ -300,7 +327,7 @@ async function regenerateSingleImage(input: {
         });
 
     const binary = binaries[0];
-    let pngBuffer = await sharp(binary.buffer).png().toBuffer();
+    const pngBuffer = await sharp(binary.buffer).png().toBuffer();
     const saved = await saveImageBuffer({
       projectId,
       imageId: image.id,
@@ -308,24 +335,11 @@ async function regenerateSingleImage(input: {
       extension: "png",
     });
 
-    db.update(generatedImages)
-      .set({
-        filePath: saved.filePath,
-        fileUrl: saved.fileUrl,
-        thumbnailPath: saved.thumbnailPath,
-        thumbnailUrl: saved.thumbnailUrl,
-        status: "done",
-        updatedAt: Date.now(),
-      })
-      .where(eq(generatedImages.id, image.id))
-      .run();
+    setImageDone(image.id, saved);
     finishGenerationRun(runId, { status: "done" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "图片重生成失败";
-    db.update(generatedImages)
-      .set({ status: "failed", errorMessage: message, updatedAt: Date.now() })
-      .where(eq(generatedImages.id, image.id))
-      .run();
+    const message = getRouteErrorMessage(error, "图片重生成失败");
+    setImageFailed(image.id, message);
     finishGenerationRun(runId, { status: "failed", errorMessage: message });
   }
 }

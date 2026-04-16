@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { useCallback, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
@@ -52,10 +52,34 @@ export type CopyCardData = {
   status?: CardStatus;
 };
 
+function getCopyCardBorderClass(isError: boolean, selected: boolean): string {
+  if (isError) {
+    return "border-[var(--danger-500)]";
+  }
+
+  if (selected) {
+    return "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]";
+  }
+
+  return "border-[var(--line-soft)]";
+}
+
+function getCopyCardTopBarClass(isError: boolean): string {
+  if (isError) {
+    return "bg-[var(--danger-500)]";
+  }
+
+  return "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]";
+}
+
+function getCopyActionErrorMessage(error: unknown, fallbackMessage: string): string {
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
 export function CopyCard({
   data,
   selected,
-}: NodeProps<Node<CopyCardData, "copyCard">>) {
+}: NodeProps<Node<CopyCardData, "copyCard">>): ReactElement {
   const { copyCardId, directionTitle, imageForm, version, copyItems, status = "idle" } = data;
 
   const isLoading = status === "loading";
@@ -75,6 +99,7 @@ export function CopyCard({
   const [isAppending, setIsAppending] = useState(false);
   const [isDeletingCard, setIsDeletingCard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const hasLockedItems = localItems.some((item) => item.isLocked);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -104,6 +129,26 @@ export function CopyCard({
 
   const cancelEdit = useCallback(() => {
     setEditingId(null);
+  }, []);
+
+  const removeCopyItemState = useCallback((id: string) => {
+    setLocalItems((prev) => prev.filter((item) => item.id !== id));
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setEditBuffer((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setEditingId((current) => (current === id ? null : current));
   }, []);
 
   const saveEdit = async (item: CopyItem) => {
@@ -136,7 +181,7 @@ export function CopyCard({
         ),
       );
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "保存文案失败");
+      setActionError(getCopyActionErrorMessage(error, "保存文案失败"));
     }
     cancelEdit();
   };
@@ -153,7 +198,7 @@ export function CopyCard({
         dispatchWorkspaceInvalidated();
       }
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "生成图片配置失败");
+      setActionError(getCopyActionErrorMessage(error, "生成图片配置失败"));
     }
   }, [imageForm, isGenerating]);
 
@@ -187,7 +232,7 @@ export function CopyCard({
     setSelectedIds((prev) => toggleSelectableCopyIds(localItems, prev));
   }, [localItems]);
 
-  const deleteCopy = async (id: string) => {
+  const deleteCopy = useCallback(async (id: string) => {
     if (!confirm(`确定删除文案项？此操作不可恢复。`)) return;
     try {
       setActionError(null);
@@ -195,32 +240,16 @@ export function CopyCard({
       if (!ok) {
         throw new Error("删除失败");
       }
-      setLocalItems((prev) => prev.filter((item) => item.id !== id));
-      setExpandedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setEditBuffer((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      setEditingId((current) => (current === id ? null : current));
+      removeCopyItemState(id);
       dispatchWorkspaceInvalidated();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "删除文案失败");
+      setActionError(getCopyActionErrorMessage(error, "删除文案失败"));
     }
-  };
+  }, [removeCopyItemState]);
 
-  const deleteCopyCard = async () => {
+  const deleteCopyCard = useCallback(async () => {
     if (!copyCardId || isDeletingCard) return;
-    if (localItems.some((item) => item.isLocked)) {
+    if (hasLockedItems) {
       setActionError("已有下游内容，不能删除");
       return;
     }
@@ -233,11 +262,11 @@ export function CopyCard({
       }
       dispatchWorkspaceInvalidated();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "删除文案卡失败");
+      setActionError(getCopyActionErrorMessage(error, "删除文案卡失败"));
     } finally {
       setIsDeletingCard(false);
     }
-  };
+  }, [copyCardId, hasLockedItems, isDeletingCard]);
 
   const appendGenerate = useCallback(async () => {
     if (isAppending) return;
@@ -256,17 +285,13 @@ export function CopyCard({
       }
       dispatchWorkspaceInvalidated();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "追加生成文案失败");
+      setActionError(getCopyActionErrorMessage(error, "追加生成文案失败"));
     } finally {
       setIsAppending(false);
     }
   }, [copyCardId, data.directionId, isAppending]);
 
-  const borderColorClass = isError
-    ? "border-[var(--danger-500)]"
-    : selected
-      ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
-      : "border-[var(--line-soft)]";
+  const borderColorClass = getCopyCardBorderClass(isError, selected);
   const isAllSelected = areAllSelectableCopiesSelected(localItems, selectedIds);
   const selectedCount = getSelectableCopyIds(localItems).filter((id) => selectedIds.has(id)).length;
 
@@ -298,7 +323,7 @@ export function CopyCard({
       {/* Top color bar */}
       <div className={cn(
         "absolute inset-x-0 top-0 h-1.5",
-        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]",
+        getCopyCardTopBarClass(isError),
       )} />
 
       {/* Header */}
@@ -326,8 +351,8 @@ export function CopyCard({
             variant="ghost"
             className="h-8 px-2 text-[11px] focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
             onClick={deleteCopyCard}
-            disabled={!copyCardId || isDeletingCard || localItems.some((item) => item.isLocked)}
-            title={localItems.some((item) => item.isLocked) ? "已有下游内容，不能删除" : "删除文案卡"}
+            disabled={!copyCardId || isDeletingCard || hasLockedItems}
+            title={hasLockedItems ? "已有下游内容，不能删除" : "删除文案卡"}
           >
             删除
           </Button>

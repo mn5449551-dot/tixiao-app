@@ -1,22 +1,38 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { Spinner } from "@/components/ui/spinner";
 
+function renderPanelLoading(
+  spinnerSize: "md" | "lg",
+  message: string,
+  containerClassName: string,
+): ReactElement {
+  return (
+    <div className={containerClassName}>
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size={spinnerSize} />
+        <span className={spinnerSize === "lg" ? "text-sm text-[var(--ink-500)]" : "text-xs text-[var(--ink-500)]"}>
+          {message}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const AgentPanel = dynamic(
   () => import("@/components/workspace/agent-panel").then((mod) => mod.AgentPanel),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center border-l border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="md" />
-          <span className="text-xs text-[var(--ink-500)]">助手加载中...</span>
-        </div>
-      </div>
-    ),
+    loading: () =>
+      renderPanelLoading(
+        "md",
+        "助手加载中...",
+        "flex h-full items-center justify-center border-l border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm",
+      ),
   },
 );
 
@@ -24,14 +40,12 @@ const ProjectTreePanel = dynamic(
   () => import("@/components/workspace/project-tree-panel").then((mod) => mod.ProjectTreePanel),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center border-r border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="md" />
-          <span className="text-xs text-[var(--ink-500)]">目录加载中...</span>
-        </div>
-      </div>
-    ),
+    loading: () =>
+      renderPanelLoading(
+        "md",
+        "目录加载中...",
+        "flex h-full items-center justify-center border-r border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm",
+      ),
   },
 );
 
@@ -39,14 +53,12 @@ const WorkflowCanvasPanel = dynamic(
   () => import("@/components/workspace/workflow-canvas-panel").then((mod) => mod.WorkflowCanvasPanel),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(250,247,244,0.98))]">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="lg" />
-          <span className="text-sm text-[var(--ink-500)]">画布加载中...</span>
-        </div>
-      </div>
-    ),
+    loading: () =>
+      renderPanelLoading(
+        "lg",
+        "画布加载中...",
+        "flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(250,247,244,0.98))]",
+      ),
   },
 );
 
@@ -64,12 +76,16 @@ type WorkspaceShellProps = {
   };
 };
 
-export function WorkspaceShell({ project }: WorkspaceShellProps) {
+function getPanelWidth(collapsed: boolean, expandedWidth: number, collapsedWidth: number): number {
+  return collapsed ? collapsedWidth : expandedWidth;
+}
+
+export function WorkspaceShell({ project }: WorkspaceShellProps): ReactElement {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
+    const handleResize = (): void => {
       setRightCollapsed((prev) => {
         const shouldCollapse = window.innerWidth < RIGHT_COLLAPSE_BREAKPOINT;
         return prev !== shouldCollapse ? shouldCollapse : prev;
@@ -80,8 +96,8 @@ export function WorkspaceShell({ project }: WorkspaceShellProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const leftWidth = leftCollapsed ? COLLAPSED_LEFT : EXPANDED_LEFT;
-  const rightWidth = rightCollapsed ? COLLAPSED_RIGHT : EXPANDED_RIGHT;
+  const leftWidth = getPanelWidth(leftCollapsed, EXPANDED_LEFT, COLLAPSED_LEFT);
+  const rightWidth = getPanelWidth(rightCollapsed, EXPANDED_RIGHT, COLLAPSED_RIGHT);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--background)]">

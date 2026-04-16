@@ -27,7 +27,7 @@ if (!existsSync(OUTPUT_DIR)) {
   mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-async function callImageModel(model: string, size: string): Promise<{ success: boolean; data?: any; error?: string; duration: number }> {
+async function callImageModel(model: string, size: string): Promise<{ success: boolean; data?: unknown; error?: string; duration: number }> {
   const startTime = Date.now();
 
   try {

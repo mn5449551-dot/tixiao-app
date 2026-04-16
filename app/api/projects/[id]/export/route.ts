@@ -2,8 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
-
+import { getRouteErrorMessage, jsonError, readIdParam } from "@/lib/api-route";
 import { getDb } from "@/lib/db";
 import { getProjectExportContext } from "@/lib/project-data";
 import {
@@ -24,7 +23,7 @@ export async function POST(
   context: { params: Promise<unknown> },
 ) {
   try {
-    const { id } = (await context.params) as { id: string };
+    const id = await readIdParam(context);
     const body = (await request.json()) as {
       target_group_ids?: string[];
       target_channels?: string[];
@@ -39,11 +38,11 @@ export async function POST(
       targetGroupIds: body.target_group_ids,
     });
     if (!exportContext) {
-      return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+      return jsonError("项目不存在", 404);
     }
     const { project, configMap, groupMap, images } = exportContext;
     if (images.length === 0) {
-      return NextResponse.json({ error: "请先选定稿" }, { status: 422 });
+      return jsonError("请先选定稿", 422);
     }
 
     const slotSpecs = resolveExportSlotSpecs({
@@ -51,7 +50,7 @@ export async function POST(
       targetSlots: body.target_slots,
     }).filter((spec) => !isSpecialRatio(spec.ratio));
     if (slotSpecs.length === 0) {
-      return NextResponse.json({ error: "请先选择导出版位" }, { status: 422 });
+      return jsonError("请先选择导出版位", 422);
     }
 
     const exportId = `exp_${randomUUID().slice(0, 8)}`;
@@ -123,9 +122,6 @@ export async function POST(
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "导出失败" },
-      { status: 500 },
-    );
+    return jsonError(getRouteErrorMessage(error, "导出失败"));
   }
 }

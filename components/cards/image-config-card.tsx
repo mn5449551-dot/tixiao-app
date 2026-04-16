@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
@@ -41,10 +41,21 @@ export type ImageConfigCardData = {
   status?: CardStatus;
 };
 
+function getInitialNormalImageStyle(
+  styleMode: string | undefined,
+  imageStyle: string | undefined,
+): string {
+  if (styleMode === "ip") {
+    return "realistic";
+  }
+
+  return imageStyle ?? IMAGE_STYLES[0];
+}
+
 export function ImageConfigCard({
   data,
   selected,
-}: NodeProps<Node<ImageConfigCardData, "imageConfigCard">>) {
+}: NodeProps<Node<ImageConfigCardData, "imageConfigCard">>): ReactElement {
   const { copyId, copyText, status = "idle" } = data;
 
   const isLoading = status === "loading";
@@ -57,9 +68,7 @@ export function ImageConfigCard({
     resolveImageStyleForMode(data.initialStyleMode ?? "normal", data.initialImageStyle ?? IMAGE_STYLES[0]),
   );
   const [normalImageStyle, setNormalImageStyle] = useState(
-    data.initialStyleMode === "ip"
-      ? "realistic"
-      : (data.initialImageStyle ?? IMAGE_STYLES[0]),
+    getInitialNormalImageStyle(data.initialStyleMode, data.initialImageStyle),
   );
   const [count, setCount] = useState(data.initialCount ?? 1);
   const [imageModel, setImageModel] = useState<string | null>(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE);
@@ -84,9 +93,7 @@ export function ImageConfigCard({
     setAspectRatio(data.initialAspectRatio ?? getAspectRatiosForModel(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE)[0]);
     setStyleMode(nextStyleMode);
     setImageStyle(nextImageStyle);
-    setNormalImageStyle(
-      nextStyleMode === "ip" ? "realistic" : (data.initialImageStyle ?? IMAGE_STYLES[0]),
-    );
+    setNormalImageStyle(getInitialNormalImageStyle(nextStyleMode, data.initialImageStyle));
     setCount(data.initialCount ?? 1);
     setImageModel(data.initialImageModel ?? DEFAULT_IMAGE_MODEL_VALUE);
     setUseIp(!!data.initialIpRole);

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { getCanvasData, getGenerationStatusData } from "@/lib/project-data";
@@ -14,12 +15,26 @@ import {
 
 type CanvasData = NonNullable<ReturnType<typeof getCanvasData>>;
 type GenerationStatusData = NonNullable<ReturnType<typeof getGenerationStatusData>>;
+type CanvasResponse = CanvasData | { error?: string };
+const CANVAS_LOAD_ERROR = "获取画布数据失败";
 
 function isCanvasData(value: unknown): value is CanvasData {
   return typeof value === "object" && value !== null && "nodes" in value && "edges" in value;
 }
 
-export function WorkflowCanvasPanel({ projectId }: { projectId: string }) {
+function getCanvasErrorMessage(payload: CanvasResponse): string {
+  if (isCanvasData(payload)) {
+    return CANVAS_LOAD_ERROR;
+  }
+
+  return payload.error ?? CANVAS_LOAD_ERROR;
+}
+
+function isAbortError(controller: AbortController, error: unknown): boolean {
+  return controller.signal.aborted || (error instanceof Error && error.name === "AbortError");
+}
+
+export function WorkflowCanvasPanel({ projectId }: { projectId: string }): ReactElement {
   const [graph, setGraph] = useState<CanvasData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const requestCoordinatorRef = useRef(createRequestCoordinator());
@@ -36,9 +51,9 @@ export function WorkflowCanvasPanel({ projectId }: { projectId: string }) {
       signal: controller.signal,
     })
       .then(async (response) => {
-        const payload = (await response.json()) as CanvasData | { error?: string };
+        const payload = (await response.json()) as CanvasResponse;
         if (!response.ok || !isCanvasData(payload)) {
-          throw new Error(!isCanvasData(payload) && "error" in payload ? payload.error ?? "获取画布数据失败" : "获取画布数据失败");
+          throw new Error(getCanvasErrorMessage(payload));
         }
         if (requestCoordinatorRef.current.isLatest(requestToken)) {
           setGraph(payload);
@@ -46,15 +61,12 @@ export function WorkflowCanvasPanel({ projectId }: { projectId: string }) {
         }
       })
       .catch((fetchError) => {
-        if (
-          controller.signal.aborted ||
-          (fetchError instanceof Error && fetchError.name === "AbortError")
-        ) {
+        if (isAbortError(controller, fetchError)) {
           return;
         }
 
         if (requestCoordinatorRef.current.isLatest(requestToken)) {
-          setError(fetchError instanceof Error ? fetchError.message : "获取画布数据失败");
+          setError(fetchError instanceof Error ? fetchError.message : CANVAS_LOAD_ERROR);
         }
       });
 

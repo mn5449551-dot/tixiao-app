@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,11 +16,41 @@ interface AgentPanelProps {
   onToggleCollapse: () => void;
 }
 
+type TargetAudience = NonNullable<AssistantState["confirmation"]>["targetAudience"];
+type SuggestionType = Extract<
+  NonNullable<AssistantState["ui"]>[number],
+  { type: "feature_suggestions" | "selling_point_suggestions" | "time_node_suggestions" }
+>["type"];
+
 function isAssistantState(value: unknown): value is AssistantState {
   return typeof value === "object" && value !== null && "messages" in value && "draft" in value && "stage" in value && "ui" in value;
 }
 
-export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPanelProps) {
+function getTargetAudienceLabel(targetAudience: TargetAudience): string {
+  if (targetAudience === "parent") {
+    return "家长";
+  }
+
+  if (targetAudience === "student") {
+    return "学生";
+  }
+
+  return targetAudience;
+}
+
+function getSuggestionTitle(type: SuggestionType): string {
+  if (type === "feature_suggestions") {
+    return "推荐功能";
+  }
+
+  if (type === "selling_point_suggestions") {
+    return "推荐卖点";
+  }
+
+  return "推荐时间节点";
+}
+
+export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPanelProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
 
@@ -202,7 +233,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
               <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">当前需求摘要</p>
               <div className="space-y-1 text-xs text-[var(--ink-700)]">
-                <p>目标人群：{assistantState.confirmation.targetAudience === "parent" ? "家长" : assistantState.confirmation.targetAudience === "student" ? "学生" : assistantState.confirmation.targetAudience}</p>
+                <p>目标人群：{getTargetAudienceLabel(assistantState.confirmation.targetAudience)}</p>
                 <p>功能：{assistantState.confirmation.feature || "待补充"}</p>
                 <p>卖点：{assistantState.confirmation.sellingPoints.join("、") || "待补充"}</p>
                 <p>时间节点：{assistantState.confirmation.timeNode || "待补充"}</p>
@@ -241,8 +272,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             </div>
           ))}
           {(["feature_suggestions", "selling_point_suggestions", "time_node_suggestions"] as const).map((type) => {
-            const title =
-              type === "feature_suggestions" ? "推荐功能" : type === "selling_point_suggestions" ? "推荐卖点" : "推荐时间节点";
+            const title = getSuggestionTitle(type);
             const suggestionActions = (assistantState?.ui ?? []).filter(
               (
                 item,
@@ -278,7 +308,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               <div className="space-y-1 text-xs text-[var(--ink-700)]">
                 <p>业务目标：APP</p>
                 <p>形式：图文</p>
-                <p>目标人群：{assistantState.confirmation.targetAudience === "parent" ? "家长" : assistantState.confirmation.targetAudience === "student" ? "学生" : assistantState.confirmation.targetAudience}</p>
+                <p>目标人群：{getTargetAudienceLabel(assistantState.confirmation.targetAudience)}</p>
                 <p>功能：{assistantState.confirmation.feature || "待补充"}</p>
                 <p>卖点：{assistantState.confirmation.sellingPoints.join("、") || "待补充"}</p>
                 <p>时间节点：{assistantState.confirmation.timeNode || "待补充"}</p>

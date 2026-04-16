@@ -30,6 +30,26 @@ type AssistantAgentResult = {
   confirmation: AssistantConfirmation | null;
 };
 
+function getAssistantTargetAudienceLabel(targetAudience: string | undefined): string {
+  if (targetAudience === "parent") {
+    return "家长";
+  }
+
+  return "学生";
+}
+
+function buildAssistantConfirmation(fields: Partial<AssistantDraft>): AssistantConfirmation {
+  return {
+    businessGoal: "app",
+    formatType: "image_text",
+    targetAudience: fields.targetAudience ?? "",
+    feature: fields.feature ?? "",
+    sellingPoints: fields.sellingPoints ?? [],
+    timeNode: fields.timeNode ?? "",
+    directionCount: fields.directionCount ?? null,
+  };
+}
+
 export function buildRequirementAssistantMessages(input: AssistantAgentInput) {
   const latestUserMessage = [...input.conversation].reverse().find((item) => item.role === "user")?.content ?? "";
   const userMentionedTimeNode = /开学季|期中|期末|寒假|暑假/.test(latestUserMessage);
@@ -171,18 +191,7 @@ function normalizeAssistantResult(current: AssistantDraft, input: AssistantAgent
     nextField: missingFields[0] ?? null,
     missingFields,
     ui,
-    confirmation:
-      stage === "confirming"
-        ? {
-            businessGoal: "app",
-            formatType: "image_text",
-            targetAudience: nextFields.targetAudience ?? "",
-            feature: nextFields.feature ?? "",
-            sellingPoints: nextFields.sellingPoints ?? [],
-            timeNode: nextFields.timeNode ?? "",
-            directionCount: nextFields.directionCount ?? null,
-          }
-        : null,
+    confirmation: stage === "confirming" ? buildAssistantConfirmation(nextFields) : null,
   };
 }
 
@@ -257,7 +266,7 @@ function fallbackRequirementAssistant(input: AssistantAgentInput): AssistantAgen
   if (merged.stage === "confirming") {
     return {
       ...merged,
-      reply: `我先帮你整理成一版需求，请确认：业务目标=APP；形式=图文；目标人群=${merged.fields.targetAudience === "parent" ? "家长" : "学生"}；功能=${merged.fields.feature}；卖点=${(merged.fields.sellingPoints ?? []).join("、")}；时间节点=${merged.fields.timeNode}；方向数量=${merged.fields.directionCount}。确认后我再一次性填充到需求卡。`,
+      reply: `我先帮你整理成一版需求，请确认：业务目标=APP；形式=图文；目标人群=${getAssistantTargetAudienceLabel(merged.fields.targetAudience)}；功能=${merged.fields.feature}；卖点=${(merged.fields.sellingPoints ?? []).join("、")}；时间节点=${merged.fields.timeNode}；方向数量=${merged.fields.directionCount}。确认后我再一次性填充到需求卡。`,
     };
   }
 

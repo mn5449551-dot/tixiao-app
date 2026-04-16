@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { useCallback, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
@@ -71,10 +71,72 @@ function getSlotsForChannels(channels: string[]): ExportSlotSpec[] {
   return EXPORT_SLOT_SPECS.filter((spec) => channels.includes(spec.channel));
 }
 
+function getFinalizedPoolBorderClass(selected: boolean): string {
+  if (selected) {
+    return "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]";
+  }
+
+  return "border-[var(--line-soft)]";
+}
+
+function getFinalizedSummaryText(
+  displayMode: FinalizedPoolCardData["displayMode"],
+  confirmedCount: number,
+  groupCount: number,
+  selectedGroupCount: number,
+): string {
+  const baseText =
+    displayMode === "single" ? `共 ${confirmedCount} 张已定稿` : `共 ${groupCount} 套已定稿`;
+
+  if (selectedGroupCount > 0) {
+    return `${baseText} · 已选 ${selectedGroupCount}`;
+  }
+
+  return baseText;
+}
+
+function getFinalizedGroupCardClass(selected: boolean): string {
+  return cn(
+    "rounded-xl border bg-white p-3",
+    selected
+      ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]"
+      : "border-[var(--line-soft)]",
+  );
+}
+
+function getFinalizedGroupSelectButtonClass(selected: boolean): string {
+  return cn(
+    "flex h-5 w-5 items-center justify-center rounded border text-[10px]",
+    selected
+      ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+      : "border-[var(--line-soft)] bg-white text-transparent",
+  );
+}
+
+function getSlotStatusLabel(
+  isSpecial: boolean,
+  hasPostprocess: boolean,
+  hasTransform: boolean,
+): string {
+  if (isSpecial) {
+    return "暂不支持";
+  }
+
+  if (hasPostprocess) {
+    return "需后处理";
+  }
+
+  if (hasTransform) {
+    return "需适配";
+  }
+
+  return "可直接导出";
+}
+
 export function FinalizedPoolCard({
   data,
   selected,
-}: NodeProps<FinalizedPoolCardNode>) {
+}: NodeProps<FinalizedPoolCardNode>): ReactElement {
   const { displayMode, groups, groupLabel, projectId } = data;
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(() => new Set());
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -133,6 +195,8 @@ export function FinalizedPoolCard({
 
   const exportCount = displayMode === "single" ? selectedImages.length : selectedGroups.length;
   const selectedGroupCount = selectedGroupIds.size;
+  const selectedGroupIdList = useMemo(() => [...selectedGroupIds], [selectedGroupIds]);
+  const allGroupsSelected = selectedGroupIds.size === groups.length;
 
   const toggleGroupSelection = useCallback((groupId: string) => {
     setSelectedGroupIds((prev) => {
@@ -149,6 +213,18 @@ export function FinalizedPoolCard({
       return new Set(groups.map((group) => group.id));
     });
   }, [groups]);
+
+  const handleDeleteDerivedGroup = useCallback(async (groupId: string) => {
+    setActionLoadingGroupId(groupId);
+    try {
+      const ok = await deleteDerivedGroup(groupId);
+      if (ok) {
+        dispatchWorkspaceInvalidated();
+      }
+    } finally {
+      setActionLoadingGroupId(null);
+    }
+  }, []);
 
   const handleRegenerateImage = useCallback(async (image: FinalizedImage) => {
     if (!image.id || regeneratingImageId) return;
@@ -172,9 +248,7 @@ export function FinalizedPoolCard({
     <div
       className={cn(
         "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
-        selected
-          ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
-          : "border-[var(--line-soft)]",
+        getFinalizedPoolBorderClass(selected),
       )}
       style={{ width: 480, maxWidth: '100%' } satisfies CSSProperties}
     >
@@ -192,8 +266,7 @@ export function FinalizedPoolCard({
             <h3 className="text-sm font-semibold text-[#4a3728]">定稿池</h3>
           </div>
           <p className="text-[11px] text-[var(--ink-400)]">
-            {displayMode === "single" ? `共 ${confirmedImages.length} 张已定稿` : `共 ${groups.length} 套已定稿`}
-            {selectedGroupCount > 0 ? ` · 已选 ${selectedGroupCount}` : ""}
+            {getFinalizedSummaryText(displayMode, confirmedImages.length, groups.length, selectedGroupCount)}
           </p>
         </div>
         {groupLabel ? <Badge tone="success">{groupLabel}</Badge> : null}
@@ -207,7 +280,7 @@ export function FinalizedPoolCard({
 
       <div className="mb-4 flex items-center gap-2">
         <Button variant="secondary" onClick={toggleSelectAllGroups} className="shrink-0 text-xs">
-          {selectedGroupIds.size === groups.length ? "全不选" : "全选"}
+          {allGroupsSelected ? "全不选" : "全选"}
         </Button>
         <span className="flex-1 text-center text-xs text-[var(--ink-500)]">
           已选 {selectedGroupIds.size}/{groups.length}
@@ -221,23 +294,13 @@ export function FinalizedPoolCard({
             {groups.map((group) => (
               <div
                 key={group.id}
-                className={cn(
-                  "rounded-xl border bg-white p-3",
-                  selectedGroupIds.has(group.id)
-                    ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]"
-                    : "border-[var(--line-soft)]",
-                )}
+                className={getFinalizedGroupCardClass(selectedGroupIds.has(group.id))}
               >
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className={cn(
-                        "flex h-5 w-5 items-center justify-center rounded border text-[10px]",
-                        selectedGroupIds.has(group.id)
-                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                          : "border-[var(--line-soft)] bg-white text-transparent",
-                      )}
+                      className={getFinalizedGroupSelectButtonClass(selectedGroupIds.has(group.id))}
                       onClick={() => toggleGroupSelection(group.id)}
                       aria-label={selectedGroupIds.has(group.id) ? "取消选择定稿组" : "选择定稿组"}
                     >
@@ -268,17 +331,7 @@ export function FinalizedPoolCard({
                       variant="ghost"
                       className="text-xs"
                       disabled={actionLoadingGroupId === group.id}
-                      onClick={async () => {
-                        setActionLoadingGroupId(group.id);
-                        try {
-                          const ok = await deleteDerivedGroup(group.id);
-                          if (ok) {
-                            dispatchWorkspaceInvalidated();
-                          }
-                        } finally {
-                          setActionLoadingGroupId(null);
-                        }
-                      }}
+                      onClick={() => void handleDeleteDerivedGroup(group.id)}
                     >
                       删除适配版本
                     </Button>
@@ -292,23 +345,13 @@ export function FinalizedPoolCard({
             {groups.map((group) => (
               <div
                 key={group.id}
-                className={cn(
-                  "rounded-xl border bg-white p-3",
-                  selectedGroupIds.has(group.id)
-                    ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]"
-                    : "border-[var(--line-soft)]",
-                )}
+                className={getFinalizedGroupCardClass(selectedGroupIds.has(group.id))}
               >
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className={cn(
-                        "flex h-5 w-5 items-center justify-center rounded border text-[10px]",
-                        selectedGroupIds.has(group.id)
-                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                          : "border-[var(--line-soft)] bg-white text-transparent",
-                      )}
+                      className={getFinalizedGroupSelectButtonClass(selectedGroupIds.has(group.id))}
                       onClick={() => toggleGroupSelection(group.id)}
                       aria-label={selectedGroupIds.has(group.id) ? "取消选择定稿组" : "选择定稿组"}
                     >
@@ -341,17 +384,7 @@ export function FinalizedPoolCard({
                       variant="ghost"
                       className="text-xs"
                       disabled={actionLoadingGroupId === group.id}
-                      onClick={async () => {
-                        setActionLoadingGroupId(group.id);
-                        try {
-                          const ok = await deleteDerivedGroup(group.id);
-                          if (ok) {
-                            dispatchWorkspaceInvalidated();
-                          }
-                        } finally {
-                          setActionLoadingGroupId(null);
-                        }
-                      }}
+                      onClick={() => void handleDeleteDerivedGroup(group.id)}
                     >
                       删除适配版本
                     </Button>
@@ -397,13 +430,7 @@ export function FinalizedPoolCard({
               const slotModes = confirmedImages.map((image) => classifyExportAdaptation(image.aspectRatio, slot.ratio));
               const hasPostprocess = slotModes.includes("postprocess");
               const hasTransform = slotModes.includes("transform");
-              const statusLabel = isSpecial
-                ? "暂不支持"
-                : hasPostprocess
-                  ? "需后处理"
-                  : hasTransform
-                    ? "需适配"
-                    : "可直接导出";
+              const statusLabel = getSlotStatusLabel(isSpecial, hasPostprocess, hasTransform);
               return (
                 <button
                   key={`${slot.channel}-${slot.slotName}`}
@@ -479,7 +506,7 @@ export function FinalizedPoolCard({
             try {
               const result = await generateFinalizedVariants({
                 projectId,
-                selectedGroupIds: [...selectedGroupIds],
+                selectedGroupIds: selectedGroupIdList,
                 selectedChannels,
                 slotNames: selectedSlotSpecs.map((slot) => slot.slotName),
                 imageModel,
@@ -526,7 +553,7 @@ export function FinalizedPoolCard({
           try {
             const result = await exportFinalizedImages({
               projectId,
-              selectedGroupIds: [...selectedGroupIds],
+              selectedGroupIds: selectedGroupIdList,
               selectedChannels,
               slotNames: exportableSlotSpecs.map((slot) => slot.slotName),
               logo: exportLogo,

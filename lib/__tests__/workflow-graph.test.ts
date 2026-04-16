@@ -167,6 +167,7 @@ test("buildGraph creates row-level source handles and shows candidate pool when 
                     isConfirmed: 0,
                     createdAt: 0,
                     updatedAt: 0,
+                    imageModel: null,
                     images: [
                       {
                         id: "img_1",
@@ -344,6 +345,7 @@ test("buildGraph keeps image config card interactive while candidate images are 
                     isConfirmed: 0,
                     createdAt: 0,
                     updatedAt: 0,
+                    imageModel: null,
                     images: [
                       {
                         id: "img_pending",
@@ -496,6 +498,7 @@ test("buildGraph keeps candidate pool visible while images are still pending", (
                     isConfirmed: 0,
                     createdAt: 0,
                     updatedAt: 0,
+                    imageModel: null,
                     images: [
                       {
                         id: "img_1",
@@ -641,6 +644,7 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
                     isConfirmed: 1,
                     createdAt: 0,
                     updatedAt: 0,
+                    imageModel: null,
                     images: [
                       {
                         id: "img_2",
@@ -678,6 +682,7 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
                     isConfirmed: 1,
                     createdAt: 0,
                     updatedAt: 0,
+                    imageModel: null,
                     images: [
                       {
                         id: "img_2_derived",
