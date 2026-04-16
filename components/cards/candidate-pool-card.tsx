@@ -61,7 +61,7 @@ export type CandidateGroup = {
   aspectRatio: string;
   styleMode: string;
   imageStyle: string;
-  imageModel?: string | null;
+  imageModel: string | null;
   images: CandidateImage[];
 };
 
