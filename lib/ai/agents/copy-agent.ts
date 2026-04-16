@@ -359,13 +359,30 @@ ${getExistingCopiesBlock(input, isAppend)}
 
 export async function generateCopyIdeas(input: CopyAgentInput) {
   const messages = buildCopyAgentMessages(input);
+  const maxAttempts = 3;
 
-  const content = await createChatCompletion({
-    modelKey: "model_copy",
-    messages,
-    temperature: 0.8,
-    responseFormat: { type: "json_object" },
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const content = await createChatCompletion({
+      modelKey: "model_copy",
+      messages,
+      temperature: 0.8,
+      responseFormat: { type: "json_object" },
+    });
 
-  return JSON.parse(content) as CopyAgentOutput;
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      const items = parsed?.items ?? parsed?.copies;
+      if (Array.isArray(items) && items.length > 0) {
+        return parsed as unknown as CopyAgentOutput;
+      }
+    } catch {
+      // JSON parse failed, retry
+    }
+
+    if (attempt === maxAttempts) {
+      throw new Error("AI 文案生成格式异常，已重试 3 次仍失败，请稍后再试");
+    }
+  }
+
+  throw new Error("AI 文案生成格式异常");
 }

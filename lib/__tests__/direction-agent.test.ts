@@ -71,6 +71,6 @@ test("generateDirectionIdeas requests json_object output instead of mixed though
   const source = await readFile(new URL("../ai/agents/direction-agent.ts", import.meta.url), "utf8");
 
   assert.match(source, /responseFormat:\s*\{\s*type:\s*"json_object"\s*\}/);
-  assert.match(source, /return JSON\.parse\(content\) as DirectionAgentOutput/);
+  assert.match(source, /JSON\.parse\(content\) as DirectionAgentOutput/);
   assert.doesNotMatch(source, /###/);
 });

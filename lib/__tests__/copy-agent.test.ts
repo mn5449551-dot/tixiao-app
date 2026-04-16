@@ -70,6 +70,6 @@ test("generateCopyIdeas requests json_object output instead of mixed thought tex
   const source = await readFile(new URL("../ai/agents/copy-agent.ts", import.meta.url), "utf8");
 
   assert.match(source, /responseFormat:\s*\{\s*type:\s*"json_object"\s*\}/);
-  assert.match(source, /return JSON\.parse\(content\) as CopyAgentOutput/);
+  assert.match(source, /JSON\.parse\(content\)/);
   assert.doesNotMatch(source, /###/);
 });
