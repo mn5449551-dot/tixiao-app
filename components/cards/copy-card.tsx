@@ -18,9 +18,7 @@ import {
 import { CopyItemEditor } from "@/components/cards/copy-card/copy-item-editor";
 import { CopyItemRow } from "@/components/cards/copy-card/copy-item-row";
 import {
-  areAllSelectableCopiesSelected,
   getSelectableCopyIds,
-  toggleSelectableCopyIds,
 } from "@/lib/copy-selection";
 import {
   getCopyActionState,
@@ -87,9 +85,6 @@ export function CopyCard({
   const isDone = status === "done";
 
   const [localItems, setLocalItems] = useState<CopyItem[]>(copyItems);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(
-    () => new Set(copyItems.map((item) => item.id)),
-  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState<Record<string, { main: string; sub: string; extra: string }>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -101,19 +96,6 @@ export function CopyCard({
   const [actionError, setActionError] = useState<string | null>(null);
   const hasLockedItems = localItems.some((item) => item.isLocked);
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        setEditingId((current) => (current === id ? null : current));
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
   const startEdit = useCallback((item: CopyItem) => {
     setEditBuffer((prev) => ({
       ...prev,
@@ -123,7 +105,6 @@ export function CopyCard({
         extra: item.titleExtra ?? "",
       },
     }));
-    setExpandedIds((prev) => new Set(prev).add(item.id));
     setEditingId(item.id);
   }, []);
 
@@ -133,11 +114,6 @@ export function CopyCard({
 
   const removeCopyItemState = useCallback((id: string) => {
     setLocalItems((prev) => prev.filter((item) => item.id !== id));
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -228,10 +204,6 @@ export function CopyCard({
     });
   }, []);
 
-  const toggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) => toggleSelectableCopyIds(localItems, prev));
-  }, [localItems]);
-
   const deleteCopy = useCallback(async (id: string) => {
     if (!confirm(`确定删除文案项？此操作不可恢复。`)) return;
     try {
@@ -292,7 +264,6 @@ export function CopyCard({
   }, [copyCardId, data.directionId, isAppending]);
 
   const borderColorClass = getCopyCardBorderClass(isError, selected);
-  const isAllSelected = areAllSelectableCopiesSelected(localItems, selectedIds);
   const selectedCount = getSelectableCopyIds(localItems).filter((id) => selectedIds.has(id)).length;
 
   return (
@@ -349,12 +320,14 @@ export function CopyCard({
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            className="h-8 px-2 text-[11px] focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
+            className="h-8 w-8 p-0 text-[var(--ink-400)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
             onClick={deleteCopyCard}
             disabled={!copyCardId || isDeletingCard || hasLockedItems}
             title={hasLockedItems ? "已有下游内容，不能删除" : "删除文案卡"}
           >
-            删除
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
           </Button>
         </div>
       </div>
@@ -377,7 +350,6 @@ export function CopyCard({
           const actions = getCopyActionState(item.isLocked);
           const rows = getCopyDisplayRows(imageForm, item);
           const buffer = editBuffer[item.id];
-          const isExpanded = expandedIds.has(item.id);
           const isEditing = editingId === item.id;
           const isChecked = selectedIds.has(item.id);
 
@@ -388,12 +360,10 @@ export function CopyCard({
               index={index}
               statusLabel={actions.statusLabel ?? undefined}
               deleteHint={actions.deleteHint ?? undefined}
-              expanded={isExpanded}
               editing={isEditing}
               selected={isChecked}
               canDelete={actions.canDelete}
               onToggleSelect={() => toggleSelect(item.id)}
-              onToggleExpand={() => toggleExpand(item.id)}
               onToggleEdit={() => {
                 if (!isEditing) startEdit(item);
                 else cancelEdit();
@@ -448,13 +418,6 @@ export function CopyCard({
           onClick={appendGenerate}
         >
           {isAppending ? "生成中..." : "+ 追加"}
-        </Button>
-        <Button
-          variant="secondary"
-          className="shrink-0 text-xs px-3"
-          onClick={toggleSelectAll}
-        >
-          {isAllSelected ? "全不选" : "全选"}
         </Button>
         <Button
           variant="primary"
