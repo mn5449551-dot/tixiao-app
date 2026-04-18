@@ -632,9 +632,12 @@ export function listFolders() {
       sortOrder: projectFolders.sortOrder,
       createdAt: projectFolders.createdAt,
       updatedAt: projectFolders.updatedAt,
+      projectCount: sql<number>`count(${projects.id})`.as("projectCount"),
     })
     .from(projectFolders)
-    .orderBy(projectFolders.sortOrder, desc(projectFolders.updatedAt))
+    .leftJoin(projects, eq(projects.folderId, projectFolders.id))
+    .groupBy(projectFolders.id)
+    .orderBy(desc(projectFolders.updatedAt))
     .all();
 }
 

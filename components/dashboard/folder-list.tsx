@@ -14,6 +14,7 @@ type FolderSummary = {
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
+  projectCount: number;
 };
 
 export function FolderList({ folders }: { folders: FolderSummary[] }) {
@@ -37,7 +38,7 @@ export function FolderList({ folders }: { folders: FolderSummary[] }) {
                 </h3>
               </div>
               <p className="text-sm text-[var(--ink-500)]">
-                项目文件夹 · {formatRelativeDate(folder.updatedAt)}
+                {folder.projectCount} 个项目 · 最近更新: {formatRelativeDate(folder.updatedAt)}
               </p>
             </div>
           </Link>
