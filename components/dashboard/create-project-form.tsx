@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { ApiError, apiFetch } from "@/lib/api-fetch";
 
-export function CreateProjectForm({ folderId }: { folderId?: string } = {}) {
+export function CreateProjectForm({ folderId, existingNames = [] }: { folderId?: string; existingNames?: string[] } = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -26,6 +26,11 @@ export function CreateProjectForm({ folderId }: { folderId?: string } = {}) {
 
     if (!trimmedTitle) {
       setError("项目标题不能为空");
+      return;
+    }
+
+    if (existingNames.some((n) => n === trimmedTitle)) {
+      setError("已存在同名项目");
       return;
     }
 
@@ -68,6 +73,7 @@ export function CreateProjectForm({ folderId }: { folderId?: string } = {}) {
           <Input
             autoFocus
             placeholder="例如：Q2-期中冲刺拍题精学"
+            maxLength={50}
             value={title}
             onChange={(event) => {
               setTitle(event.target.value);

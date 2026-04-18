@@ -4,11 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { apiFetchOk } from "@/lib/api-fetch";
-import { formatRelativeDate } from "@/lib/utils";
 
 type ProjectSummary = {
   id: string;
@@ -28,7 +26,7 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
       <Card className="flex min-h-[280px] items-center justify-center bg-white/90 p-10 text-center">
         <div className="max-w-md space-y-5">
           <h3 className="text-2xl font-semibold text-[var(--ink-900)]">还没有项目</h3>
-          <p className="text-sm leading-7 text-[var(--ink-600)]">新建一个项目，开始整理图文方向与文案内容。</p>
+          <p className="text-sm leading-7 text-[var(--ink-600)]">还没有项目，点击右上角「新建项目」开始使用</p>
         </div>
       </Card>
     );
@@ -39,28 +37,15 @@ export function ProjectList({ projects }: { projects: ProjectSummary[] }) {
       {projects.map((project, index) => (
         <div
           key={project.id}
-          className="group animate-fade-in rounded-[26px] border border-[var(--line-soft)] bg-white/92 px-5 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--line-brand)] hover:shadow-[var(--shadow-card-hover)] md:flex md:items-center md:justify-between"
+          className="group animate-fade-in rounded-[26px] border border-[var(--line-soft)] bg-white/92 px-5 py-4 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--line-brand)] hover:shadow-[var(--shadow-card-hover)] md:flex md:items-center md:justify-between"
           style={{ animationDelay: `${index * 50}ms` }}
         >
           <Link href={`/projects/${project.id}`} className="block min-w-0 flex-1">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <h3 className="truncate text-xl font-semibold text-[var(--ink-950)] transition-colors group-hover:text-[var(--brand-700)]">
-                  {project.title}
-                </h3>
-                <Badge tone={project.status === "draft" ? "neutral" : "brand"} size="sm" className="shrink-0">
-                  {project.status === "draft" ? "草稿" : "进行中"}
-                </Badge>
-              </div>
-              <p className="text-sm text-[var(--ink-500)]">
-                图文 · 方向 {project.directionCount} 条 · 文案 {project.copyCardCount} 条
-              </p>
-            </div>
+            <h3 className="truncate text-lg font-semibold text-[var(--ink-950)] transition-colors group-hover:text-[var(--brand-700)]">
+              {project.title}
+            </h3>
           </Link>
-          <div className="mt-4 flex items-center justify-end gap-3 md:mt-0 md:ml-6 md:shrink-0">
-            <span className="text-xs text-[var(--ink-400)]">
-              {formatRelativeDate(project.updatedAt)}
-            </span>
+          <div className="mt-3 flex items-center justify-end gap-3 md:mt-0 md:ml-6 md:shrink-0">
             <Button
               variant="ghost"
               size="sm"
