@@ -390,83 +390,48 @@ export function FinalizedPoolCard({
       {availableSlots.length > 0 && (
         <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
           <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">投放版位</p>
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-[#d8eadf] bg-[#f7fdf9] p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium text-[#39624a]">可直接导出版位</p>
-                  <p className="text-[11px] text-[#6b8b77]">这里展示的版位现在就能导出，可按需勾选。</p>
-                </div>
-                <Badge tone="success">{directSlots.length} 项</Badge>
+          <div className="space-y-1.5">
+            {directSlots.map((slot) => {
+              const active = selectedSlots.includes(slot.slotName);
+              return (
+                <button
+                  key={`${slot.channel}-${slot.slotName}`}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition",
+                    active
+                      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                      : "border-[var(--line-soft)] bg-white text-[var(--ink-600)]",
+                  )}
+                  onClick={() => toggleSlot(slot.slotName)}
+                >
+                  <span className="font-medium">{slot.channel} · {slot.slotName}</span>
+                  <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio}</span>
+                </button>
+              );
+            })}
+            {adaptationRequiredSlots.map((slot) => (
+              <div
+                key={`${slot.channel}-${slot.slotName}`}
+                className="flex items-center justify-between rounded-lg border border-dashed border-[var(--line-soft)] px-3 py-2 text-xs text-[var(--ink-400)]"
+              >
+                <span>{slot.channel} · {slot.slotName}</span>
+                <span className="text-[10px]">需适配</span>
               </div>
-              {directSlots.length > 0 ? (
-                <div className="space-y-2">
-                  {directSlots.map((slot) => {
-                    const active = selectedSlots.includes(slot.slotName);
-                    return (
-                      <button
-                        key={`${slot.channel}-${slot.slotName}`}
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition",
-                          active
-                            ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                            : "border-[#d8eadf] bg-white text-[var(--ink-600)]",
-                        )}
-                        onClick={() => toggleSlot(slot.slotName)}
-                      >
-                        <span className="font-medium">{slot.channel} · {slot.slotName}</span>
-                        <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio} · {slot.size}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--ink-500)]">当前已选图片还没有覆盖到可直接导出的版位。</p>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-[#edd8ba] bg-[#fffaf2] p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium text-[#9b6513]">需适配后导出</p>
-                  <p className="text-[11px] text-[#b07a2c]">这些版位当前还缺少对应比例的图片，需要先生成适配版本。</p>
-                </div>
-                <Badge tone="brand">{adaptationRequiredSlots.length} 项</Badge>
-              </div>
-              {adaptationRequiredSlots.length > 0 ? (
-                <div className="space-y-2">
-                  {adaptationRequiredSlots.map((slot) => (
-                    <div
-                      key={`${slot.channel}-${slot.slotName}`}
-                      className="flex items-center justify-between rounded-lg border border-[#edd8ba] bg-white px-3 py-2 text-xs text-[var(--ink-600)]"
-                    >
-                      <span className="font-medium">{slot.channel} · {slot.slotName}</span>
-                      <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio} · {slot.size}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--ink-500)]">当前已选图片已覆盖所有非特殊比例版位，无需再生成适配版本。</p>
-              )}
-            </div>
-
-            {specialSlots.length > 0 ? (
-              <p className="text-[11px] text-[var(--ink-400)]">
-                特殊比例暂不支持：{specialSlots.map((slot) => `${slot.channel} · ${slot.slotName}`).join("、")}
-              </p>
-            ) : null}
+            ))}
           </div>
+          {specialSlots.length > 0 && (
+            <p className="mt-2 text-[11px] text-[var(--ink-400)]">
+              特殊比例暂不支持：{specialSlots.map((slot) => `${slot.channel} · ${slot.slotName}`).join("、")}
+            </p>
+          )}
         </div>
       )}
 
       <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">导出预览</p>
+        <p className="mb-1 text-xs font-medium text-[var(--ink-700)]">导出预览</p>
         <p className="text-xs text-[var(--ink-500)]">
-          已选 {exportCount} {displayMode === "single" ? "张" : "套"}，可直接导出 {selectedDirectSlotSpecs.length} 个版位
-        </p>
-        <p className="mt-2 text-xs text-[var(--ink-500)]">
-          待适配版位 {adaptationRequiredSlots.length} 个，特殊比例 {specialSlots.length} 个
+          已选 {exportCount} {displayMode === "single" ? "张" : "套"} · 直接导出 {selectedDirectSlotSpecs.length} 个版位 · 待适配 {adaptationRequiredSlots.length} 个
         </p>
       </div>
 
@@ -546,6 +511,9 @@ export function FinalizedPoolCard({
         className="w-full py-3.5 text-sm font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
         onClick={async () => {
           if (selectedGroupIds.size === 0 || selectedChannels.length === 0 || !projectId) return;
+
+          const confirmMsg = `确认导出 ${exportCount} ${displayMode === "single" ? "张" : "套"}图片到 ${selectedDirectSlotSpecs.length} 个版位？`;
+          if (!confirm(confirmMsg)) return;
 
           setIsExporting(true);
           setFeedback(null);
