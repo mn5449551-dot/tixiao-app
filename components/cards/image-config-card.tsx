@@ -82,7 +82,6 @@ export function ImageConfigCard({
   const supportsCta = data.channel === "信息流（广点通）" && data.imageForm === "single";
   const showImageStyleField = shouldShowImageStyleField(styleMode);
   const showIpAssetSelector = shouldShowIpAssetSelector(styleMode, useIp);
-  const activeIp = IP_ASSET_OPTIONS.find((item) => item.role === ipRole) ?? IP_ASSET_OPTIONS[0];
 
   useEffect(() => {
     if (isSubmitting) return;
@@ -235,7 +234,6 @@ export function ImageConfigCard({
           ipRole={ipRole}
           isIpMode={isIpMode}
           showIpAssetSelector={showIpAssetSelector}
-          activeIpDescription={activeIp?.description}
           onIpRoleChange={setIpRole}
         />
       </ImageConfigForm>
