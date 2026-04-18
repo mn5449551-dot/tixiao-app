@@ -282,13 +282,13 @@ export function RequirementCard({
       <div className="workflow-drag-handle mb-6 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
         <div>
           <h3 className="text-lg font-semibold text-[var(--ink-950)]">需求卡</h3>
-          <p className="mt-0.5 text-[10px] uppercase tracking-[0.22em] text-[var(--ink-400)]">REQUIREMENT</p>
         </div>
         <Badge tone={currentStatus.tone} size="sm">{currentStatus.label}</Badge>
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
+        <fieldset disabled={status === "done"} className="space-y-6 disabled:opacity-60">
         {errorMessage ? (
           <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
             {errorMessage}
@@ -386,9 +386,10 @@ export function RequirementCard({
               生成中...
             </span>
           ) : (
-            <><span className="mr-1.5">⚡</span> 保存并生成方向</>
+            <><span className="mr-1.5">⚡</span> 生成方向</>
           )}
         </Button>
+        </fieldset>
       </form>
     </div>
   );
