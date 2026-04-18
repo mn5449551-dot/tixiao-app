@@ -17,7 +17,7 @@ export default function HomePage() {
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink-950)]">
           AI 图文生产工作台
         </h1>
-        <CreateFolderForm />
+        <CreateFolderForm existingNames={folders.map((f) => f.name)} />
       </section>
 
       <section className="animate-fade-in-up space-y-5" style={{ animationDelay: "150ms" }}>

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { ApiError, apiFetch } from "@/lib/api-fetch";
 
-export function CreateFolderForm() {
+export function CreateFolderForm({ existingNames = [] }: { existingNames?: string[] }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
@@ -26,6 +26,11 @@ export function CreateFolderForm() {
 
     if (!trimmedName) {
       setError("文件夹名称不能为空");
+      return;
+    }
+
+    if (existingNames.some((n) => n === trimmedName)) {
+      setError("已存在同名文件夹");
       return;
     }
 
@@ -64,7 +69,8 @@ export function CreateFolderForm() {
         <div className="space-y-4">
           <Input
             autoFocus
-            placeholder="例如：运营A的项目"
+            placeholder="例如：小王的项目"
+            maxLength={50}
             value={name}
             onChange={(event) => {
               setName(event.target.value);
