@@ -54,11 +54,25 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
   const [error, setError] = useState<string | null>(null);
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
   // --- Conversation state ---
   const [assistantState, setAssistantState] = useState<AssistantState | null>(null);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [conversationInput, setConversationInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const prevStageRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (assistantState?.stage === "done" && prevStageRef.current && prevStageRef.current !== "done" && !collapsed) {
+      onToggleCollapse();
+    }
+    prevStageRef.current = assistantState?.stage;
+  }, [assistantState?.stage, collapsed, onToggleCollapse]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -128,6 +142,13 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "发送消息失败");
       setFailedMessage(trimmedMessage);
+      setAssistantState((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          messages: current.messages.filter((m) => m.id !== optimisticUserMessage.id),
+        };
+      });
     } finally {
       setAssistantLoading(false);
     }
@@ -188,7 +209,9 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge tone="brand" size="sm">在线</Badge>
+          <Badge tone={assistantState?.stage === "done" ? "neutral" : "brand"} size="sm">
+            {assistantState?.stage === "collecting" ? "收集中" : assistantState?.stage === "confirming" ? "待确认" : assistantState?.stage === "done" ? "已完成" : "加载中"}
+          </Badge>
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -212,16 +235,24 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             const audienceOptions = audienceActions.flatMap((item) => item.options);
             return (
           <div className="mt-2 flex flex-wrap gap-2">
-            {audienceOptions.map((option) => (
+            {audienceOptions.map((option) => {
+                const isSelected = assistantState?.draft?.targetAudience === option.value
+                  || assistantState?.confirmation?.targetAudience === option.value;
+                return (
                 <button
                   key={option.value}
                   type="button"
-                  className="rounded-full border border-[var(--line-strong)] bg-white px-3 py-1 text-xs text-[var(--ink-700)] transition hover:border-[var(--brand-400)] hover:text-[var(--brand-700)]"
+                  className={`rounded-full border px-3 py-1 text-xs transition ${
+                    isSelected
+                      ? "border-[var(--brand-500)] bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)] text-white"
+                      : "border-[var(--line-strong)] bg-white text-[var(--ink-700)] hover:border-[var(--brand-400)] hover:text-[var(--brand-700)]"
+                  }`}
                   onClick={() => void sendAssistantMessage(`目标人群选为${option.label}`)}
                 >
                   {option.label}
                 </button>
-              ))}
+                );
+              })}
           </div>
             );
           })()}
@@ -329,6 +360,12 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               </button>
             </div>
           ) : null}
+          {assistantLoading && (
+            <div className="flex items-center gap-2 text-xs text-[var(--ink-500)]">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--brand-400)] border-t-transparent" />
+              AI 正在思考...
+            </div>
+          )}
           <div ref={chatEndRef} />
         </div>
 
@@ -395,14 +432,6 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
 
       </div>
 
-      {/* Footer */}
-      <div className="shrink-0 border-t border-[var(--line-soft)] px-4 py-3">
-        {error ? (
-          <p className="text-sm text-[var(--danger-700)]">{error}</p>
-        ) : (
-          <p className="text-xs text-[var(--ink-500)]">当前阶段：Phase 0 / Phase 1 已进入联调。</p>
-        )}
-      </div>
     </div>
   );
 }
