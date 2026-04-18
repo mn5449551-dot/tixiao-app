@@ -159,16 +159,6 @@ export function DirectionCard({
     });
   }, []);
 
-  const toggleSelectAll = useCallback(() => {
-    const selectableDirections = directions.filter((direction) => !direction.hasDownstream);
-    setSelectedIds((prev) => {
-      if (prev.size === selectableDirections.length) return new Set();
-      return new Set(selectableDirections.map((direction) => direction.id));
-    });
-  }, [directions]);
-
-  const selectableCount = directions.filter((direction) => !direction.hasDownstream).length;
-  const isAllSelected = selectableCount > 0 && selectedIds.size === selectableCount;
   const selectedCount = selectedIds.size;
   const totalCount = directions.length;
 
@@ -389,17 +379,24 @@ export function DirectionCard({
 
       {/* Copy generation settings */}
       <div className="mb-5">
-        <Field label="文案生成数量" hint="1-5">
-          <Select
-            value={copyGenerationCount}
-            onChange={(e) => setCopyGenerationCount(e.target.value)}
-          >
+        <Field label="文案生成数量">
+          <div className="flex gap-1.5">
             {["1", "2", "3", "4", "5"].map((count) => (
-              <option key={count} value={count}>
-                {count} 条
-              </option>
+              <button
+                key={count}
+                type="button"
+                className={cn(
+                  "h-8 w-8 rounded-lg text-xs font-medium transition",
+                  copyGenerationCount === count
+                    ? "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)] text-white shadow-sm"
+                    : "border border-[var(--line-strong)] bg-white text-[var(--ink-700)] hover:border-[var(--brand-400)]",
+                )}
+                onClick={() => setCopyGenerationCount(count)}
+              >
+                {count}
+              </button>
             ))}
-          </Select>
+          </div>
         </Field>
       </div>
 
@@ -431,9 +428,6 @@ export function DirectionCard({
           className="shrink-0"
         >
           {isAppending ? "生成中..." : "+ 追加生成方向"}
-        </Button>
-        <Button variant="secondary" onClick={toggleSelectAll} className="shrink-0">
-          {isAllSelected ? "全不选" : "全选"}
         </Button>
         <Button
           variant="primary"
