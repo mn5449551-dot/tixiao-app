@@ -36,7 +36,7 @@ test("workspace shell renders panel components instead of consuming full workspa
 test("project tree renders the back-to-project-list entry inside the left panel", async () => {
   const source = await readFile(projectTreePath, "utf8");
 
-  assert.match(source, /href="\/"/);
-  assert.match(source, /项目列表/);
+  assert.match(source, /href=\{tree\.project\.folderId \? `\/folders\/\$\{tree\.project\.folderId\}` : "\/"\}/);
+  assert.match(source, /<span>返回<\/span>/);
   assert.match(source, /dispatchFocusCanvasNode/);
 });

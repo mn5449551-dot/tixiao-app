@@ -40,5 +40,6 @@ test("copy card primary action copy reflects image-config generation", async () 
 test("copy card provides a lightweight hint for the image-config step", async () => {
   const source = await readFile(copyCardPath, "utf8");
 
-  assert.match(source, /为选中文案创建图片配置卡/);
+  assert.match(source, /⚡ 生成图片配置/);
+  assert.doesNotMatch(source, /生成选中文案/);
 });

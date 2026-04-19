@@ -26,7 +26,8 @@ test("image config card delegates form and action logic", async () => {
   assert.match(source, /ImageConfigForm/);
   assert.match(source, /ImageConfigBrandSection/);
   assert.match(source, /image-config-actions/);
-  assert.match(source, /className="w-full py-3\.5 text-sm font-semibold shadow-\[var\(--shadow-brand\)\] hover:shadow-\[var\(--shadow-brand-hover\)\]"/);
+  assert.match(source, /正在生成候选图/);
+  assert.match(source, /saveImageConfigAndGenerate/);
   assert.match(actionsSource, /@\/lib\/api-fetch/);
   assert.match(actionsSource, /created_group_ids/);
 });

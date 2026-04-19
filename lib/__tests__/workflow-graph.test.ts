@@ -436,7 +436,6 @@ test("buildGraph creates one finalized node per confirmed source image and attac
         channel: "应用商店",
         imageForm: "single",
         copyGenerationCount: 1,
-        imageTextRelation: "单图直给",
         sortOrder: 0,
         isSelected: 1,
         createdAt: 0,

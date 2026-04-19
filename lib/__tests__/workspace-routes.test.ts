@@ -156,6 +156,7 @@ test("project route returns only header-level project data", async () => {
       id: project!.id,
       title: project!.title,
       status: project!.status,
+      folderId: project!.folderId,
     },
   });
 });
