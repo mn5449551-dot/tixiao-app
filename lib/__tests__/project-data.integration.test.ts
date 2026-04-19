@@ -552,6 +552,72 @@ test("generateFinalizedVariants creates derived finalized groups for mismatched 
   }
 });
 
+test("generateFinalizedVariants uses the finalized source group's real aspect ratio instead of the mutable config ratio", async () => {
+  const db = getDb();
+  const previousFetch = globalThis.fetch;
+  const previousApiKey = process.env.NEW_API_KEY;
+  process.env.NEW_API_KEY = "test-key";
+
+  const fixture = seedImageConfigFixture({ imageForm: "single" });
+  const config = await saveImageConfig(fixture.copyId, {
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+    createGroups: true,
+  });
+
+  assert.ok(config);
+  const [group] = config.groups;
+  assert.ok(group);
+  db.update(imageGroups).set({ isConfirmed: 1 }).where(eq(imageGroups.id, group.id)).run();
+
+  const [image] = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+  assert.ok(image);
+  const saved = await saveImageBuffer({
+    projectId: fixture.projectId,
+    imageId: image.id,
+    buffer: await createSolidPlaceholder({ text: "16:9 原图", width: 768, height: 432 }),
+    extension: "png",
+  });
+  db.update(generatedImages)
+    .set({
+      filePath: saved.filePath,
+      fileUrl: saved.fileUrl,
+      thumbnailPath: saved.thumbnailPath,
+      thumbnailUrl: saved.thumbnailUrl,
+      status: "done",
+      updatedAt: Date.now(),
+    })
+    .where(eq(generatedImages.id, image.id))
+    .run();
+
+  // Simulate the mutable image-config ratio drifting after this finalized source image was produced.
+  db.update(imageConfigs)
+    .set({ aspectRatio: "9:16", updatedAt: Date.now() })
+    .where(eq(imageConfigs.id, config.id))
+    .run();
+
+  globalThis.fetch = (async () => createMockImageGenerationResponse()) as typeof fetch;
+
+  try {
+    const result = await generateFinalizedVariants(fixture.projectId, {
+      sourceGroupId: group.id,
+      targetChannel: "OPPO",
+      slotNames: ["富媒体-横版两图"],
+      imageModel: "doubao-seedream-4-0",
+    });
+
+    assert.equal(result.groups.length, 1);
+    assert.ok(result.groups[0]);
+    assert.equal(result.groups[0]!.aspectRatio, "9:16");
+  } finally {
+    globalThis.fetch = previousFetch;
+    process.env.NEW_API_KEY = previousApiKey;
+  }
+});
+
 test("generateFinalizedVariants only processes selected finalized groups", async () => {
   const db = getDb();
   const previousFetch = globalThis.fetch;

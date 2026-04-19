@@ -1370,6 +1370,7 @@ export async function generateFinalizedVariants(
         );
 
         for (const group of finalizedGroups) {
+          const sourceAspectRatio = group.aspectRatio ?? config.aspectRatio;
           const sourceImages = db
             .select()
             .from(generatedImages)
@@ -1380,7 +1381,7 @@ export async function generateFinalizedVariants(
           if (sourceImages.length === 0) continue;
 
           for (const [ratio] of ratioSpecs) {
-            if (classifyExportAdaptation(config.aspectRatio, ratio) === "direct") continue;
+            if (classifyExportAdaptation(sourceAspectRatio, ratio) === "direct") continue;
 
             const derivedGroupType = `derived|${group.id}|${ratio}`;
             const existingDerived = groups.find((item) => item.groupType === derivedGroupType);
@@ -1421,8 +1422,8 @@ export async function generateFinalizedVariants(
 
             for (const sourceImage of sourceImages) {
               const imageId = createId("img");
-              const aspectDirection = compareAspectRatios(config.aspectRatio, ratio);
-              const prompt = buildAdaptationPrompt(config.aspectRatio, ratio, aspectDirection);
+              const aspectDirection = compareAspectRatios(sourceAspectRatio, ratio);
+              const prompt = buildAdaptationPrompt(sourceAspectRatio, ratio, aspectDirection);
               const imageBuffer = await readFile(sourceImage.filePath!);
               const mimeType = getMimeTypeFromPath(sourceImage.filePath!);
               const referenceDataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
