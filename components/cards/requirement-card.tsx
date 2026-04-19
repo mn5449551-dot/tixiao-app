@@ -90,36 +90,27 @@ function getRequirementErrorMessage(error: unknown, fallbackMessage: string): st
 }
 
 function getRequirementTopBarClass(status: GenerationStatus): string {
-  if (status === "loading") {
-    return "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]";
-  }
-
-  if (status === "done") {
-    return "bg-gradient-to-r from-[var(--success-500)] to-[var(--success-700)]";
-  }
-
-  if (status === "error") {
-    return "bg-gradient-to-r from-[var(--danger-500)] to-[var(--danger-700)]";
-  }
-
-  return "bg-gradient-to-r from-[var(--ink-200)] to-[var(--ink-300)]";
+  if (status === "loading") return "bg-[var(--brand)]";
+  if (status === "done") return "bg-[var(--success)]";
+  if (status === "error") return "bg-[var(--danger)]";
+  return "bg-[var(--brand)]";
 }
 
 function getRequirementOptionClass(selected: boolean): string {
   return cn(
-    "rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97]",
+    "rounded-full border px-4 py-2 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-[0.97]",
     selected
-      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)] shadow-sm"
-      : "border-[var(--line-strong)] bg-white text-[var(--ink-600)] hover:border-[var(--brand-300)] hover:bg-[var(--brand-50)]",
+      ? "border-[var(--brand)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
+      : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink-subtle)] hover:border-[var(--brand-light)] hover:bg-[var(--brand-bg)]",
   );
 }
 
 function getDirectionCountButtonClass(selected: boolean): string {
   return cn(
-    "flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.95]",
+    "flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-[0.95]",
     selected
-      ? "bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-[0_4px_12px_rgba(230,126,58,0.3)]"
-      : "bg-[var(--surface-1)] text-[var(--ink-600)] hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]",
+      ? "bg-[var(--brand)] text-white"
+      : "border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-default)] hover:bg-[var(--brand-bg)] hover:text-[var(--brand-hover)]",
   );
 }
 
@@ -251,52 +242,52 @@ export function RequirementCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition-all duration-[var(--duration-normal)] ease-out",
         selected
-          ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)] shadow-[var(--shadow-card-hover)]"
-          : "border-[var(--line-soft)]",
+          ? "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)] shadow-[var(--shadow-md)]"
+          : "border-[var(--border)]",
       )}
-      style={{ width: 420 } satisfies CSSProperties}
+      style={{ width: 400 } satisfies CSSProperties}
     >
       {/* Top color bar — wider and softer */}
       <div
         className={cn(
-          "absolute inset-x-0 top-0 h-2 transition-colors",
+          "absolute inset-x-0 top-0 h-1 transition-colors",
           getRequirementTopBarClass(status),
         )}
       />
 
       {/* Handles */}
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Right}
         type="source"
       />
 
       {/* Header */}
-      <div className="workflow-drag-handle mb-6 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--border)] pb-3 active:cursor-grabbing">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--ink-950)]">需求卡</h3>
+          <h3 className="text-xl font-semibold text-[var(--ink-strong)]">需求卡</h3>
         </div>
         <Badge tone={currentStatus.tone} size="sm">{currentStatus.label}</Badge>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <fieldset disabled={status === "done"} className="space-y-6 disabled:opacity-60">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <fieldset disabled={status === "done"} className="space-y-4 disabled:opacity-60">
         {errorMessage ? (
-          <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+          <div className="rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
             {errorMessage}
           </div>
         ) : null}
         <div className="space-y-5">
           {/* 业务目标 (disabled) */}
-          <div className="rounded-2xl bg-[var(--surface-1)] p-4">
+          <div className="rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4">
             <Field label="业务目标">
               <Input value="APP（本期固定）" disabled className="bg-transparent" />
             </Field>
@@ -319,7 +310,7 @@ export function RequirementCard({
           </Field>
 
           {/* 形式 (disabled) */}
-          <div className="rounded-2xl bg-[var(--surface-1)] p-4">
+          <div className="rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4">
             <Field label="形式">
               <Input value="图文（本期固定）" disabled className="bg-transparent" />
             </Field>
@@ -378,7 +369,7 @@ export function RequirementCard({
           type="submit"
           variant="primary"
           disabled={!isFormValid || status === "loading"}
-          className="w-full py-4 text-base font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
+          className="w-full py-4 text-base font-semibold"
         >
           {status === "loading" ? (
             <span className="flex items-center gap-2">

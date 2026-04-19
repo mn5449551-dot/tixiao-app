@@ -33,9 +33,9 @@ export function CopyItemRow({
 }) {
   return (
     <div className={cn(
-      "relative overflow-visible rounded-[22px] border bg-[var(--surface-1)] transition-all duration-200",
-      selected ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]" : "border-[var(--line-soft)]",
-      editing && "border-[var(--brand-400)]",
+      "relative overflow-visible rounded-[var(--radius-lg)] border bg-[var(--surface)] transition-all duration-200",
+      selected ? "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]" : "border-[var(--border)]",
+      editing && "border-[var(--brand)]",
     )}>
       <div className="flex items-center gap-3 p-3">
         <input
@@ -43,24 +43,24 @@ export function CopyItemRow({
           checked={selected}
           onChange={onToggleSelect}
           disabled={item.isLocked}
-          className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--brand-500)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-40"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn(
               "text-sm font-medium whitespace-nowrap",
-              selected ? "text-[var(--brand-700)]" : "text-[var(--ink-900)]",
+              selected ? "text-[var(--brand-dark)]" : "text-[var(--ink-strong)]",
             )}>
               文案 {item.variantIndex || index + 1}
             </span>
             {item.isLocked && (
-              <span className="text-[10px] text-[var(--ink-400)]" title="已锁定">🔒</span>
+              <span className="text-xs text-[var(--ink-subtle)]" title="已锁定">🔒</span>
             )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {statusLabel && (
-            <span className="rounded-full bg-[var(--surface-0)] px-3 py-1 text-[11px] font-medium text-[var(--ink-500)]">
+            <span className="rounded-full bg-[var(--surface-dim)] px-3 py-1 text-xs font-medium text-[var(--ink-muted)]">
               {statusLabel}
             </span>
           )}
@@ -71,8 +71,8 @@ export function CopyItemRow({
             className={cn(
               "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]",
               editing
-                ? "bg-[var(--brand-50)] text-[var(--brand-600)]"
-                : "text-[var(--ink-500)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-700)]",
+                ? "bg-[var(--brand-bg)] text-[var(--brand-hover)]"
+                : "text-[var(--ink-muted)] hover:bg-[var(--surface-dim)] hover:text-[var(--ink-default)]",
               item.isLocked && "cursor-not-allowed opacity-40",
             )}
             disabled={item.isLocked}
@@ -84,7 +84,7 @@ export function CopyItemRow({
             type="button"
             title={deleteHint ?? "删除"}
             aria-label="删除"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-500)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--ink-muted)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
             onClick={onDelete}
             disabled={!canDelete}
           >
@@ -95,7 +95,7 @@ export function CopyItemRow({
         </div>
         <Handle
           id={item.sourceHandleId}
-          className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+          className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
           position={Position.Right}
           type="source"
           style={{ top: 28, right: -7, transform: "translateY(-50%)" }}
@@ -103,7 +103,7 @@ export function CopyItemRow({
       </div>
 
       {expandedContent && (
-        <div className="border-t border-[var(--line-soft)] px-3 pb-3 pt-2">
+        <div className="border-t border-[var(--border)] px-3 pb-3 pt-2">
           {expandedContent}
         </div>
       )}

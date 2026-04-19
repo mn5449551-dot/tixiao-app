@@ -41,7 +41,6 @@ test("export route returns a zip response for a project with confirmed finalized
     channel: "应用商店",
     imageForm: "single",
     copyGenerationCount: 1,
-    imageTextRelation: "单图直给",
     sortOrder: 0,
     isSelected: 1,
     createdAt: timestamp,

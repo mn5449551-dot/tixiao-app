@@ -8,7 +8,7 @@ type SpinnerProps = HTMLAttributes<HTMLDivElement> & {
 
 export function Spinner({ className, size = "md", ...props }: SpinnerProps) {
   const sizeClass = {
-    sm: "h-5 w-5",
+    sm: "h-4 w-4",
     md: "h-6 w-6",
     lg: "h-8 w-8",
   }[size];
@@ -16,7 +16,7 @@ export function Spinner({ className, size = "md", ...props }: SpinnerProps) {
   return (
     <div
       className={cn(
-        "animate-spin rounded-full border-2 border-[var(--brand-400)] border-t-transparent",
+        "animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent",
         sizeClass,
         className,
       )}

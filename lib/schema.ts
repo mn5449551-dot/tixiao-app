@@ -55,7 +55,6 @@ export const directions = sqliteTable("directions", {
   channel: text("channel").notNull(),
   imageForm: text("image_form"),
   copyGenerationCount: integer("copy_generation_count").notNull().default(3),
-  imageTextRelation: text("image_text_relation"),
   sortOrder: integer("sort_order").notNull().default(0),
   isSelected: integer("is_selected").notNull().default(1),
   createdAt: integer("created_at").notNull(),

@@ -51,23 +51,13 @@ export type CopyCardData = {
 };
 
 function getCopyCardBorderClass(isError: boolean, selected: boolean): string {
-  if (isError) {
-    return "border-[var(--danger-500)]";
-  }
-
-  if (selected) {
-    return "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]";
-  }
-
-  return "border-[var(--line-soft)]";
+  if (isError) return "border-[var(--danger)]";
+  if (selected) return "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]";
+  return "border-[var(--border)]";
 }
 
 function getCopyCardTopBarClass(isError: boolean): string {
-  if (isError) {
-    return "bg-[var(--danger-500)]";
-  }
-
-  return "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]";
+  return isError ? "bg-[var(--danger)]" : "bg-[var(--brand)]";
 }
 
 function getCopyActionErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -222,9 +212,10 @@ export function CopyCard({
   const deleteCopyCard = useCallback(async () => {
     if (!copyCardId || isDeletingCard) return;
     if (hasLockedItems) {
-      setActionError("已有下游内容，不能删除");
+      setActionError("请先删除下游的图片配置卡");
       return;
     }
+    if (!confirm("确定删除文案卡？")) return;
     setIsDeletingCard(true);
     try {
       setActionError(null);
@@ -269,77 +260,88 @@ export function CopyCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition-all duration-[var(--duration-normal)] ease-out",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 420, maxWidth: '100%' } satisfies CSSProperties}
+      style={{ width: 440, maxWidth: '100%' } satisfies CSSProperties}
     >
       {/* Loading overlay */}
       {isLoading && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/70 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[var(--radius-lg)] bg-white/70">
           <div className="flex flex-col items-center gap-3">
-            <Spinner size="lg" />
-            <span className="text-xs font-medium text-[var(--brand-600)]">生成中...</span>
+            <Spinner size="md" />
+            <span className="text-xs font-medium text-[var(--brand-hover)]">生成中...</span>
           </div>
         </div>
       )}
 
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-1.5",
+        "absolute inset-x-0 top-0 h-1",
         getCopyCardTopBarClass(isError),
       )} />
 
       {/* Header */}
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--border)] pb-3 active:cursor-grabbing">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-[var(--ink-950)]">文案</h3>
+            <h3 className="text-xl font-semibold text-[var(--ink-strong)]">文案</h3>
             {isDone && (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--success-500)] text-[10px] text-white shadow-sm">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--success)] text-xs text-white shadow-sm">
                 ✓
               </span>
             )}
             {isError && (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--danger-500)] text-[10px] text-white shadow-sm">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--danger)] text-xs text-white shadow-sm">
                 ✕
               </span>
             )}
           </div>
-          <p className="mt-1 line-clamp-2 text-xs text-[var(--ink-500)]" title={directionTitle}>
+          <p className="mt-1 line-clamp-2 text-xs text-[var(--ink-muted)]" title={directionTitle}>
             {directionTitle}{version ? ` · V${version}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {isDone && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success)] text-xs text-white">✓</span>
+          )}
+          {isError && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger)] text-xs text-white">✕</span>
+          )}
           <Button
             variant="ghost"
-            className="h-8 w-8 p-0 text-[var(--ink-400)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-ring)]"
+            size="sm"
+            className="h-6 px-1.5 text-[var(--ink-muted)] hover:text-[var(--danger-text)]"
             onClick={deleteCopyCard}
             disabled={!copyCardId || isDeletingCard || hasLockedItems}
-            title={hasLockedItems ? "已有下游内容，不能删除" : "删除文案卡"}
+            title={hasLockedItems ? "请先删除下游的图片配置卡" : "删除文案卡"}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-            </svg>
+            {isDeletingCard ? (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ink-subtle)] border-t-[var(--ink-muted)]" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            )}
           </Button>
         </div>
       </div>
 
       {/* Error message */}
       {isError && (
-        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="mb-3 rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           文案生成失败，请重试
         </div>
       )}
       {actionError ? (
-        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="mb-3 rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           {actionError}
         </div>
       ) : null}
@@ -396,8 +398,8 @@ export function CopyCard({
                   <div className="space-y-2.5">
                     {rows.map((row) => (
                       <div key={row.label} className="grid grid-cols-[72px_1fr] gap-2 text-sm">
-                        <span className="text-[var(--ink-500)]">{row.label}：</span>
-                        <span className={cn("text-[var(--ink-900)]", row.label === "主标题" || row.label === "图1文案" ? "font-medium" : "")}>
+                        <span className="text-[var(--ink-muted)]">{row.label}：</span>
+                        <span className={cn("text-[var(--ink-strong)]", row.label === "主标题" || row.label === "图1文案" ? "font-medium" : "")}>
                           {row.value}
                         </span>
                       </div>
@@ -421,16 +423,13 @@ export function CopyCard({
         </Button>
         <Button
           variant="primary"
-          className="flex-1 text-sm shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
+          className="flex-1 text-sm"
           disabled={selectedCount === 0 || isGenerating}
           onClick={generateSelectedCopyConfigs}
         >
           ⚡ 生成图片配置
         </Button>
       </div>
-      <p className="mt-2.5 text-[11px] text-[var(--ink-400)]">
-        为选中文案创建图片配置卡
-      </p>
     </div>
   );
 }

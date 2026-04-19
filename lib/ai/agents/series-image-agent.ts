@@ -10,8 +10,6 @@ export type SeriesDeltaPrompt = {
 export type SeriesImageAgentInput = {
   /** 第 1 张图的完整 prompt */
   slot1Prompt: string;
-  /** 第 1 张图的图片 URL（可选，让 agent "看到" 参考图） */
-  slot1ImageUrl: string | null;
   /** 后续文案：key 是 slotIndex，value 是文案文字 */
   targetTexts: Map<number, string>;
   /** 文案间的逻辑关系 */
@@ -29,7 +27,7 @@ function buildSeriesDeltaSystemPrompt(): string {
 
 你的任务是根据第 1 张图的完整提示词和后续文案的变化，生成第 2、3 张图的最小差异提示词。
 
-你不是在写独立的新图片描述，你是在描述"与第 1 张图相比，需要改变什么"。参考图（第 1 张的生成图）会一并传给图片模型，所以模型能"看到"参考图。
+你不是在写独立的新图片描述，你是在描述"与第 1 张图相比，需要改变什么"。
 
 --------------------------------
 【核心原则】
@@ -149,24 +147,10 @@ ${targetLines}
 }
 
 export function buildSeriesDeltaMessages(input: SeriesImageAgentInput): MultimodalChatMessage[] {
-  const messages: MultimodalChatMessage[] = [
+  return [
     { role: "system", content: buildSeriesDeltaSystemPrompt() },
+    { role: "user", content: buildSeriesDeltaUserPrompt(input) },
   ];
-
-  const userContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
-    { type: "text", text: buildSeriesDeltaUserPrompt(input) },
-  ];
-
-  if (input.slot1ImageUrl) {
-    userContent.push({
-      type: "image_url",
-      image_url: { url: input.slot1ImageUrl },
-    });
-  }
-
-  messages.push({ role: "user", content: userContent });
-
-  return messages;
 }
 
 const FALLBACK_NEGATIVE_PROMPT = "extra arms, extra hands, floating hands, deformed fingers, deformed body, blurry, low quality, inconsistent face, text distortion, garbled text, split text, watermark, cropped face, messy background, style drift, dark horror mood, adult content";

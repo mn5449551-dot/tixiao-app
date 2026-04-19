@@ -12,17 +12,19 @@ type ButtonProps = PropsWithChildren<
 
 const variantClassMap: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-gradient-to-br from-[var(--brand-400)] to-[var(--brand-500)] text-white shadow-[0_4px_16px_rgba(232,131,90,0.2)] hover:shadow-[0_8px_24px_rgba(232,131,90,0.3)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]",
+    "bg-[var(--brand)] text-white hover:bg-[var(--brand-hover)] active:scale-[0.97]",
   secondary:
-    "bg-white text-[var(--ink-800)] ring-1 ring-[var(--line-medium)] hover:bg-[var(--surface-1)] hover:ring-[var(--brand-300)] hover:text-[var(--ink-900)] active:scale-[0.97]",
-  ghost: "bg-transparent text-[var(--ink-600)] hover:bg-[var(--surface-1)] hover:text-[var(--ink-800)] active:scale-[0.97]",
-  danger: "bg-[var(--danger-soft)] text-[var(--danger-700)] hover:bg-[var(--danger-soft-hover)] hover:-translate-y-0.5 active:scale-[0.97]",
+    "bg-[var(--surface)] text-[var(--ink-default)] ring-1 ring-[var(--border-strong)] hover:ring-[var(--brand-light)] hover:text-[var(--ink-strong)] active:scale-[0.97]",
+  ghost:
+    "bg-transparent text-[var(--ink-subtle)] hover:bg-[var(--surface-dim)] hover:text-[var(--ink-default)] active:scale-[0.97]",
+  danger:
+    "bg-[var(--danger-bg)] text-[var(--danger-text)] hover:bg-[var(--danger-soft-hover)] active:scale-[0.97]",
 };
 
 const sizeClassMap: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "h-8 px-3 text-xs rounded-xl",
-  md: "h-10 px-5 text-sm rounded-2xl",
-  lg: "h-12 px-7 text-base rounded-2xl font-medium",
+  sm: "h-8 px-3 text-xs rounded-[var(--radius-md)]",
+  md: "h-9 px-4 text-sm rounded-[var(--radius-md)]",
+  lg: "h-11 px-5 text-base rounded-[var(--radius-md)]",
 };
 
 export function Button({
@@ -40,7 +42,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "nodrag nopan inline-flex items-center justify-center font-medium transition-all duration-300 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0",
+        "nodrag nopan inline-flex items-center justify-center font-medium transition-all duration-[var(--duration-fast)] ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         variantClassMap[variant],
         sizeClassMap[size],
         className,

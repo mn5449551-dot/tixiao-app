@@ -100,7 +100,7 @@ export function ProjectTreePanel({
 
   if (!tree) {
     return (
-      <div className="flex h-full items-center justify-center border-r border-[var(--line-soft)] bg-[var(--panel-strong)] px-4 text-sm text-[var(--ink-500)]">
+      <div className="flex h-full items-center justify-center border-r border-[var(--border)] bg-[var(--panel-strong)] px-4 text-sm text-[var(--ink-muted)]">
         {error ?? "项目树加载中..."}
       </div>
     );

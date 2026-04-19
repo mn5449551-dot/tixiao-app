@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -21,6 +21,7 @@ import {
 import type { CardStatus } from "@/lib/constants";
 import { DEFAULT_IMAGE_MODEL_VALUE, getAspectRatiosForModel, IMAGE_STYLES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { ApiError, apiFetch } from "@/lib/api-fetch";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
 
 export type ImageConfigCardData = {
@@ -75,16 +76,37 @@ export function ImageConfigCard({
   const [useIp, setUseIp] = useState(!!data.initialIpRole);
   const [ipRole, setIpRole] = useState<string>(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
   const [ctaEnabled, setCtaEnabled] = useState(Boolean(data.initialCtaEnabled));
-  const [ctaText] = useState(data.initialCtaText ?? "立即下载");
+  const [ctaText, setCtaText] = useState(data.initialCtaText ?? "立即下载");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const isIpMode = styleMode === "ip";
   const supportsCta = data.channel === "信息流（广点通）" && data.imageForm === "single";
   const showImageStyleField = shouldShowImageStyleField(styleMode);
   const showIpAssetSelector = shouldShowIpAssetSelector(styleMode, useIp);
 
+  const initialDataRef = useRef({
+    initialAspectRatio: data.initialAspectRatio,
+    initialStyleMode: data.initialStyleMode,
+    initialImageStyle: data.initialImageStyle,
+    initialImageModel: data.initialImageModel,
+    initialCount: data.initialCount,
+    initialIpRole: data.initialIpRole,
+    initialCtaEnabled: data.initialCtaEnabled,
+  });
+
   useEffect(() => {
-    if (isSubmitting) return;
+    const refData = initialDataRef.current;
+    const changed =
+      data.initialAspectRatio !== refData.initialAspectRatio ||
+      data.initialStyleMode !== refData.initialStyleMode ||
+      data.initialImageStyle !== refData.initialImageStyle ||
+      data.initialImageModel !== refData.initialImageModel ||
+      data.initialCount !== refData.initialCount ||
+      data.initialIpRole !== refData.initialIpRole ||
+      data.initialCtaEnabled !== refData.initialCtaEnabled;
+
+    if (!changed) return;
 
     const nextStyleMode = data.initialStyleMode ?? "normal";
     const nextImageStyle = resolveImageStyleForMode(nextStyleMode, data.initialImageStyle ?? IMAGE_STYLES[0]);
@@ -98,29 +120,39 @@ export function ImageConfigCard({
     setUseIp(!!data.initialIpRole);
     setIpRole(data.initialIpRole ?? IP_ASSET_OPTIONS[0]?.role ?? "");
     setCtaEnabled(supportsCta ? Boolean(data.initialCtaEnabled) : false);
+    setCtaText(data.initialCtaText ?? "立即下载");
     setSubmitError(null);
+
+    initialDataRef.current = {
+      initialAspectRatio: data.initialAspectRatio,
+      initialStyleMode: data.initialStyleMode,
+      initialImageStyle: data.initialImageStyle,
+      initialImageModel: data.initialImageModel,
+      initialCount: data.initialCount,
+      initialIpRole: data.initialIpRole,
+      initialCtaEnabled: data.initialCtaEnabled,
+    };
   }, [
     data.initialAspectRatio,
-    data.initialCount,
+    data.initialStyleMode,
     data.initialImageStyle,
     data.initialImageModel,
+    data.initialCount,
     data.initialIpRole,
     data.initialCtaEnabled,
-    data.initialStyleMode,
-    isSubmitting,
     supportsCta,
   ]);
 
   const borderColorClass = isError
-    ? "border-[var(--danger-500)]"
+    ? "border-[var(--danger)]"
     : selected
-      ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
-      : "border-[var(--line-soft)]";
+      ? "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]"
+      : "border-[var(--border)]";
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition-all duration-[var(--duration-normal)] ease-out",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
@@ -128,69 +160,106 @@ export function ImageConfigCard({
     >
       {/* Loading overlay */}
       {(isLoading || isSubmitting) && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/70 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[var(--radius-lg)] bg-white/70">
           <div className="flex flex-col items-center gap-3">
-            <Spinner size="lg" />
-            <span className="text-xs font-medium text-[var(--brand-600)]">{isSubmitting ? "正在生成候选图..." : "生成中..."}</span>
+            <Spinner size="md" />
+            <span className="text-xs font-medium text-[var(--brand-hover)]">{isSubmitting ? "正在生成候选图..." : "生成中..."}</span>
           </div>
         </div>
       )}
 
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Right}
         type="source"
       />
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-1.5",
-        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]",
+        "absolute inset-x-0 top-0 h-1",
+        isError ? "bg-[var(--danger)]" : "bg-[var(--brand)]",
       )} />
 
       {/* Header */}
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--border)] pb-3 active:cursor-grabbing">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-[var(--ink-950)]">图片配置</h3>
+            <h3 className="text-xl font-semibold text-[var(--ink-strong)]">图片配置</h3>
             {isDone && (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--success-500)] text-[10px] text-white shadow-sm">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--success)] text-xs text-white shadow-sm">
                 ✓
               </span>
             )}
             {isError && (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--danger-500)] text-[10px] text-white shadow-sm">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--danger)] text-xs text-white shadow-sm">
                 ✕
               </span>
             )}
           </div>
-          <p className="mt-1 line-clamp-2 max-w-[260px] text-xs text-[var(--ink-500)]" title={copyText}>
+          <p className="mt-1 line-clamp-2 max-w-[260px] text-xs text-[var(--ink-muted)]" title={copyText}>
             {copyText}
           </p>
         </div>
-        <Badge tone="brand" size="sm" className="shrink-0">配置</Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge tone="brand" size="sm">配置</Badge>
+          {isDone && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success)] text-xs text-white">✓</span>
+          )}
+          {isError && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger)] text-xs text-white">✕</span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5 text-[var(--ink-muted)] hover:text-[var(--danger-text)]"
+            disabled={!data.imageConfigId || isDeleting}
+            onClick={async () => {
+              if (!data.imageConfigId || isDeleting) return;
+              if (!confirm("确定删除图片配置卡？关联的候选图也会一起删除。")) return;
+              setIsDeleting(true);
+              setSubmitError(null);
+              try {
+                await apiFetch(`/api/image-configs/${data.imageConfigId}`, { method: "DELETE" });
+                dispatchWorkspaceInvalidated();
+              } catch (error) {
+                setSubmitError(error instanceof Error ? error.message : "删除失败");
+              } finally {
+                setIsDeleting(false);
+              }
+            }}
+            title={!data.imageConfigId ? "未保存" : "删除图片配置卡"}
+          >
+            {isDeleting ? (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ink-subtle)] border-t-[var(--ink-muted)]" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Error message */}
       {isError && (
-        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="mb-3 rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           图片生成失败，请重试
         </div>
       )}
       {submitError ? (
-        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="mb-3 rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           {submitError}
         </div>
       ) : null}
 
       {/* Copy text preview */}
-      <div className="mb-4 rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] p-4">
-        <p className="text-xs leading-relaxed text-[var(--ink-700)]">{copyText}</p>
+      <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-dim)] p-4">
+        <p className="text-xs leading-relaxed text-[var(--ink-default)]">{copyText}</p>
       </div>
 
       <ImageConfigForm
@@ -229,6 +298,7 @@ export function ImageConfigCard({
           }
         }}
         onCtaEnabledChange={setCtaEnabled}
+        onCtaTextChange={setCtaText}
       >
         <ImageConfigBrandSection
           ipRole={ipRole}
@@ -239,8 +309,8 @@ export function ImageConfigCard({
       </ImageConfigForm>
 
       {/* Helper text */}
-      <div className="mt-4 rounded-2xl bg-[var(--surface-1)] px-4 py-3">
-        <p className="text-center text-[11px] text-[var(--ink-600)]">
+      <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--surface-dim)] px-4 py-3">
+        <p className="text-center text-xs text-[var(--ink-subtle)]">
           {showIpAssetSelector
             ? `将使用 ${ipRole} 的 IP 参考图，并在描述中注入角色形象约束`
             : isIpMode
@@ -250,12 +320,12 @@ export function ImageConfigCard({
       </div>
 
       {/* Divider */}
-      <div className="my-4 h-px bg-[var(--line-soft)]" />
+      <div className="my-4 h-px bg-[var(--border)]" />
 
       {/* Generate button */}
       <Button
         variant="primary"
-        className="w-full py-3.5 text-sm font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
+        className="w-full py-3.5 text-sm font-semibold"
         disabled={isSubmitting}
         onClick={async () => {
           setIsSubmitting(true);

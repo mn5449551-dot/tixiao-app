@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { getRouteErrorMessage, jsonError, readIdParam } from "@/lib/api-route";
 import { getDb } from "@/lib/db";
-import { deleteImageConfigCascade, regenerateCopy } from "@/lib/project-data";
+import { deleteImageConfigCascade } from "@/lib/project-data";
 import { copies, imageConfigs } from "@/lib/schema";
 
 export async function PUT(
@@ -16,17 +16,7 @@ export async function PUT(
       title_main?: string;
       title_sub?: string;
       title_extra?: string;
-      regenerate?: boolean;
     };
-
-    if (body.regenerate) {
-      const regenerated = await regenerateCopy(id);
-      if (!regenerated) {
-        return NextResponse.json({ error: "文案不存在" }, { status: 404 });
-      }
-
-      return NextResponse.json(regenerated);
-    }
 
     const db = getDb();
 

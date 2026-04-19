@@ -10,21 +10,20 @@ export function Badge({
 }: PropsWithChildren<{
   className?: string;
   tone?: "neutral" | "brand" | "success" | "warning" | "danger" | "info";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md";
 }>) {
   const toneClass = {
-    neutral: "bg-[var(--surface-2)] text-[var(--ink-700)]",
-    brand: "bg-[var(--brand-100)] text-[var(--brand-700)]",
-    success: "bg-[var(--success-soft)] text-[var(--success-700)]",
-    warning: "bg-[var(--warning-soft)] text-[var(--warning-700)]",
-    danger: "bg-[var(--danger-soft)] text-[var(--danger-700)]",
+    neutral: "bg-[var(--surface-dim)] text-[var(--ink-subtle)]",
+    brand: "bg-[var(--brand-bg)] text-[var(--brand-dark)]",
+    success: "bg-[var(--success-bg)] text-[var(--success-text)]",
+    warning: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+    danger: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
     info: "bg-[var(--info-soft)] text-[var(--info-700)]",
   }[tone];
 
   const sizeClass = {
-    sm: "px-2 py-0.5 text-[10px]",
-    md: "px-3 py-1 text-xs",
-    lg: "px-3.5 py-1.5 text-sm",
+    sm: "px-2 py-0.5 text-xs",
+    md: "px-2.5 py-0.5 text-xs",
   }[size];
 
   return (

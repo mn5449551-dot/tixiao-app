@@ -32,11 +32,11 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
 
   if (collapsed) {
     return (
-      <div className="flex h-full w-[28px] items-center justify-center bg-gradient-to-b from-[var(--surface-1)] to-[var(--surface-2)] border-r border-[var(--line-soft)]">
+      <div className="flex h-full w-[28px] items-center justify-center bg-[var(--surface-dim)] border-r border-[var(--border)]">
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="flex h-16 w-6 items-center justify-center rounded-r-xl bg-white/80 text-[var(--ink-500)] shadow-sm transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)] hover:shadow-md"
+          className="flex h-16 w-6 items-center justify-center rounded-r-xl bg-white/80 text-[var(--ink-muted)] shadow-sm transition-all duration-200 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-hover)] hover:shadow-md"
           title="展开项目树"
         >
           <span className="text-xs font-medium">&#9654;</span>
@@ -51,14 +51,14 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
   }, 0);
 
   return (
-    <div className="flex h-full w-[220px] flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface-0)]">
+    <div className="flex h-full w-[220px] flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)]">
       {/* Header — 极简布局 */}
-      <div className="border-b border-[var(--line-soft)] px-4 py-4">
+      <div className="border-b border-[var(--border)] px-4 py-4">
         <div className="flex items-center justify-between">
           <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[var(--ink-500)] transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
-            title="返回项目列表"
+            href={tree.project.folderId ? `/folders/${tree.project.folderId}` : "/"}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[var(--ink-muted)] transition-all duration-200 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-hover)]"
+            title="返回"
           >
             <span>&#8592;</span>
             <span>返回</span>
@@ -66,7 +66,7 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="rounded-lg p-1.5 text-[var(--ink-400)] transition-all duration-200 hover:bg-[var(--surface-1)] hover:text-[var(--ink-700)]"
+            className="rounded-lg p-1.5 text-[var(--ink-subtle)] transition-all duration-200 hover:bg-[var(--surface-dim)] hover:text-[var(--ink-default)]"
             title="收起"
           >
             <span className="text-xs">&#9664;</span>
@@ -74,12 +74,12 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
         </div>
 
         {/* 项目标题 */}
-        <p className="mt-3 truncate text-sm font-semibold text-[var(--ink-950)]" title={tree.project.title}>
+        <p className="mt-3 truncate text-sm font-semibold text-[var(--ink-strong)]" title={tree.project.title}>
           {tree.project.title}
         </p>
         <div className="mt-2.5 flex items-center gap-2">
           <Badge tone="brand" size="sm">{tree.directions.length} 方向</Badge>
-          <span className="text-[10px] text-[var(--ink-400)]">{totalCopyCards} 文案 · {totalImages} 图</span>
+          <span className="text-xs text-[var(--ink-subtle)]">{totalCopyCards} 文案 · {totalImages} 图</span>
         </div>
       </div>
 
@@ -95,8 +95,8 @@ export function ProjectTree({ tree, collapsed, onToggleCollapse }: ProjectTreePr
 
         {/* 方向列表 */}
         {tree.directions.length === 0 ? (
-          <div className="mt-4 rounded-2xl bg-[var(--surface-1)] px-4 py-5 text-center">
-            <p className="text-xs text-[var(--ink-400)]">暂无方向</p>
+          <div className="mt-4 rounded-2xl bg-[var(--surface-dim)] px-4 py-5 text-center">
+            <p className="text-xs text-[var(--ink-subtle)]">暂无方向</p>
           </div>
         ) : (
           <div className="mt-4 space-y-1.5">
@@ -159,11 +159,11 @@ function TreeItem({
   const content = (
     <div className="flex items-center justify-between gap-2">
       <span className={cn(
-        "truncate text-[var(--ink-700)]",
+        "truncate text-[var(--ink-default)]",
         smaller ? "text-xs" : "text-sm font-medium",
       )}>{label}</span>
       {status && (
-        <span className="shrink-0 text-[10px] font-medium text-[var(--ink-400)]">{status}</span>
+        <span className="shrink-0 text-xs font-medium text-[var(--ink-subtle)]">{status}</span>
       )}
     </div>
   );
@@ -172,8 +172,8 @@ function TreeItem({
     "flex w-full items-center rounded-xl px-3 text-left transition-all duration-200",
     compact ? (smaller ? "py-2" : "py-2.5") : "py-2.5",
     isFocused
-      ? "bg-[var(--brand-50)] text-[var(--brand-700)]"
-      : "hover:bg-[var(--brand-50)]",
+      ? "bg-[var(--brand-bg)] text-[var(--brand-dark)]"
+      : "hover:bg-[var(--brand-bg)]",
   );
 
   if (onClick) {
@@ -209,14 +209,14 @@ function TreeGroup({
         <button
           type="button"
           onClick={onClick}
-          className="group mb-1.5 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-500)] transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
+          className="group mb-1.5 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)] transition-all duration-200 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-hover)]"
         >
           <span className="flex h-1.5 w-1.5 shrink-0">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-400)]" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand)]" />
           </span>
           <span className="flex-1 truncate">{label}</span>
           {count > 0 && (
-            <span className="shrink-0 text-[10px] font-normal normal-case text-[var(--ink-400)]">
+            <span className="shrink-0 text-xs font-normal normal-case text-[var(--ink-subtle)]">
               {count}
             </span>
           )}
@@ -224,14 +224,14 @@ function TreeGroup({
       ) : (
         <div className="mb-1.5 flex items-center gap-2 rounded-xl px-3 py-2.5">
           <span className="flex h-1.5 w-1.5 shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--ink-300)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--ink-subtle)]" />
           </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-500)]">
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
             {label}
           </span>
         </div>
       )}
-      <div className="ml-4 border-l border-[var(--line-soft)] pl-3 space-y-1">
+      <div className="ml-4 border-l border-[var(--border)] pl-3 space-y-1">
         {children}
       </div>
     </div>

@@ -11,17 +11,19 @@
 | 1 | Requirement Agent | 需求采集与结构化整理 | 用户对话 | 需求卡 |
 | 2 | Direction Agent | 方向生成 | 需求卡 | 方向表 |
 | 3 | Copy Agent | 文案生成 | 方向卡 | 文案卡 |
-| 4 | Image Description Agent | 图片提示词生成 | 方向卡 + 文案卡 + 图片配置 | 图片提示词 |
-| 5 | Image Agent | 图片生成 | 图片提示词 | 图片素材 |
+| 4 | Image Description Agent | 图片提示词生成（仅 slot 1） | 方向卡 + 文案卡 + 图片配置 | slot 1 提示词 |
+| 5 | Series Image Agent | 系列图差异提示词生成（slot 2+） | slot 1 提示词 + 文案 | slot 2+ delta 提示词 |
+| 6 | Image Generation Service | 图片生成 | 提示词 | 图片素材 |
 
 ## 工作流程
 
 ```
-用户对话 → Requirement Agent → 需求卡 → 
-Direction Agent → 方向表 → 
-Copy Agent → 文案卡 → 
-Image Description Agent → 图片提示词 → 
-Image Agent → 图片素材
+用户对话 → Requirement Agent → 需求卡 →
+Direction Agent → 方向表 →
+Copy Agent → 文案卡 →
+Image Description Agent → slot 1 提示词 →
+Series Image Agent → slot 2+ delta 提示词 →
+Image Generation Service → 图片素材
 ```
 
 ## 文档列表
@@ -29,9 +31,10 @@ Image Agent → 图片素材
 1. [01-requirement-agent.md](01-requirement-agent.md) - 需求采集助手
 2. [02-direction-agent.md](02-direction-agent.md) - 方向生成 Agent
 3. [03-copy-agent.md](03-copy-agent.md) - 文案生成 Agent
-4. [04-image-description-agent.md](04-image-description-agent.md) - 图片描述/提示词生成 Agent
-5. [05-image-agent.md](05-image-agent.md) - 图片生成 Agent
-6. [06-finalized-pool.md](06-finalized-pool.md) - 定稿池设计文档
+4. [04-image-description-agent.md](04-image-description-agent.md) - 图片描述/提示词生成 Agent（仅 slot 1）
+5. [05-series-image-agent.md](05-series-image-agent.md) - 系列图差异提示词生成 Agent（slot 2+）
+6. [06-image-generation-service.md](06-image-generation-service.md) - 图片生成服务
+7. [07-finalized-pool.md](07-finalized-pool.md) - 定稿池设计文档
 
 ## 数据流向
 
@@ -90,11 +93,20 @@ Image Agent → 图片素材
 ### 图片提示词结构
 
 ```typescript
-// Image Description Agent 输出
+// Image Description Agent 输出（仅 slot 1）
 {
   prompts: Array<{
-    slotIndex: number;       // 图位索引（1-based）
-    prompt: string;          // 最终连续自然语言提示词
+    slotIndex: number;       // 图位索引（固定为 1）
+    prompt: string;          // slot 1 最终连续自然语言提示词
+    negativePrompt: string;  // 负向提示词
+  }>;
+}
+
+// Series Image Agent 输出（slot 2+）
+{
+  deltas: Array<{
+    slotIndex: number;       // 图位索引（2 或 3）
+    prompt: string;          // 与 slot 1 的差异提示词
     negativePrompt: string;  // 负向提示词
   }>;
 }
@@ -108,7 +120,8 @@ Image Agent → 图片素材
 | Direction Agent | DeepSeek V3 | `model_direction` | 0.8 | JSON Object |
 | Copy Agent | DeepSeek V3 | `model_copy` | 0.8 | JSON Object |
 | Image Description Agent | 可配置 | `model_image_description` | 0.8 | JSON Object |
-| Image Agent | 可配置 | `model_image_generation` | - | 图片二进制 |
+| Series Image Agent | 可配置 | `model_image_description` | 0.6 | JSON Object |
+| Image Generation Service | 可配置 | `model_image_generation` | - | 图片二进制 |
 
 ## 常量定义
 
@@ -166,18 +179,18 @@ Image Agent → 图片素材
 - `lib/ai/agents/copy-agent.ts` - Copy Agent
 - `lib/ai/agents/copy-knowledge.ts` - Copy Agent 知识库
 - `lib/ai/agents/image-description-agent.ts` - Image Description Agent
-- `lib/ai/agents/image-agent.ts` - Image Agent 封装
-- `lib/ai/image-chat.ts` - Image Agent 实现
+- `lib/ai/agents/series-image-agent.ts` - Series Image Agent
 
 ### AI 客户端
 
 - `lib/ai/client.ts` - AI 客户端（文本和图片）
+- `lib/ai/image-chat.ts` - 图片生成实现（多传输方式）
 - `lib/ai/services/prompt-template.ts` - 提示词模板
 
 ### 业务逻辑
 
 - `lib/project-data-modules-internal.ts` - 业务逻辑封装
-- `lib/image-generation-service.ts` - 图片生成服务
+- `lib/image-generation-service.ts` - 图片生成服务（两阶段流程）
 
 ### 常量定义
 

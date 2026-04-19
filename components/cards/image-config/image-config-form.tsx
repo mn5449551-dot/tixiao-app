@@ -28,6 +28,7 @@ export function ImageConfigForm({
   onImageModelChange,
   onCountChange,
   onCtaEnabledChange,
+  onCtaTextChange,
   children,
 }: {
   channel: string;
@@ -46,13 +47,14 @@ export function ImageConfigForm({
   onImageModelChange: (value: string | null) => void;
   onCountChange: (value: number) => void;
   onCtaEnabledChange: (value: boolean) => void;
+  onCtaTextChange: (value: string) => void;
   children?: React.ReactNode;
 }) {
   const supportsCta = channel === "信息流（广点通）" && imageForm === "single";
   const modelRatios = getAspectRatiosForModel(imageModel);
 
   return (
-    <div className="space-y-2 rounded-[22px] bg-[var(--surface-1)] p-3">
+    <div className="space-y-2 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
       <Field label="生成模型">
         <Select
           value={imageModel ?? ""}
@@ -103,24 +105,32 @@ export function ImageConfigForm({
           max={5}
           value={count}
           onChange={(e) => onCountChange(parseInt(e.target.value, 10))}
-          className="h-11 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 text-sm text-[var(--ink-900)] outline-none transition placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-4 focus:ring-[var(--brand-ring)]"
+          className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm text-[var(--ink-strong)] outline-none transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand-ring)]"
         />
       </Field>
 
       {supportsCta ? (
         <Field label="CTA">
-          <label className="flex items-center gap-3 rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-3 py-3 text-sm text-[var(--ink-800)]">
+          <label className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-3 text-sm text-[var(--ink-default)]">
             <input
               type="checkbox"
               checked={ctaEnabled}
               onChange={(e) => onCtaEnabledChange(e.target.checked)}
-              className="h-4 w-4 accent-[var(--brand-500)]"
+              className="h-4 w-4 accent-[var(--brand)]"
             />
             <span className="font-medium">立即下载</span>
-            <span className="text-xs text-[var(--ink-500)]">仅信息流单图生效</span>
+            <span className="text-xs text-[var(--ink-muted)]">仅信息流单图生效</span>
           </label>
           {ctaEnabled ? (
-            <p className="mt-2 text-xs text-[var(--ink-500)]">将为画面增加 CTA 按钮：{ctaText}</p>
+            <div className="mt-2">
+              <input
+                type="text"
+                value={ctaText}
+                onChange={(e) => onCtaTextChange(e.target.value)}
+                placeholder="CTA 文字"
+                className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm text-[var(--ink-strong)] outline-none transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand-ring)]"
+              />
+            </div>
           ) : null}
         </Field>
       ) : null}

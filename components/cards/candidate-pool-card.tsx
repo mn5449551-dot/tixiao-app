@@ -39,6 +39,7 @@ export type CandidateImage = {
   fileUrl: string | null;
   thumbnailUrl?: string | null;
   status: "pending" | "generating" | "done" | "failed";
+  errorMessage?: string | null;
   slotIndex: number;
   aspectRatio?: string;
   updatedAt?: number;
@@ -77,31 +78,16 @@ export type CandidatePoolCardData = {
 export type CandidatePoolCardNode = Node<CandidatePoolCardData, "candidatePool">;
 
 function getCandidatePoolBorderClass(status: CardStatus, selected: boolean): string {
-  if (status === "error") {
-    return "border-[#c0392b]";
-  }
-
-  if (status === "partial-success") {
-    return "border-[var(--brand-400)]";
-  }
-
-  if (selected) {
-    return "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]";
-  }
-
-  return "border-[var(--line-soft)]";
+  if (status === "error") return "border-[var(--danger)]";
+  if (status === "partial-success") return "border-[var(--brand)]";
+  if (selected) return "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]";
+  return "border-[var(--border)]";
 }
 
 function getCandidatePoolTopBarClass(status: CardStatus): string {
-  if (status === "error") {
-    return "bg-[#c0392b]";
-  }
-
-  if (status === "partial-success") {
-    return "bg-[var(--brand-400)]";
-  }
-
-  return "bg-[var(--brand-500)]";
+  if (status === "error") return "bg-[var(--danger)]";
+  if (status === "partial-success") return "bg-[var(--brand)]";
+  return "bg-[var(--brand)]";
 }
 
 function getCandidatePoolSummaryText(
@@ -218,37 +204,36 @@ export function CandidatePoolCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition",
         borderColorClass,
       )}
-      style={{ width: 440, maxWidth: '100%' } satisfies CSSProperties}
+      style={{ width: 480, maxWidth: '100%' } satisfies CSSProperties}
     >
       <div className={cn(
-        "absolute inset-x-0 top-0 h-1.5",
+        "absolute inset-x-0 top-0 h-1",
         getCandidatePoolTopBarClass(status),
       )} />
 
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Right}
         type="source"
       />
 
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--border)] pb-3 pt-1 active:cursor-grabbing">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">候选图池</h3>
+            <h3 className="text-xl font-semibold text-[var(--ink-strong)]">候选图池</h3>
             {isDone && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#27ae60] text-white text-[10px]">{"\u2713"}</span>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success)] text-white text-xs">{"\u2713"}</span>
             )}
           </div>
-          <p className="text-[11px] text-[var(--ink-400)]">
+          <p className="text-xs text-[var(--ink-muted)]">
             {getCandidatePoolSummaryText(displayMode, groups, images, doneCount)}
           </p>
         </div>
@@ -256,18 +241,18 @@ export function CandidatePoolCard({
       </div>
 
       {actionError ? (
-        <div className="mb-3 rounded-lg bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+        <div className="mb-3 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-xs text-[var(--danger-text)]">
           {actionError}
         </div>
       ) : null}
 
       {copyFeedback ? (
-        <div className="mb-3 rounded-lg bg-[var(--surface-1)] px-3 py-2 text-xs text-[var(--ink-600)]">
+        <div className="mb-3 rounded-lg bg-[var(--surface-dim)] px-3 py-2 text-xs text-[var(--ink-subtle)]">
           {copyFeedback}
         </div>
       ) : null}
 
-      <div className="space-y-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="space-y-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
         {displayMode === "single"
           ? groups.flatMap((group) =>
               group.images.map((img) => (
@@ -285,13 +270,13 @@ export function CandidatePoolCard({
                   onDiscardInpaint={group.isConfirmed ? undefined : handleDiscardInpaint}
                   footer={
                     <>
-                      <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
+                      <div className="flex items-center justify-between text-xs text-[var(--ink-muted)]">
                         <span>第 {group.variantIndex} 组{getModelLabel(group.imageModel) ? ` · ${getModelLabel(group.imageModel)}` : ""}</span>
                         <span>{group.isConfirmed ? "已定稿" : "候选中"}</span>
                       </div>
                       <Button
                         variant="secondary"
-                        className="h-7 px-2 text-[10px]"
+                        className="h-7 px-2 text-xs"
                         onClick={() =>
                           handleConfirmGroup(
                             group.id,
@@ -336,7 +321,7 @@ export function CandidatePoolCard({
           <Button variant="secondary" onClick={toggleSelectAll} className="shrink-0 text-xs">
             {selectedIds.size === doneCount ? "全不选" : "全选"}
           </Button>
-          <span className="flex-1 text-center text-xs text-[var(--ink-500)]">
+          <span className="flex-1 text-center text-xs text-[var(--ink-muted)]">
             已选 {selectedIds.size}/{doneCount}
           </span>
         </div>

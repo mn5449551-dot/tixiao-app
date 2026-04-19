@@ -20,10 +20,10 @@ export function FinalizedPreviewCard({
   isRegenerating?: boolean;
 }) {
   return (
-    <div className={compact ? "overflow-hidden rounded-xl border border-[var(--line-soft)] bg-white p-1.5" : "overflow-hidden rounded-xl border border-[var(--line-soft)] bg-white p-2"}>
+    <div className={compact ? "overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5" : "overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2"}>
       <button
         type="button"
-        className="relative w-full overflow-hidden rounded-lg bg-[var(--surface-2)]"
+        className="relative w-full overflow-hidden rounded-lg bg-[var(--surface-dim)]"
         style={{ aspectRatio: toCssAspectRatio(image.aspectRatio) }}
         onClick={() => onPreview(image)}
       >
@@ -32,12 +32,12 @@ export function FinalizedPreviewCard({
         ) : null}
       </button>
       <div className="mt-1.5">
-        <p className="text-xs font-medium text-[var(--ink-700)]">{image.groupLabel ?? image.id}</p>
-        <p className="text-xs text-[var(--ink-400)]">比例 {image.aspectRatio}</p>
+        <p className="text-xs font-medium text-[var(--ink-default)]">{image.groupLabel ?? image.id}</p>
+        <p className="text-xs text-[var(--ink-subtle)]">比例 {image.aspectRatio}</p>
         {onRegenerate ? (
           <button
             type="button"
-            className="mt-1 text-[10px] text-[var(--brand-600)] hover:text-[var(--brand-700)] disabled:text-[var(--ink-400)]"
+            className="mt-1 text-xs text-[var(--brand-hover)] hover:text-[var(--brand-dark)] disabled:text-[var(--ink-subtle)]"
             disabled={isRegenerating}
             onClick={(e) => {
               e.stopPropagation();

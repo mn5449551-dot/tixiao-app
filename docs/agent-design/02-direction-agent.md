@@ -385,18 +385,55 @@ Direction Agent 采用 **纯 JSON 输出格式**：
 
 ### JSON 解析逻辑
 
-由于输出契约已经收敛为纯 JSON，当前直接解析模型返回内容：
+Direction Agent 使用 3 次重试循环解析 AI 输出，每次重试都会重新调用模型：
 
 ```typescript
-const content = await createChatCompletion({
-  modelKey: "model_direction",
-  messages,
-  temperature: 0.8,
-  responseFormat: { type: "json_object" },
-});
+export async function generateDirectionIdeas(input: DirectionAgentInput) {
+  const messages = buildDirectionAgentMessages(input);
+  const maxAttempts = 3;
+  let lastContent = "";
+  let lastError = "";
 
-return JSON.parse(content) as DirectionAgentOutput;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const content = await createChatCompletion({
+      modelKey: "model_direction",
+      messages,
+      temperature: 0.8,
+      responseFormat: { type: "json_object" },
+    });
+    lastContent = content;
+
+    try {
+      const parsed = JSON.parse(content) as DirectionAgentOutput;
+      if (Array.isArray(parsed?.ideas) && parsed.ideas.length > 0) {
+        return parsed;
+      }
+      lastError = `ideas 数组为空或不存在，解析结果 keys: ${Object.keys(parsed).join(",")}`;
+    } catch (parseError) {
+      lastError = parseError instanceof Error ? parseError.message : "JSON 解析失败";
+    }
+
+    if (attempt === maxAttempts) {
+      logAgentError({
+        agent: "direction",
+        requestSummary: `目标人群: ${input.targetAudience}, 功能: ${input.feature}, 数量: ${input.count}`,
+        rawResponse: lastContent,
+        errorMessage: lastError,
+        attemptCount: maxAttempts,
+      });
+      throw new Error("AI 方向生成格式异常，已重试 3 次仍失败，请稍后再试");
+    }
+  }
+
+  throw new Error("AI 方向生成格式异常");
+}
 ```
+
+重试机制要点：
+- 最多 3 次重试，每次重新调用模型生成
+- 验证条件：`parsed.ideas` 必须是非空数组
+- 3 次全部失败后，通过 `logAgentError` 记录错误到 `agent_error_logs` 表
+- 最终抛出异常，由调用方处理
 
 ## 本地规则生成（Fallback）
 
@@ -512,7 +549,7 @@ const result = await generateDirectionIdeas({
 
 ## 模型配置
 
-- **模型**: deepseek-v3-2-251201 (通过 createChatCompletion)
+- **模型**: modelKey `"model_direction"`（通过 `createChatCompletion`）
 - **Temperature**: 0.8
 - **Response Format**: `json_object`
 

@@ -15,7 +15,7 @@ function renderPanelLoading(
     <div className={containerClassName}>
       <div className="flex flex-col items-center gap-3">
         <Spinner size={spinnerSize} />
-        <span className={spinnerSize === "lg" ? "text-sm text-[var(--ink-500)]" : "text-xs text-[var(--ink-500)]"}>
+        <span className={spinnerSize === "lg" ? "text-sm text-[var(--ink-muted)]" : "text-xs text-[var(--ink-muted)]"}>
           {message}
         </span>
       </div>
@@ -31,7 +31,7 @@ const AgentPanel = dynamic(
       renderPanelLoading(
         "md",
         "助手加载中...",
-        "flex h-full items-center justify-center border-l border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm",
+        "flex h-full items-center justify-center border-l border-[var(--border)] bg-[var(--panel-strong)]",
       ),
   },
 );
@@ -44,7 +44,7 @@ const ProjectTreePanel = dynamic(
       renderPanelLoading(
         "md",
         "目录加载中...",
-        "flex h-full items-center justify-center border-r border-[var(--line-soft)] bg-[var(--panel-strong)] backdrop-blur-sm",
+        "flex h-full items-center justify-center border-r border-[var(--border)] bg-[var(--panel-strong)]",
       ),
   },
 );

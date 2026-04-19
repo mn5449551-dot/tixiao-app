@@ -87,7 +87,7 @@ export default function SettingsPage() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[800px] flex-col gap-8 px-8 py-10">
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-[var(--brand-200)] border-t-[var(--brand-500)]" />
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-[var(--brand-light)] border-t-[var(--brand)]" />
         </div>
       </main>
     );
@@ -98,7 +98,7 @@ export default function SettingsPage() {
       <section className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Badge tone="brand" size="sm">系统设置</Badge>
-          <h1 className="text-2xl font-semibold text-[var(--ink-950)]">模型配置</h1>
+          <h1 className="text-2xl font-semibold text-[var(--ink-strong)]">模型配置</h1>
         </div>
         <Link href="/">
           <Button variant="ghost" size="sm">返回首页</Button>
@@ -106,7 +106,7 @@ export default function SettingsPage() {
       </section>
 
       {saveError && (
-        <div className="rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="rounded-xl bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           {saveError}
         </div>
       )}
@@ -119,7 +119,7 @@ export default function SettingsPage() {
 
       <Card className="space-y-6 p-6">
         <div>
-          <h2 className="mb-4 text-lg font-medium text-[var(--ink-900)]">文本模型配置</h2>
+          <h2 className="mb-4 text-lg font-medium text-[var(--ink-strong)]">文本模型配置</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {(["model_direction", "model_copy", "model_assistant", "model_image_description"] as const).map((key) => (
               <Field key={key} label={MODEL_CONFIG_LABELS[key]}>
@@ -138,7 +138,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="h-px bg-[var(--line-soft)]" />
+        <div className="h-px bg-[var(--border)]" />
 
         <div className="flex justify-end gap-3 pt-4">
           <Button variant="secondary" onClick={() => window.location.reload()}>

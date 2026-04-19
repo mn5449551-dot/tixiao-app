@@ -22,8 +22,7 @@ import {
   getProjectExportContext,
   saveImageConfig,
   upsertRequirement,
-  regenerateCopy,
-} from "../project-data";
+  } from "../project-data";
 import { getDb } from "../db";
 import { startGenerationRun } from "../generation-runs";
 import { copies, copyCards, directions, generatedImages, imageConfigs, imageGroups, projectFolders, projects, requirementCards } from "../schema";
@@ -73,7 +72,6 @@ function seedImageConfigFixture(options?: {
     channel,
     imageForm,
     copyGenerationCount: 1,
-    imageTextRelation: imageForm === "single" ? "单图直给" : "组图递进",
     sortOrder: 0,
     isSelected: 1,
     createdAt: timestamp,
@@ -153,7 +151,6 @@ function seedDirectionOnlyFixture(options?: {
     channel,
     imageForm,
     copyGenerationCount: 1,
-    imageTextRelation: imageForm === "single" ? "单图直给" : "组图递进",
     sortOrder: 0,
     isSelected: 1,
     createdAt: timestamp,
@@ -195,78 +192,6 @@ async function createMockImageGenerationResponse(): Promise<Response> {
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }
-
-test("regenerateCopy replaces copy text and clears downstream generated assets", async () => {
-  const db = getDb();
-  const previousFetch = globalThis.fetch;
-  const previousApiKey = process.env.NEW_API_KEY;
-  process.env.NEW_API_KEY = "test-key";
-
-  const fixture = seedImageConfigFixture({ imageForm: "single" });
-  const config = await saveImageConfig(fixture.copyId, {
-    aspectRatio: "1:1",
-    styleMode: "normal",
-    logo: "none",
-    imageStyle: "realistic",
-    count: 1,
-    createGroups: true,
-  });
-  assert.ok(config);
-  const image = db.select().from(generatedImages).where(eq(generatedImages.imageConfigId, config.id)).get();
-  assert.ok(image);
-
-  const placeholder = await createSolidPlaceholder({
-    text: "旧图",
-    width: 512,
-    height: 512,
-  });
-  const saved = await saveImageBuffer({
-    projectId: fixture.projectId,
-    imageId: image.id,
-    buffer: placeholder,
-    extension: "png",
-  });
-  db.update(generatedImages)
-    .set({
-      filePath: saved.filePath,
-      fileUrl: saved.fileUrl,
-      thumbnailPath: saved.thumbnailPath,
-      thumbnailUrl: saved.thumbnailUrl,
-      status: "done",
-      updatedAt: Date.now(),
-    })
-    .where(eq(generatedImages.id, image.id))
-    .run();
-  db.update(copies).set({ isLocked: 1 }).where(eq(copies.id, fixture.copyId)).run();
-
-  globalThis.fetch = (async () =>
-    createMockChatCompletionResponse({
-      copies: [
-        {
-          titleMain: "主标题已更新",
-          titleSub: "新的副标题内容更完整",
-          titleExtra: null,
-          copyType: "单图主副标题",
-        },
-      ],
-    })) as typeof fetch;
-
-  try {
-    const regenerated = await regenerateCopy(fixture.copyId);
-    assert.ok(regenerated);
-    assert.equal(regenerated.titleMain, "主标题已更新");
-    assert.equal(regenerated.titleSub, "新的副标题内容更完整");
-    assert.equal(regenerated.isLocked, 0);
-
-    const removedConfig = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, fixture.copyId)).get();
-    assert.equal(removedConfig, undefined);
-    assert.equal(fsSync.existsSync(saved.filePath), false);
-    assert.equal(fsSync.existsSync(saved.thumbnailPath!), false);
-  } finally {
-    globalThis.fetch = previousFetch;
-    process.env.NEW_API_KEY = previousApiKey;
-  }
-});
 
 test("saveImageConfig stores an IP asset data URL and img2img style in ip mode", async () => {
   const db = getDb();
@@ -904,7 +829,7 @@ test("saveImageConfig clears ipRole and referenceImageUrl when switching to norm
   db.insert(directions).values({
     id: `dir_${suffix}`, projectId: `proj_${suffix}`, requirementCardId: `req_${suffix}`,
     title: "方向IP", targetAudience: "家长", channel: "信息流（广点通）",
-    imageForm: "single", copyGenerationCount: 1, imageTextRelation: "单图直给",
+    imageForm: "single", copyGenerationCount: 1,
     sortOrder: 0, isSelected: 1, createdAt: timestamp, updatedAt: timestamp,
   }).run();
   db.insert(copyCards).values({

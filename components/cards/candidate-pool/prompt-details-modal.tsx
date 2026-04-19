@@ -44,20 +44,20 @@ export function PromptDetailsModal({
       description={details?.promptType === "delta" ? "此图基于第 1 张图通过图生图生成，以下为差异部分的描述。" : "查看该候选图真实传入模型的提示词与参考信息。"}
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3 rounded-2xl bg-[var(--surface-1)] p-4 text-sm">
+        <div className="grid grid-cols-2 gap-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4 text-sm">
           <div>
-            <p className="text-[11px] text-[var(--ink-400)]">模型</p>
-            <p className="mt-1 font-medium text-[var(--ink-900)]">{details?.model || "未记录模型"}</p>
+            <p className="text-xs text-[var(--ink-subtle)]">模型</p>
+            <p className="mt-1 font-medium text-[var(--ink-strong)]">{details?.model || "未记录模型"}</p>
           </div>
           <div>
-            <p className="text-[11px] text-[var(--ink-400)]">比例</p>
-            <p className="mt-1 font-medium text-[var(--ink-900)]">{details?.aspectRatio || "未记录比例"}</p>
+            <p className="text-xs text-[var(--ink-subtle)]">比例</p>
+            <p className="mt-1 font-medium text-[var(--ink-strong)]">{details?.aspectRatio || "未记录比例"}</p>
           </div>
         </div>
 
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-[var(--ink-900)]">正向提示词</h3>
+            <h3 className="text-sm font-semibold text-[var(--ink-strong)]">正向提示词</h3>
             <Button
               variant="secondary"
               className="h-8 shrink-0 px-3 text-xs"
@@ -67,14 +67,14 @@ export function PromptDetailsModal({
               复制
             </Button>
           </div>
-          <pre className="whitespace-pre-wrap break-words rounded-2xl bg-[var(--surface-1)] p-4 text-sm leading-6 text-[var(--ink-800)]">
+          <pre className="whitespace-pre-wrap break-words rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4 text-sm leading-6 text-[var(--ink-default)]">
             {promptText}
           </pre>
         </section>
 
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-[var(--ink-900)]">Negative Prompt</h3>
+            <h3 className="text-sm font-semibold text-[var(--ink-strong)]">Negative Prompt</h3>
             <Button
               variant="secondary"
               className="h-8 shrink-0 px-3 text-xs"
@@ -84,13 +84,13 @@ export function PromptDetailsModal({
               复制
             </Button>
           </div>
-          <pre className="whitespace-pre-wrap break-words rounded-2xl bg-[var(--surface-1)] p-4 text-sm leading-6 text-[var(--ink-800)]">
+          <pre className="whitespace-pre-wrap break-words rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4 text-sm leading-6 text-[var(--ink-default)]">
             {negativePrompt}
           </pre>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-sm font-semibold text-[var(--ink-900)]">参考图</h3>
+          <h3 className="text-sm font-semibold text-[var(--ink-strong)]">参考图</h3>
           {referenceImages.length > 0 ? (
             <div className="flex flex-wrap gap-3">
               {referenceImages.map((item) => {
@@ -98,12 +98,12 @@ export function PromptDetailsModal({
                 return (
                   <div
                     key={item.url}
-                    className="relative h-24 w-24 overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)]"
+                    className="relative h-24 w-24 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-dim)]"
                   >
                     {isValidUrl ? (
                       <Image src={item.url} alt="参考图" fill sizes="96px" className="object-contain" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center p-2 text-center text-[10px] text-[var(--ink-500)]">
+                      <div className="flex h-full w-full items-center justify-center p-2 text-center text-xs text-[var(--ink-muted)]">
                         无效参考图地址
                       </div>
                     )}
@@ -112,7 +112,7 @@ export function PromptDetailsModal({
               })}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-[var(--line-soft)] px-4 py-4 text-sm text-[var(--ink-500)]">
+            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] px-4 py-4 text-sm text-[var(--ink-muted)]">
               {hasSnapshot ? "未传参考图" : "该图片缺少历史生图快照，请重新生成后查看。"}
             </div>
           )}

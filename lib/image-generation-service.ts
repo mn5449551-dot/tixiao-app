@@ -1,5 +1,4 @@
 import { eq, inArray } from "drizzle-orm";
-import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 
 import {
@@ -394,10 +393,9 @@ export async function processPreparedImageGeneration(input: {
 
       if (result.status === "fulfilled") {
         markGeneratedImageDone({ imageId, saved: result.value.saved });
-        const updatedImage = db.select().from(generatedImages).where(eq(generatedImages.id, imageId)).get();
         slot1DoneMap.set(groupId, {
           fileUrl: result.value.saved.fileUrl,
-          filePath: updatedImage?.filePath ?? "",
+          filePath: result.value.saved.filePath,
           imageId,
         });
       } else {
@@ -425,6 +423,7 @@ export async function processPreparedImageGeneration(input: {
 
         // Build delta prompt for this group via series-image-agent
         const images = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+        const groupModel = group.imageModel ?? config.imageModel ?? null;
         const slot1Prompt = primaryPrompt.prompt;
         const copyTexts = [copy.titleMain, copy.titleSub ?? "", copy.titleExtra ?? ""].filter(Boolean);
         const targetTexts = new Map<number, string>();
@@ -436,7 +435,6 @@ export async function processPreparedImageGeneration(input: {
         const slotRoles = resolveSeriesSlotRoles(copy.copyType, slotCount);
         const deltaResult = await generateSeriesDeltaPrompts({
           slot1Prompt,
-          slot1ImageUrl: slot1Info.fileUrl,
           targetTexts,
           copyType: copy.copyType,
           slotRoles,
@@ -464,6 +462,7 @@ export async function processPreparedImageGeneration(input: {
           slotIndex: number;
           prompt: string;
           negativePrompt: string;
+          groupModel: string | null;
         }> = [];
 
         for (const image of images) {
@@ -476,6 +475,7 @@ export async function processPreparedImageGeneration(input: {
             slotIndex: image.slotIndex,
             prompt: delta.prompt,
             negativePrompt: delta.negativePrompt,
+            groupModel,
           });
         }
 
@@ -489,9 +489,9 @@ export async function processPreparedImageGeneration(input: {
               generationRequestJson: buildGenerationRequestJson({
                 promptText: item.prompt,
                 negativePrompt: item.negativePrompt,
-                model: "qwen-image-2.0",
+                model: item.groupModel ?? config.imageModel ?? "qwen-image-2.0",
                 aspectRatio: config.aspectRatio,
-                referenceImages: [{ url: slot1Info.fileUrl }],
+                referenceImages: [],
               }),
               updatedAt: Date.now(),
             })
@@ -499,19 +499,12 @@ export async function processPreparedImageGeneration(input: {
             .run();
         }
 
-        // Generate slot 2+ for this group via qwen-image-2.0 images/edits
+        // Generate slot 2+ for this group via configured model (pure text-to-image)
         const slot2PlusResults = await Promise.allSettled(
           slot2PlusItems.map(async (item) => {
-            const imageBuffer = await readFile(slot1Info.filePath);
-            const ext = slot1Info.filePath.split(".").pop()?.toLowerCase();
-            const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png";
-            const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
-
-            const binaries = await generateImageFromReference({
-              instruction: item.prompt,
-              imageUrl: dataUrl,
+            const binaries = await generateImageFromPrompt(item.prompt, {
               aspectRatio: config.aspectRatio,
-              model: "qwen-image-2.0",
+              model: item.groupModel ?? config.imageModel ?? "qwen-image-2.0",
             });
 
             const binary = binaries[0];

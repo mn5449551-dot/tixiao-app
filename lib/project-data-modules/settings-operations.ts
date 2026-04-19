@@ -7,7 +7,6 @@ const DEFAULT_MODEL_SETTINGS = {
   model_copy: "deepseek-v3-2-251201",
   model_assistant: "deepseek-v3-2-251201",
   model_image_description: "gemini-3.1-pro-preview",
-  model_image_generation: "gpt-image-1.5",
 };
 
 export type ModelSettingKey = keyof typeof DEFAULT_MODEL_SETTINGS;

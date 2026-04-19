@@ -80,8 +80,8 @@ export function CreateFolderForm({ existingNames = [] }: { existingNames?: strin
             }}
           />
           {error ? (
-            <div className="rounded-2xl bg-[var(--danger-soft)] px-4 py-3">
-              <p className="text-sm text-[var(--danger-700)]">{error}</p>
+            <div className="rounded-2xl bg-[var(--danger-bg)] px-4 py-3">
+              <p className="text-sm text-[var(--danger-text)]">{error}</p>
             </div>
           ) : null}
           <div className="flex justify-end gap-3">

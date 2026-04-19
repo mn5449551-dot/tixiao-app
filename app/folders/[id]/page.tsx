@@ -17,7 +17,7 @@ export default async function FolderPage({ params }: { params: Promise<{ id: str
   if (!folder) {
     return (
       <main className="mx-auto flex min-h-screen max-w-[1520px] flex-col items-center justify-center gap-6 px-8">
-        <h1 className="text-2xl font-semibold text-[var(--ink-900)]">文件夹不存在</h1>
+        <h1 className="text-2xl font-semibold text-[var(--ink-strong)]">文件夹不存在</h1>
         <Link href="/">
           <Button variant="secondary">返回首页</Button>
         </Link>
@@ -33,13 +33,13 @@ export default async function FolderPage({ params }: { params: Promise<{ id: str
         <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(246,126,46,0.04),transparent_70%)] blur-3xl" />
       </div>
 
-      <nav className="animate-fade-in-up flex items-center justify-between rounded-[20px] border border-[var(--line-soft)] bg-white/82 px-6 py-4 shadow-[var(--shadow-panel)] backdrop-blur-sm">
+      <nav className="animate-fade-in-up flex items-center justify-between rounded-[20px] border border-[var(--border)] bg-white/82 px-6 py-4 shadow-[var(--shadow-panel)]">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-sm text-[var(--ink-500)] transition hover:text-[var(--brand-700)]">
+          <Link href="/" className="text-sm text-[var(--ink-muted)] transition hover:text-[var(--brand-dark)]">
             ← 返回首页
           </Link>
-          <span className="text-[var(--line-soft)]">|</span>
-          <h1 className="text-lg font-semibold text-[var(--ink-950)]">
+          <span className="text-[var(--border)]">|</span>
+          <h1 className="text-lg font-semibold text-[var(--ink-strong)]">
             📁 {folder.name}（{projects.length} 个项目）
           </h1>
         </div>

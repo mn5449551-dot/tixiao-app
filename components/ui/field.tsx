@@ -12,10 +12,10 @@ import { cn } from "@/lib/utils";
 
 export function Field({ label, hint, children }: PropsWithChildren<{ label: string; hint?: string }>) {
   return (
-    <label className="flex flex-col gap-2 text-sm text-[var(--ink-700)]">
+    <label className="flex flex-col gap-2 text-sm text-[var(--ink-default)]">
       <span className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-[var(--ink-900)]">{label}</span>
-        {hint ? <span className="text-xs text-[var(--ink-500)]">{hint}</span> : null}
+        <span className="text-sm font-medium text-[var(--ink-strong)]">{label}</span>
+        {hint ? <span className="text-xs text-[var(--ink-subtle)]">{hint}</span> : null}
       </span>
       {children}
     </label>
@@ -30,7 +30,7 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div className="relative">
       <select className={cn(inputControlClassName, "pr-8 appearance-none")} {...props} />
-      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-400)]">
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-disabled)]">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M3 5L6 8L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -85,7 +85,7 @@ export function Textarea({
 }
 
 const inputControlClassName =
-  "nodrag nopan h-11 w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 text-sm text-[var(--ink-900)] outline-none transition-all duration-300 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-2 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
+  "nodrag nopan h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-4 text-sm text-[var(--ink-default)] outline-none transition-all duration-[var(--duration-fast)] placeholder:text-[var(--ink-disabled)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-dim)]";
 
 const textareaControlClassName =
-  "nodrag nopan min-h-11 w-full resize-none overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-0)] px-4 py-3 text-sm text-[var(--ink-900)] outline-none transition-all duration-300 placeholder:text-[var(--ink-400)] focus:border-[var(--brand-400)] focus:ring-2 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-1)]";
+  "nodrag nopan min-h-10 w-full resize-none overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--ink-default)] outline-none transition-all duration-[var(--duration-fast)] placeholder:text-[var(--ink-disabled)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-ring)] disabled:cursor-not-allowed disabled:bg-[var(--surface-dim)]";

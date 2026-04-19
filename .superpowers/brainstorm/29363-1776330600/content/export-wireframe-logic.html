@@ -1,0 +1,149 @@
+<h2>导出区域线框逻辑</h2>
+<p class="subtitle">目标：下面展示出来的“可直接导出”版位，就一定能导出；需要适配的版位单独管理，不混在一起。</p>
+
+<div class="section">
+  <div class="label">整体流程</div>
+  <div class="mockup">
+    <div class="mockup-header">Step 1 → Step 2 → Step 3</div>
+    <div class="mockup-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div class="placeholder" style="min-height:120px">
+          <strong>1. 选择已定稿组</strong><br>
+          原始定稿 / 适配版本都在这里选<br><br>
+          例：<br>
+          组4：1:1<br>
+          组7：16:9（适配版本）
+        </div>
+        <div class="placeholder" style="min-height:120px">
+          <strong>2. 系统自动拆分版位</strong><br>
+          根据已选组比例，自动分成：<br>
+          可直接导出<br>
+          需适配后导出
+        </div>
+        <div class="placeholder" style="min-height:120px">
+          <strong>3. 导出动作</strong><br>
+          只对“可直接导出”里的已勾选版位执行导出<br><br>
+          “需适配”区域单独触发生成适配版本
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">线框图</div>
+  <div class="mockup">
+    <div class="mockup-header">定稿池下半区重组</div>
+    <div class="mockup-body">
+      <div style="display:grid;gap:18px">
+        <div style="border:1px solid #e7dccf;border-radius:16px;padding:16px;background:#fffaf5">
+          <strong>A. 已选导出图片</strong>
+          <div class="subtitle" style="margin-top:6px">用户只在这里选图。系统不要求用户自己脑补哪些版位能导。</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="placeholder" style="min-height:88px">
+              原始定稿组 #4<br>
+              比例 1:1<br>
+              状态：已选
+            </div>
+            <div class="placeholder" style="min-height:88px">
+              适配版本组 #7<br>
+              比例 16:9<br>
+              状态：已选
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:18px">
+          <div style="border:1px solid #d9eadf;border-radius:16px;padding:16px;background:#f8fffa">
+            <strong>B. 可直接导出</strong>
+            <div class="subtitle" style="margin-top:6px">这里出现的版位 = 当前一定能导出的版位，可勾选，可直接导出。</div>
+            <div style="display:grid;gap:10px;margin-top:12px">
+              <div style="border:1px solid #cde4d3;border-radius:12px;padding:10px;background:white">
+                <strong>OPPO · 富媒体-横版大图</strong><br>
+                来源：16:9 适配版本覆盖<br>
+                操作：可勾选导出
+              </div>
+              <div style="border:1px solid #cde4d3;border-radius:12px;padding:10px;background:white">
+                <strong>小米 · 搜索-搜索三图</strong><br>
+                来源：1:1 原始定稿覆盖<br>
+                操作：可勾选导出
+              </div>
+            </div>
+          </div>
+
+          <div style="border:1px solid #f0dfc6;border-radius:16px;padding:16px;background:#fffaf2">
+            <strong>C. 需适配后导出</strong>
+            <div class="subtitle" style="margin-top:6px">这里展示还没有被当前已选图片覆盖到的版位。</div>
+            <div style="display:grid;gap:10px;margin-top:12px">
+              <div style="border:1px solid #ecd3a8;border-radius:12px;padding:10px;background:white">
+                <strong>VIVO · 搜索富媒体-三图</strong><br>
+                目标比例：3:2<br>
+                当前缺少：3:2 图片
+              </div>
+              <button class="mock-button" style="width:100%">生成这些版位的适配版本</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #e7dccf;border-radius:16px;padding:16px;background:white">
+          <strong>D. 导出动作栏</strong>
+          <div class="subtitle" style="margin-top:6px">只统计“可直接导出”中已勾选的版位数量，不再对“需适配”区域做二次拦截。</div>
+          <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
+            <div class="mock-input" style="flex:1">导出格式：JPG / PNG / WEBP</div>
+            <div class="mock-input" style="flex:1">导出 Logo：无 / 洋葱 / App</div>
+            <button class="mock-button">确认导出 2 个版位</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">关键交互规则</div>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="rule-1" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>图只在上面选一次</h3>
+        <p>用户只管理“选哪些组参与导出”，不再同时管理“哪些版位能不能导”。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="rule-2" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>版位自动拆成两区</h3>
+        <p>可直接导出和需适配后导出必须分开，避免混淆。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="rule-3" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>展示出来就能导</h3>
+        <p>只要版位出现在“可直接导出”区，点击导出就不应再被拦住。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">我建议的默认逻辑</div>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>推荐</h4>
+      <ul>
+        <li>下方版位区域默认按“可直接导出 / 需适配后导出”分组展示</li>
+        <li>生成适配版本成功后，新组自动加入已选图片</li>
+        <li>新组覆盖到的版位自动从“需适配”移动到“可直接导出”</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>避免</h4>
+      <ul>
+        <li>不要把所有候选版位直接平铺给用户自己判断</li>
+        <li>不要在点“确认导出”时再做一次大拦截</li>
+        <li>不要要求用户手动切换“原图组 / 适配组”才能导出</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -107,7 +107,7 @@ export function WorkflowCanvasPanel({ projectId }: { projectId: string }): React
 
   if (!graph) {
     return (
-      <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(250,247,244,0.98))] px-4 text-sm text-[var(--ink-500)]">
+      <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(250,247,244,0.98))] px-4 text-sm text-[var(--ink-muted)]">
         {error ?? "画布加载中..."}
       </div>
     );

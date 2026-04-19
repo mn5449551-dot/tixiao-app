@@ -485,8 +485,8 @@ Copy Agent 会根据渠道、图片形式、目标人群动态生成知识补充
 | 渠道 | 规则 |
 |------|------|
 | **信息流（广点通）** | 优先第一眼停留、痛点命中、行动引导、产品锚点；文案更适合钩子感、结果感、工具感表达；避免信息过载、慢热和过长解释；优先短句、口语化、画面感强的表达 |
-| **应用商店** | 更强调真实场景痛点、解法价值、使用收益；文案需要兼顾学生和家长双重理解；避免只有情绪钩子，没有产品能力解释；像说明书精华版，要明确、有获得感 |
-| **学习机** | 更强调学习体验、成长感、陪伴感和设备场景适配；文案应减少过强的成人广告感，增强学生视角的成就感；语言要有陪伴感和沉浸感，专业但不生硬 |
+| **应用商店** | 更强调真实场景痛点、解法价值、使用收益；文案需要兼顾学生和家长双重理解；避免只有情绪钩子，没有产品能力解释；像说明书精华版，而不是技术说明书；要明确、有获得感，但不能拗口 |
+| **学习机** | 更强调学习体验、成长感、陪伴感和设备场景适配；文案应减少过强的成人广告感，增强学生视角的成就感；避免只有大字没有场景，或只有氛围没有销售逻辑；语言要有陪伴感和沉浸感，专业但不生硬，有趣但不轻浮 |
 
 ### 形式规则
 
@@ -501,7 +501,7 @@ Copy Agent 会根据渠道、图片形式、目标人群动态生成知识补充
 | 目标人群 | 语气参考 |
 |----------|----------|
 | **家长** | 更关注孩子是否主动学、提分效果可视化、学习是否省心安心；表达要避免过度学生黑话，强调解决方案、信任感和可感知变化 |
-| **学生** | 更容易被痛点命中、效率感、开窍感、成就感吸引；表达可以更直接、更有画面感，但不能空喊口号；要像真实学生会说的话 |
+| **学生** | 更容易被痛点命中、效率感、开窍感、成就感吸引；表达可以更直接、更有画面感，但不能空喊口号；要像真实学生会说的话，避免拗口书面语 |
 
 ## Agent 能做什么
 
@@ -522,18 +522,56 @@ Copy Agent 会根据渠道、图片形式、目标人群动态生成知识补充
 
 ### JSON 解析逻辑
 
-由于输出契约已经收敛为纯 JSON，当前直接解析模型返回内容：
+Copy Agent 使用 3 次重试循环解析 AI 输出，每次重试都会重新调用模型：
 
 ```typescript
-const content = await createChatCompletion({
-  modelKey: "model_copy",
-  messages,
-  temperature: 0.8,
-  responseFormat: { type: "json_object" },
-});
+export async function generateCopyIdeas(input: CopyAgentInput) {
+  const messages = buildCopyAgentMessages(input);
+  const maxAttempts = 3;
+  let lastContent = "";
+  let lastError = "";
 
-return JSON.parse(content) as CopyAgentOutput;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const content = await createChatCompletion({
+      modelKey: "model_copy",
+      messages,
+      temperature: 0.8,
+      responseFormat: { type: "json_object" },
+    });
+    lastContent = content;
+
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      const items = parsed?.items ?? parsed?.copies;
+      if (Array.isArray(items) && items.length > 0) {
+        return parsed as unknown as CopyAgentOutput;
+      }
+      lastError = `copies 数组为空或不存在，解析结果 keys: ${Object.keys(parsed).join(",")}`;
+    } catch (parseError) {
+      lastError = parseError instanceof Error ? parseError.message : "JSON 解析失败";
+    }
+
+    if (attempt === maxAttempts) {
+      logAgentError({
+        agent: "copy",
+        requestSummary: `方向: ${input.directionTitle}, 渠道: ${input.channel}, 形式: ${input.imageForm}, 数量: ${input.count}`,
+        rawResponse: lastContent,
+        errorMessage: lastError,
+        attemptCount: maxAttempts,
+      });
+      throw new Error("AI 文案生成格式异常，已重试 3 次仍失败，请稍后再试");
+    }
+  }
+
+  throw new Error("AI 文案生成格式异常");
+}
 ```
+
+重试机制要点：
+- 最多 3 次重试，每次重新调用模型生成
+- 验证条件：`parsed?.items ?? parsed?.copies` 必须是非空数组（兼容模型可能用 `items` 或 `copies` 作为顶层 key）
+- 3 次全部失败后，通过 `logAgentError` 记录错误到 `agent_error_logs` 表
+- 最终抛出异常，由调用方处理
 
 ## 本地规则生成（Fallback）
 
@@ -655,7 +693,7 @@ const result = await generateCopyIdeas({
 
 ## 模型配置
 
-- **模型**: deepseek-v3-2-251201 (通过 createChatCompletion)
+- **模型**: modelKey `"model_copy"`（通过 `createChatCompletion`）
 - **Temperature**: 0.8
 - **Response Format**: `json_object`
 

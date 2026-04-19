@@ -72,11 +72,8 @@ function getSlotsForChannels(channels: string[]): ExportSlotSpec[] {
 }
 
 function getFinalizedPoolBorderClass(selected: boolean): string {
-  if (selected) {
-    return "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]";
-  }
-
-  return "border-[var(--line-soft)]";
+  if (selected) return "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]";
+  return "border-[var(--border)]";
 }
 
 function getFinalizedSummaryText(
@@ -97,19 +94,19 @@ function getFinalizedSummaryText(
 
 function getFinalizedGroupCardClass(selected: boolean): string {
   return cn(
-    "rounded-xl border bg-white p-3",
+    "rounded-[var(--radius-md)] border bg-[var(--surface)] p-3",
     selected
-      ? "border-[var(--brand-300)] ring-2 ring-[var(--brand-ring)]"
-      : "border-[var(--line-soft)]",
+      ? "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]"
+      : "border-[var(--border)]",
   );
 }
 
 function getFinalizedGroupSelectButtonClass(selected: boolean): string {
   return cn(
-    "flex h-5 w-5 items-center justify-center rounded border text-[10px]",
+    "flex h-5 w-5 items-center justify-center rounded border text-xs",
     selected
-      ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-      : "border-[var(--line-soft)] bg-white text-transparent",
+      ? "border-[var(--brand)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
+      : "border-[var(--border)] bg-[var(--surface)] text-transparent",
   );
 }
 
@@ -214,25 +211,24 @@ export function FinalizedPoolCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition",
         getFinalizedPoolBorderClass(selected),
       )}
       style={{ width: 480, maxWidth: '100%' } satisfies CSSProperties}
     >
-      <div className="absolute inset-x-0 top-0 h-[4px] bg-[var(--brand-500)]" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-[var(--brand)]" />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
 
-      <div className="workflow-drag-handle mb-3 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--border)] pb-3 pt-1 active:cursor-grabbing">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">定稿池</h3>
+            <h3 className="text-xl font-semibold text-[var(--ink-strong)]">定稿池</h3>
           </div>
-          <p className="text-[11px] text-[var(--ink-400)]">
+          <p className="text-xs text-[var(--ink-muted)]">
             {getFinalizedSummaryText(displayMode, groups.flatMap((group) => group.images).length, groups.length, selectedGroupCount)}
           </p>
         </div>
@@ -240,7 +236,7 @@ export function FinalizedPoolCard({
       </div>
 
       {feedback ? (
-        <div className="mb-3 rounded-lg bg-[#fff7ed] px-3 py-2 text-xs text-[#9b6513]">
+        <div className="mb-3 rounded-lg bg-[var(--warning-bg)] px-3 py-2 text-xs text-[var(--warning-text)]">
           {feedback}
         </div>
       ) : null}
@@ -249,13 +245,13 @@ export function FinalizedPoolCard({
         <Button variant="secondary" onClick={toggleSelectAllGroups} className="shrink-0 text-xs">
           {allGroupsSelected ? "全不选" : "全选"}
         </Button>
-        <span className="flex-1 text-center text-xs text-[var(--ink-500)]">
+        <span className="flex-1 text-center text-xs text-[var(--ink-muted)]">
           已选 {selectedGroupIds.size}/{groups.length}
         </span>
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">已定稿预览</p>
+      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
+        <p className="mb-2 text-xs font-medium text-[var(--ink-default)]">已定稿预览</p>
         {displayMode === "single" ? (
           <div className="space-y-3">
             {groups.map((group) => (
@@ -273,7 +269,7 @@ export function FinalizedPoolCard({
                     >
                       ✓
                     </button>
-                    <p className="text-xs font-medium text-[var(--ink-800)]">
+                    <p className="text-xs font-medium text-[var(--ink-default)]">
                       {isDerivedGroup(group) ? "适配版本" : `第 ${group.variantIndex} 组`}
                     </p>
                   </div>
@@ -324,7 +320,7 @@ export function FinalizedPoolCard({
                     >
                       ✓
                     </button>
-                    <p className="text-xs font-medium text-[var(--ink-800)]">第 {group.variantIndex} 套</p>
+                    <p className="text-xs font-medium text-[var(--ink-default)]">第 {group.variantIndex} 套</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : null}
@@ -363,8 +359,8 @@ export function FinalizedPoolCard({
         )}
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">投放渠道</p>
+      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
+        <p className="mb-2 text-xs font-medium text-[var(--ink-default)]">投放渠道</p>
         <div className="flex flex-wrap gap-2">
           {EXPORT_CHANNELS.map((channel) => {
             const active = selectedChannels.includes(channel);
@@ -375,8 +371,8 @@ export function FinalizedPoolCard({
                 className={cn(
                   "rounded-full px-3 py-1 text-xs transition",
                   active
-                    ? "bg-[var(--brand-50)] text-[var(--brand-700)] ring-1 ring-[var(--brand-300)]"
-                    : "bg-white text-[var(--ink-600)] ring-1 ring-[var(--line-soft)]",
+                    ? "bg-[var(--brand-bg)] text-[var(--brand-dark)] ring-1 ring-[var(--brand)]"
+                    : "bg-[var(--surface)] text-[var(--ink-subtle)] ring-1 ring-[var(--border)]",
                 )}
                 onClick={() => toggleChannel(channel)}
               >
@@ -388,8 +384,8 @@ export function FinalizedPoolCard({
       </div>
 
       {availableSlots.length > 0 && (
-        <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-          <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">投放版位</p>
+        <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
+          <p className="mb-2 text-xs font-medium text-[var(--ink-default)]">投放版位</p>
           <div className="space-y-1.5">
             {directSlots.map((slot) => {
               const active = selectedSlots.includes(slot.slotName);
@@ -400,42 +396,42 @@ export function FinalizedPoolCard({
                   className={cn(
                     "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition",
                     active
-                      ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                      : "border-[var(--line-soft)] bg-white text-[var(--ink-600)]",
+                      ? "border-[var(--brand)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink-subtle)]",
                   )}
                   onClick={() => toggleSlot(slot.slotName)}
                 >
                   <span className="font-medium">{slot.channel} · {slot.slotName}</span>
-                  <span className="text-[10px] text-[var(--ink-400)]">{slot.ratio}</span>
+                  <span className="text-xs text-[var(--ink-muted)]">{slot.ratio}</span>
                 </button>
               );
             })}
             {adaptationRequiredSlots.map((slot) => (
               <div
                 key={`${slot.channel}-${slot.slotName}`}
-                className="flex items-center justify-between rounded-lg border border-dashed border-[var(--line-soft)] px-3 py-2 text-xs text-[var(--ink-400)]"
+                className="flex items-center justify-between rounded-lg border border-dashed border-[var(--border)] px-3 py-2 text-xs text-[var(--ink-muted)]"
               >
                 <span>{slot.channel} · {slot.slotName}</span>
-                <span className="text-[10px]">需适配</span>
+                <span className="text-xs">需适配</span>
               </div>
             ))}
           </div>
           {specialSlots.length > 0 && (
-            <p className="mt-2 text-[11px] text-[var(--ink-400)]">
+            <p className="mt-2 text-xs text-[var(--ink-muted)]">
               特殊比例暂不支持：{specialSlots.map((slot) => `${slot.channel} · ${slot.slotName}`).join("、")}
             </p>
           )}
         </div>
       )}
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <p className="mb-1 text-xs font-medium text-[var(--ink-700)]">导出预览</p>
-        <p className="text-xs text-[var(--ink-500)]">
+      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
+        <p className="mb-1 text-xs font-medium text-[var(--ink-default)]">导出预览</p>
+        <p className="text-xs text-[var(--ink-subtle)]">
           已选 {exportCount} {displayMode === "single" ? "张" : "套"} · 直接导出 {selectedDirectSlotSpecs.length} 个版位 · 待适配 {adaptationRequiredSlots.length} 个
         </p>
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
         <Field label="文件格式">
           <Select value={fileFormat} onChange={(event) => setFileFormat(event.target.value as "jpg" | "png" | "webp")}>
             <option value="jpg">JPG</option>
@@ -445,7 +441,7 @@ export function FinalizedPoolCard({
         </Field>
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
         <Field label="导出 Logo">
           <Select value={exportLogo} onChange={(event) => setExportLogo(event.target.value as "onion" | "onion_app" | "none")}>
             <option value="none">不添加 Logo</option>
@@ -508,7 +504,7 @@ export function FinalizedPoolCard({
 
       <Button
         variant="primary"
-        className="w-full py-3.5 text-sm font-semibold shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
+        className="w-full py-3.5 text-sm font-semibold"
         onClick={async () => {
           if (selectedGroupIds.size === 0 || selectedChannels.length === 0 || !projectId) return;
 

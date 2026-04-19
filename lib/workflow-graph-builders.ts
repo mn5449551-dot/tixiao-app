@@ -104,6 +104,7 @@ export function buildCandidatePoolNode(input: {
           aspectRatio: group.aspectRatio ?? config.aspectRatio,
           updatedAt: img.updatedAt,
           inpaintParentId: img.inpaintParentId ?? null,
+          errorMessage: img.errorMessage ?? null,
           promptDetails: {
             ...(parseGenerationRequestSnapshot(img.generationRequestJson) ?? {
               promptText: null,

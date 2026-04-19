@@ -43,7 +43,6 @@ function seedWorkspaceQueryFixture(imageForm: "single" | "double" = "single") {
     channel: "应用商店",
     imageForm,
     copyGenerationCount: 1,
-    imageTextRelation: imageForm === "single" ? "单图直给" : "组图递进",
     sortOrder: 0,
     isSelected: 1,
     createdAt: timestamp,

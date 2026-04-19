@@ -58,8 +58,8 @@ export function CandidatePoolPreview({ workspace }: { workspace: WorkspaceData }
       <section className="rounded-[24px] bg-white p-4 shadow-[var(--shadow-card)]">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-[var(--ink-900)]">候选图池预览</h3>
-            <p className="mt-1 text-xs text-[var(--ink-500)]">
+            <h3 className="text-sm font-semibold text-[var(--ink-strong)]">候选图池预览</h3>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
               按方向和文案查看当前候选图组，也可以提前体验局部重绘界面。
             </p>
           </div>
@@ -67,7 +67,7 @@ export function CandidatePoolPreview({ workspace }: { workspace: WorkspaceData }
         </div>
 
         {entries.length === 0 ? (
-          <div className="rounded-[20px] border border-dashed border-[var(--line-soft)] bg-[var(--surface-1)] p-4 text-sm text-[var(--ink-500)]">
+          <div className="rounded-[20px] border border-dashed border-[var(--border)] bg-[var(--surface-dim)] p-4 text-sm text-[var(--ink-muted)]">
             完成图片配置并成功生成图片后，这里会出现真实候选图缩略图和局部重绘入口。
           </div>
         ) : (
@@ -75,11 +75,11 @@ export function CandidatePoolPreview({ workspace }: { workspace: WorkspaceData }
             {entries.map((entry) => (
               <div
                 key={`${entry.directionTitle}-${entry.copyTitle}`}
-                className="space-y-2 rounded-[20px] border border-[var(--line-soft)] bg-[var(--surface-1)] p-3"
+                className="space-y-2 rounded-[20px] border border-[var(--border)] bg-[var(--surface-dim)] p-3"
               >
                 <div>
-                  <p className="text-sm font-medium text-[var(--ink-900)]">{entry.directionTitle}</p>
-                  <p className="mt-1 text-xs text-[var(--ink-500)] line-clamp-2" title={entry.copyTitle}>{entry.copyTitle}</p>
+                  <p className="text-sm font-medium text-[var(--ink-strong)]">{entry.directionTitle}</p>
+                  <p className="mt-1 text-xs text-[var(--ink-muted)] line-clamp-2" title={entry.copyTitle}>{entry.copyTitle}</p>
                 </div>
                 <div className="grid gap-3">
                   {entry.groups.map((group) => (
@@ -133,8 +133,8 @@ function CandidateGroupCard({
     <div className="rounded-[18px] bg-white p-3 shadow-[var(--shadow-inset)]">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <p className="text-xs font-medium text-[var(--ink-700)]">候选组 #{group.variantIndex}</p>
-          <p className="mt-1 text-[11px] text-[var(--ink-500)]">
+          <p className="text-xs font-medium text-[var(--ink-default)]">候选组 #{group.variantIndex}</p>
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">
             {directionTitle} · {copyTitle}
           </p>
         </div>
@@ -146,7 +146,7 @@ function CandidateGroupCard({
         className={`grid gap-2 ${getCandidateGroupGridClass(group.slotCount)}`}
       >
         {group.images.map((image) => (
-          <div key={image.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[#f7f3ef]">
+          <div key={image.id} className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[#f7f3ef]">
             {image.fileUrl ? (
               <Image
                 alt={`候选图 ${image.slotIndex}`}
@@ -157,11 +157,11 @@ function CandidateGroupCard({
                 width={320}
               />
             ) : (
-              <div className="flex aspect-[4/3] items-center justify-center bg-[linear-gradient(135deg,#fff7ed,#f4e3d7)] text-xs text-[var(--ink-500)]">
+              <div className="flex aspect-[4/3] items-center justify-center bg-[linear-gradient(135deg,#fff7ed,#f4e3d7)] text-xs text-[var(--ink-muted)]">
                 {image.status}
               </div>
             )}
-            <div className="space-y-2 px-2 py-2 text-[11px] text-[var(--ink-500)]">
+            <div className="space-y-2 px-2 py-2 text-xs text-[var(--ink-muted)]">
               <div className="flex items-center justify-between">
                 <p>slot {image.slotIndex}</p>
                 <p>seed {image.seed ?? "-"}</p>
@@ -194,18 +194,18 @@ function InpaintModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6 backdrop-blur-sm">
-      <div className="grid max-h-[90vh] w-full max-w-6xl grid-cols-[1.4fr_0.9fr] gap-5 overflow-hidden rounded-[32px] border border-[var(--line-soft)] bg-[var(--surface-0)] p-5 shadow-[0_40px_120px_rgba(0,0,0,0.25)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6">
+      <div className="grid max-h-[90vh] w-full max-w-6xl grid-cols-[1.4fr_0.9fr] gap-5 overflow-hidden rounded-[32px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_40px_120px_rgba(0,0,0,0.25)]">
         <div className="space-y-4 overflow-hidden rounded-[24px] bg-white p-4 shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">Inpaint Preview</p>
-              <h3 className="mt-1 text-lg font-semibold text-[var(--ink-900)]">局部重绘画布</h3>
+              <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-subtle)]">Inpaint Preview</p>
+              <h3 className="mt-1 text-lg font-semibold text-[var(--ink-strong)]">局部重绘画布</h3>
             </div>
             <Badge tone="warning">API 未接入</Badge>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-[var(--line-soft)] bg-[var(--surface-1)]">
+          <div className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface-dim)]">
             <Image
               alt="待重绘图片"
               className="h-auto w-full object-contain"
@@ -216,10 +216,10 @@ function InpaintModal({
             />
           </div>
 
-          <div className="grid gap-3 rounded-[20px] border border-dashed border-[var(--line-soft)] bg-[var(--surface-1)] p-4 md:grid-cols-[1fr_auto]">
+          <div className="grid gap-3 rounded-[20px] border border-dashed border-[var(--border)] bg-[var(--surface-dim)] p-4 md:grid-cols-[1fr_auto]">
             <div>
-              <p className="text-sm font-medium text-[var(--ink-900)]">蒙版绘制区（界面预留）</p>
-              <p className="mt-1 text-xs leading-5 text-[var(--ink-500)]">
+              <p className="text-sm font-medium text-[var(--ink-strong)]">蒙版绘制区（界面预留）</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--ink-muted)]">
                 后续接入真实 inpaint API 后，这里会支持画笔/橡皮擦、遮罩可视化和局部区域重绘。
               </p>
             </div>
@@ -233,14 +233,14 @@ function InpaintModal({
 
         <div className="flex flex-col gap-4 overflow-y-auto rounded-[24px] bg-white p-4 shadow-[var(--shadow-card)]">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">Inpaint Control</p>
-            <h3 className="mt-1 text-lg font-semibold text-[var(--ink-900)]">重绘控制面板</h3>
-            <p className="mt-2 text-sm text-[var(--ink-500)]">
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-subtle)]">Inpaint Control</p>
+            <h3 className="mt-1 text-lg font-semibold text-[var(--ink-strong)]">重绘控制面板</h3>
+            <p className="mt-2 text-sm text-[var(--ink-muted)]">
               当前先完成界面与交互结构，等后端 inpaint API 就绪后直接接入。
             </p>
           </div>
 
-          <div className="rounded-[20px] bg-[var(--surface-1)] p-4 text-sm text-[var(--ink-700)]">
+          <div className="rounded-[20px] bg-[var(--surface-dim)] p-4 text-sm text-[var(--ink-default)]">
             <p><span className="font-medium">方向：</span>{selectedImage.directionTitle}</p>
             <p className="mt-1"><span className="font-medium">文案：</span>{selectedImage.copyTitle}</p>
             <p className="mt-1"><span className="font-medium">来源：</span>{selectedImage.groupLabel} / slot {selectedImage.image.slotIndex}</p>

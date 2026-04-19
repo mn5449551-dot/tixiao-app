@@ -16,7 +16,7 @@ import {
   IP_ROLES,
   LOGO_OPTIONS,
 } from "@/lib/constants";
-import { getDb } from "@/lib/db";
+import { getDb, type DbOrTx } from "@/lib/db";
 import { classifyExportAdaptation, isSpecialRatio, resolveExportSlotSpecs } from "@/lib/export/utils";
 import { createId } from "@/lib/id";
 import { resolveReferenceImageUrl } from "@/lib/ip-assets";
@@ -142,9 +142,25 @@ function createCandidateGroupWithImages(input: {
   timestamp: number;
 }) {
   const db = getDb();
+  return createCandidateGroupWithImagesTx(db, input);
+}
+
+function createCandidateGroupWithImagesTx(
+  dbOrTx: DbOrTx,
+  input: {
+    imageConfigId: string;
+    variantIndex: number;
+    slotCount: number;
+    aspectRatio: string;
+    styleMode: string;
+    imageStyle: string;
+    imageModel: string | null;
+    timestamp: number;
+  },
+) {
   const groupId = createId("grp");
 
-  db.insert(imageGroups)
+  dbOrTx.insert(imageGroups)
     .values({
       id: groupId,
       imageConfigId: input.imageConfigId,
@@ -162,7 +178,7 @@ function createCandidateGroupWithImages(input: {
     .run();
 
   for (let slotIndex = 1; slotIndex <= input.slotCount; slotIndex += 1) {
-    db.insert(generatedImages)
+    dbOrTx.insert(generatedImages)
       .values({
         id: createId("img"),
         imageGroupId: groupId,
@@ -180,7 +196,7 @@ function createCandidateGroupWithImages(input: {
       .run();
   }
 
-  return db.select().from(imageGroups).where(eq(imageGroups.id, groupId)).get() ?? null;
+  return dbOrTx.select().from(imageGroups).where(eq(imageGroups.id, groupId)).get() ?? null;
 }
 
 function getNextCandidateVariantIndex(imageConfigId: string) {
@@ -240,7 +256,7 @@ function normalizeDirectionIdeas(payload: unknown, count: number) {
     .map((item) => normalizeDirectionIdea(item))
     .filter(Boolean) as DirectionIdea[];
 
-  return ideas.length >= count ? ideas.slice(0, count) : null;
+  return ideas.length > 0 ? ideas.slice(0, Math.min(ideas.length, count)) : null;
 }
 
 function getTextLength(value: string) {
@@ -327,6 +343,10 @@ function listImageConfigGroups(imageConfigId: string) {
   return db.select().from(imageGroups).where(eq(imageGroups.imageConfigId, imageConfigId)).all();
 }
 
+function listImageConfigGroupsTx(dbOrTx: DbOrTx, imageConfigId: string) {
+  return dbOrTx.select().from(imageGroups).where(eq(imageGroups.imageConfigId, imageConfigId)).all();
+}
+
 function buildImageConfigInsertValues(input: {
   configId: string;
   copyId: string;
@@ -404,7 +424,26 @@ function createCandidateGroupsForConfig(input: {
   configCount: number;
   timestamp: number;
 }) {
-  const groups = listImageConfigGroups(input.imageConfigId);
+  const db = getDb();
+  return createCandidateGroupsForConfigTx(db, input);
+}
+
+function createCandidateGroupsForConfigTx(
+  dbOrTx: DbOrTx,
+  input: {
+    imageConfigId: string;
+    directionImageForm: string | null | undefined;
+    aspectRatio: string;
+    styleMode: string;
+    imageStyle: string;
+    imageModel: string | null;
+    append: boolean;
+    requestedCount: number | undefined;
+    configCount: number;
+    timestamp: number;
+  },
+) {
+  const groups = listImageConfigGroupsTx(dbOrTx, input.imageConfigId);
   const startIndex = input.append
     ? Math.max(...groups.map((g) => g.variantIndex), 0) + 1
     : 1;
@@ -413,7 +452,7 @@ function createCandidateGroupsForConfig(input: {
   const createdGroups: Array<typeof imageGroups.$inferSelect> = [];
 
   for (let offset = 0; offset < groupCount; offset += 1) {
-    const group = createCandidateGroupWithImages({
+    const group = createCandidateGroupWithImagesTx(dbOrTx, {
       imageConfigId: input.imageConfigId,
       variantIndex: startIndex + offset,
       slotCount,
@@ -440,46 +479,48 @@ function persistDirections(
   copyGenerationCount = 3,
 ) {
   const db = getDb();
-  db.delete(directions).where(eq(directions.projectId, projectId)).run();
-
   const timestamp = now();
-  const created = [] as Array<typeof directions.$inferSelect>;
 
-  ideas.forEach((idea, index) => {
-    const directionId = createId("dir");
+  return db.transaction((tx) => {
+    tx.delete(directions).where(eq(directions.projectId, projectId)).run();
 
-    db.insert(directions)
-      .values({
-        id: directionId,
-        projectId,
-        requirementCardId: requirement.id,
-        title: idea.title,
-        targetAudience: idea.targetAudience,
-        adaptationStage: idea.adaptationStage,
-        scenarioProblem: idea.scenarioProblem,
-        differentiation: idea.differentiation,
-        effect: idea.effect,
-        channel,
-        imageForm,
-        copyGenerationCount,
-        imageTextRelation: imageForm === "single" ? "单图直给" : "递进",
-        sortOrder: index,
-        isSelected: 1,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      })
+    const created = [] as Array<typeof directions.$inferSelect>;
+
+    ideas.forEach((idea, index) => {
+      const directionId = createId("dir");
+
+      tx.insert(directions)
+        .values({
+          id: directionId,
+          projectId,
+          requirementCardId: requirement.id,
+          title: idea.title,
+          targetAudience: idea.targetAudience,
+          adaptationStage: idea.adaptationStage,
+          scenarioProblem: idea.scenarioProblem,
+          differentiation: idea.differentiation,
+          effect: idea.effect,
+          channel,
+          imageForm,
+          copyGenerationCount,
+          sortOrder: index,
+          isSelected: 1,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })
+        .run();
+
+      const record = tx.select().from(directions).where(eq(directions.id, directionId)).get();
+      if (record) created.push(record);
+    });
+
+    tx.update(projects)
+      .set({ status: "active", updatedAt: timestamp })
+      .where(eq(projects.id, projectId))
       .run();
 
-    const record = db.select().from(directions).where(eq(directions.id, directionId)).get();
-    if (record) created.push(record);
+    return created;
   });
-
-  db.update(projects)
-    .set({ status: "active", updatedAt: timestamp })
-    .where(eq(projects.id, projectId))
-    .run();
-
-  return created;
 }
 
 function appendDirections(
@@ -517,7 +558,6 @@ function appendDirections(
         channel,
         imageForm,
         copyGenerationCount,
-        imageTextRelation: imageForm === "single" ? "单图直给" : "递进",
         sortOrder: existingCount + index,
         isSelected: 1,
         createdAt: timestamp,
@@ -1108,58 +1148,6 @@ export async function appendCopyToCardSmart(copyCardId: string) {
   return appendCopyToExistingCard(card, direction, nextIdea);
 }
 
-export async function regenerateCopy(copyId: string) {
-  const db = getDb();
-  const copy = db.select().from(copies).where(eq(copies.id, copyId)).get();
-  if (!copy) return null;
-
-  const direction = db.select().from(directions).where(eq(directions.id, copy.directionId)).get();
-  if (!direction) {
-    throw new Error("方向不存在");
-  }
-
-  const raw = await generateCopyIdeas({
-    directionTitle: direction.title,
-    targetAudience: direction.targetAudience ?? "",
-    scenarioProblem: direction.scenarioProblem ?? "",
-    differentiation: direction.differentiation ?? "",
-    effect: direction.effect ?? "",
-    channel: direction.channel,
-    imageForm: direction.imageForm ?? "single",
-    count: 1,
-  });
-  const nextIdea = normalizeCopyIdeas(raw, 1, direction.imageForm ?? "single")?.[0];
-  if (!nextIdea) {
-    logAgentError({
-      agent: "copy",
-      requestSummary: `重新生成文案, copyId: ${copyId}, 渠道: ${direction.channel}, 形式: ${direction.imageForm}`,
-      rawResponse: JSON.stringify(raw).slice(0, 5000),
-      errorMessage: "normalizeCopyIdeas 返回 null：重新生成文案未通过校验",
-      attemptCount: 1,
-    });
-    throw new Error("AI 生成的文案格式不正确，请重试");
-  }
-
-  const currentConfig = db.select().from(imageConfigs).where(eq(imageConfigs.copyId, copyId)).get();
-  if (currentConfig) {
-    await deleteImageConfigCascade(currentConfig.id);
-  }
-
-  db.update(copies)
-    .set({
-      titleMain: nextIdea.titleMain,
-      titleSub: nextIdea.titleSub ?? null,
-      titleExtra: nextIdea.titleExtra ?? null,
-      copyType: nextIdea.copyType ?? null,
-      isLocked: 0,
-      updatedAt: now(),
-    })
-    .where(eq(copies.id, copyId))
-    .run();
-
-  return db.select().from(copies).where(eq(copies.id, copyId)).get() ?? null;
-}
-
 export async function saveImageConfig(
   copyId: string,
   input: Partial<{
@@ -1259,7 +1247,28 @@ export async function saveImageConfig(
   }
 
   if (!input.append) {
-    db.delete(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).run();
+    return db.transaction((tx) => {
+      tx.delete(imageGroups).where(eq(imageGroups.imageConfigId, config.id)).run();
+
+      const createdGroups = createCandidateGroupsForConfigTx(tx, {
+        imageConfigId: config.id,
+        directionImageForm: direction.imageForm,
+        aspectRatio: config.aspectRatio,
+        styleMode: config.styleMode,
+        imageStyle: config.imageStyle,
+        imageModel: config.imageModel,
+        append: false,
+        requestedCount: input.count,
+        configCount: config.count,
+        timestamp,
+      });
+
+      return {
+        ...config,
+        createdGroups,
+        groups: listImageConfigGroupsTx(tx, config.id),
+      };
+    });
   }
 
   const createdGroups = createCandidateGroupsForConfig({
@@ -1702,6 +1711,7 @@ export function getWorkspaceHeader(projectId: string) {
       id: project.id,
       title: project.title,
       status: project.status,
+      folderId: project.folderId,
     },
   };
 }
@@ -1733,6 +1743,7 @@ export function getProjectTreeData(projectId: string) {
       id: project.id,
       title: project.title,
       status: project.status,
+      folderId: project.folderId,
     },
     requirement,
     directions: directionsWithCards,

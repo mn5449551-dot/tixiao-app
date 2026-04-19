@@ -7,7 +7,6 @@ const VALID_MODEL_KEYS: ModelSettingKey[] = [
   "model_copy",
   "model_assistant",
   "model_image_description",
-  "model_image_generation",
 ];
 
 export async function GET() {

@@ -62,7 +62,6 @@ function seedCopyRouteFixture(): { projectId: string; directionId: string; copyC
     channel: "应用商店",
     imageForm: "single",
     copyGenerationCount: 1,
-    imageTextRelation: "单图直给",
     sortOrder: 0,
     isSelected: 1,
     createdAt: timestamp,

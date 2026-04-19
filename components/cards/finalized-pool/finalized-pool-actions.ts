@@ -68,7 +68,7 @@ export async function exportFinalizedImages(input: {
     anchor.href = url;
     anchor.download = "export.zip";
     anchor.click();
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => window.URL.revokeObjectURL(url), 5000);
 
     return { ok: true, error: null as string | null };
   } catch (error) {

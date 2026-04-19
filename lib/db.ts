@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database, { type RunResult } from "better-sqlite3";
+import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { ExtractTablesWithRelations, TablesRelationalConfig } from "drizzle-orm/relations";
+import type { SQLiteTransaction } from "drizzle-orm/sqlite-core";
 
 import { getDbFilePath } from "@/lib/runtime-paths";
 import * as schema from "@/lib/schema";
@@ -11,6 +13,12 @@ const SQLITE_HEADER = Buffer.from("SQLite format 3\0");
 
 let sqlite: Database.Database | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
+
+export type DbOrTx =
+  | (BetterSQLite3Database<typeof schema> & { $client: Database.Database })
+  | SQLiteTransaction<"sync", RunResult, typeof schema, ExtractTablesWithRelations<typeof schema>>;
+
+export type DbInstance = ReturnType<typeof drizzle<typeof schema>>;
 
 function bootstrap(connection: Database.Database) {
   connection.pragma("journal_mode = WAL");
@@ -60,7 +68,6 @@ function bootstrap(connection: Database.Database) {
       channel TEXT NOT NULL,
       image_form TEXT,
       copy_generation_count INTEGER NOT NULL DEFAULT 3,
-      image_text_relation TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_selected INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,

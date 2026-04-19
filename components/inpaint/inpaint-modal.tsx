@@ -270,7 +270,7 @@ export function InpaintModal({ imageId, imageUrl, imageModel, onClose }: Inpaint
                         清除
                       </Button>
                     </div>
-                    <p className="text-[10px] text-white/40">
+                    <p className="text-xs text-white/40">
                       在图片上涂抹标记重绘区域。按住空格拖拽平移，滚轮缩放。
                     </p>
                   </div>

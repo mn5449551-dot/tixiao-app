@@ -28,7 +28,6 @@ export {
 export {
   appendCopyToCardSmart,
   generateCopyCardSmart,
-  regenerateCopy,
 } from "@/lib/project-data-modules/copy-operations";
 
 export {

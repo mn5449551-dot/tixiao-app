@@ -156,7 +156,7 @@ export function WorkflowCanvas({
         maxZoom={2.5}
       >
         <Background color="rgba(226, 213, 203, 0.35)" gap={20} size={1} />
-        <Controls className="!rounded-2xl !border !border-[var(--line-soft)] !bg-white !shadow-[var(--shadow-card)]" />
+        <Controls className="!rounded-2xl !border !border-[var(--border)] !bg-white !shadow-[var(--shadow-card)]" />
         <CanvasEventBridge
           allNodes={canvasNodes}
           onHighlight={setHighlightedNodeId}
@@ -225,7 +225,7 @@ function AutoLayoutToolbar({
       <button
         type="button"
         onClick={handleAutoLayout}
-        className="rounded-xl border border-[var(--line-soft)] bg-white px-3 py-2 text-xs text-[var(--ink-700)] shadow-[var(--shadow-card)] transition-all duration-300 hover:bg-[var(--surface-1)] hover:shadow-[var(--shadow-card-hover)]"
+        className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs text-[var(--ink-default)] shadow-[var(--shadow-card)] transition-all duration-300 hover:bg-[var(--surface-dim)] hover:shadow-[var(--shadow-card-hover)]"
       >
         一键整理
       </button>

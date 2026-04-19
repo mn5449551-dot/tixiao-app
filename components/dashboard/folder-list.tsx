@@ -26,18 +26,18 @@ export function FolderList({ folders }: { folders: FolderSummary[] }) {
       {folders.map((folder, index) => (
         <div
           key={folder.id}
-          className="group animate-fade-in rounded-[26px] border border-[var(--line-soft)] bg-white/92 px-5 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--line-brand)] hover:shadow-[var(--shadow-card-hover)] md:flex md:items-center md:justify-between"
+          className="group animate-fade-in rounded-[26px] border border-[var(--border)] bg-white/92 px-5 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--brand-light)] hover:shadow-[var(--shadow-card-hover)] md:flex md:items-center md:justify-between"
           style={{ animationDelay: `${index * 50}ms` }}
         >
           <Link href={`/folders/${folder.id}`} className="block min-w-0 flex-1">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="text-xl">{"\uD83D\uDCC1"}</span>
-                <h3 className="truncate text-xl font-semibold text-[var(--ink-950)] transition-colors group-hover:text-[var(--brand-700)]">
+                <h3 className="truncate text-xl font-semibold text-[var(--ink-strong)] transition-colors group-hover:text-[var(--brand-dark)]">
                   {folder.name}
                 </h3>
               </div>
-              <p className="text-sm text-[var(--ink-500)]">
+              <p className="text-sm text-[var(--ink-muted)]">
                 {folder.projectCount} 个项目 · 最近更新: {formatRelativeDate(folder.updatedAt)}
               </p>
             </div>
@@ -46,7 +46,7 @@ export function FolderList({ folders }: { folders: FolderSummary[] }) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-3 text-xs text-[var(--ink-500)] opacity-40 transition-[opacity,color,background-color] group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger-700)]"
+              className="h-8 px-3 text-xs text-[var(--ink-muted)] opacity-40 transition-[opacity,color,background-color] group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)]"
               disabled={isPending}
               onClick={() => {
                 if (!confirm(`确定删除文件夹「${folder.name}」吗？会同时永久删除该文件夹下的全部项目和素材，无法恢复。`)) return;
@@ -62,7 +62,7 @@ export function FolderList({ folders }: { folders: FolderSummary[] }) {
             </Button>
             <Link
               href={`/folders/${folder.id}`}
-              className="inline-flex items-center rounded-xl bg-gradient-to-br from-[var(--brand-400)] to-[var(--brand-500)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(232,131,90,0.3)]"
+              className="inline-flex items-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(232,131,90,0.3)]"
               title="打开文件夹"
               aria-label="打开文件夹"
             >

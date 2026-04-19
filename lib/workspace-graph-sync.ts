@@ -44,6 +44,7 @@ function mergeCandidateImage(
     fileUrl: toVersionedFileUrl(nextImage.fileUrl, nextImage.updatedAt),
     thumbnailUrl: toVersionedFileUrl(nextImage.thumbnailUrl, nextImage.updatedAt),
     status: nextImage.status as CandidateImageStatus,
+    errorMessage: nextImage.errorMessage ?? null,
     updatedAt: nextImage.updatedAt,
   };
 }

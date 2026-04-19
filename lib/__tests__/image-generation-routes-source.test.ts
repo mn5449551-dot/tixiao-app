@@ -7,24 +7,19 @@ const appendRoutePath = new URL("../../app/api/image-configs/[id]/append/route.t
 const generationServicePath = new URL("../image-generation-service.ts", import.meta.url);
 const regenerateRoutePath = new URL("../../app/api/images/[id]/route.ts", import.meta.url);
 const inpaintRoutePath = new URL("../../app/api/images/[id]/inpaint/route.ts", import.meta.url);
-const referenceModeRoutePath = new URL("../../app/api/reference-mode/route.ts", import.meta.url);
 
 test("image generation routes pass aspect ratio through the shared OpenAI-compatible image client", async () => {
   const generateSource = await readFile(generationServicePath, "utf8");
   const regenerateSource = await readFile(regenerateRoutePath, "utf8");
-  const referenceSource = await readFile(referenceModeRoutePath, "utf8");
 
   assert.match(generateSource, /generateImageFromReference/);
   assert.match(generateSource, /generateImageFromPrompt/);
   assert.match(regenerateSource, /generateImageFromReference/);
   assert.match(regenerateSource, /generateImageFromPrompt/);
-  assert.match(referenceSource, /generateImageFromReference/);
   assert.match(generateSource, /generateImageFromReference\([\s\S]{0,240}aspectRatio:\s*config\.aspectRatio/);
   assert.match(generateSource, /generateImageFromPrompt\(item\.prompt,\s*\{[\s\S]{0,180}aspectRatio:\s*config\.aspectRatio/);
   assert.match(regenerateSource, /generateImageFromReference\([\s\S]{0,280}aspectRatio:\s*group\?\.aspectRatio \?\? config\.aspectRatio/);
   assert.match(regenerateSource, /generateImageFromPrompt\(fullPrompt,\s*\{[\s\S]{0,200}aspectRatio:\s*group\?\.aspectRatio \?\? config\.aspectRatio/);
-  assert.match(referenceSource, /aspect_ratio\?:/);
-  assert.match(referenceSource, /aspectRatio:\s*body\.aspect_ratio/);
 });
 
 test("single-image regenerate reads final prompt snapshots directly", async () => {

@@ -182,11 +182,11 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
 
   if (collapsed) {
     return (
-      <div className="flex h-full w-[28px] items-center justify-center bg-gradient-to-b from-[var(--surface-1)] to-[var(--surface-2)] border-l border-[var(--line-soft)]">
+      <div className="flex h-full w-[28px] items-center justify-center bg-[var(--surface-dim)] border-l border-[var(--border)]">
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="flex h-16 w-6 items-center justify-center rounded-l-xl bg-white/80 text-[var(--ink-500)] shadow-sm transition-all duration-200 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)] hover:shadow-md"
+          className="flex h-16 w-6 items-center justify-center rounded-l-xl bg-white/80 text-[var(--ink-muted)] shadow-sm transition-all duration-200 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-hover)] hover:shadow-md"
           title="展开助手"
         >
           <span className="text-xs font-medium">&#9664;</span>
@@ -196,16 +196,16 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
   }
 
   return (
-    <div className="flex h-full w-[360px] flex-col overflow-hidden border-l border-[var(--line-soft)] bg-gradient-to-b from-[var(--panel-strong)] to-[var(--surface-0)]">
+    <div className="flex h-full w-[360px] flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)]">
       {/* Header - 美化布局 */}
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line-soft)] bg-white/70 px-4 py-3 backdrop-blur-sm">
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border)] bg-white/70 px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand)] text-white shadow-sm">
             <span className="text-sm font-bold">AI</span>
           </div>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[var(--ink-400)]">Assistant</p>
-            <h2 className="text-sm font-semibold text-[var(--ink-900)]">对话助手</h2>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--ink-subtle)]">Assistant</p>
+            <h2 className="text-sm font-semibold text-[var(--ink-strong)]">对话助手</h2>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -215,7 +215,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="rounded-lg p-1.5 text-[var(--ink-400)] transition-all duration-200 hover:bg-[var(--surface-1)] hover:text-[var(--ink-700)]"
+            className="rounded-lg p-1.5 text-[var(--ink-subtle)] transition-all duration-200 hover:bg-[var(--surface-dim)] hover:text-[var(--ink-default)]"
             title="收起"
           >
             <span className="text-xs">&#9654;</span>
@@ -225,8 +225,8 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
 
       {/* Scrollable content — chat-first layout */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3">
-          <p className="text-[11px] font-medium text-[var(--ink-600)]">当前仅支持 APP + 图文</p>
+        <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface-dim)] px-4 py-3">
+          <p className="text-xs font-medium text-[var(--ink-default)]">当前仅支持 APP + 图文</p>
           {(() => {
             const audienceActions = (assistantState?.ui ?? []).filter(
               (item): item is Extract<NonNullable<AssistantState["ui"]>[number], { type: "audience_buttons" }> =>
@@ -244,8 +244,8 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
                   type="button"
                   className={`rounded-full border px-3 py-1 text-xs transition ${
                     isSelected
-                      ? "border-[var(--brand-500)] bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)] text-white"
-                      : "border-[var(--line-strong)] bg-white text-[var(--ink-700)] hover:border-[var(--brand-400)] hover:text-[var(--brand-700)]"
+                      ? "border-[var(--brand)] bg-[var(--brand)] text-white"
+                      : "border-[var(--border-strong)] bg-white text-[var(--ink-default)] hover:border-[var(--brand)] hover:text-[var(--brand-dark)]"
                   }`}
                   onClick={() => void sendAssistantMessage(`目标人群选为${option.label}`)}
                 >
@@ -261,16 +261,16 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
         {/* Chat messages - 美化消息气泡 */}
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
           {assistantState?.stage === "done" && assistantState.confirmation ? (
-            <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
-              <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">当前需求摘要</p>
-              <div className="space-y-1 text-xs text-[var(--ink-700)]">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-dim)] px-4 py-3 shadow-sm">
+              <p className="mb-2 text-xs font-medium text-[var(--ink-muted)]">当前需求摘要</p>
+              <div className="space-y-1 text-xs text-[var(--ink-default)]">
                 <p>目标人群：{getTargetAudienceLabel(assistantState.confirmation.targetAudience)}</p>
                 <p>功能：{assistantState.confirmation.feature || "待补充"}</p>
                 <p>卖点：{assistantState.confirmation.sellingPoints.join("、") || "待补充"}</p>
                 <p>时间节点：{assistantState.confirmation.timeNode || "待补充"}</p>
                 <p>方向数量：{assistantState.confirmation.directionCount ?? "待补充"}</p>
               </div>
-              <p className="mt-2 text-[11px] text-[var(--ink-500)]">你可以继续补充或修改，我会重新整理，确认后再一次性回填。</p>
+              <p className="mt-2 text-xs text-[var(--ink-muted)]">你可以继续补充或修改，我会重新整理，确认后再一次性回填。</p>
             </div>
           ) : null}
 
@@ -281,11 +281,11 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             >
               {/* 头像 */}
               {msg.role === "ai" ? (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-400)] to-[var(--brand-500)] text-xs font-bold text-white shadow-sm">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] text-xs font-bold text-white shadow-sm">
                   AI
                 </div>
               ) : msg.role === "user" ? (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ink-300)] to-[var(--ink-400)] text-xs font-bold text-white shadow-sm">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--ink-subtle)] text-xs font-bold text-white shadow-sm">
                   我
                 </div>
               ) : null}
@@ -293,10 +293,10 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
               {/* 消息气泡 */}
               <div className={`max-w-sm rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                 msg.role === "user"
-                  ? "bg-gradient-to-br from-[var(--brand-50)] to-[var(--brand-100)] text-[var(--brand-800)]"
+                  ? "bg-[var(--brand-bg)] text-[var(--brand-dark)]"
                   : msg.role === "system"
-                    ? "bg-[var(--surface-2)] text-[var(--ink-500)] text-xs"
-                    : "bg-white text-[var(--ink-700)]"
+                    ? "bg-[var(--surface-dim)] text-[var(--ink-muted)] text-xs"
+                    : "bg-white text-[var(--ink-default)]"
               }`}>
                 <pre className="whitespace-pre-wrap font-sans text-inherit">{msg.content}</pre>
               </div>
@@ -315,14 +315,14 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             const options = suggestionActions.flatMap((item) => item.options);
             if (options.length === 0) return null;
             return (
-              <div key={type} className="rounded-2xl border border-[var(--line-soft)] bg-white px-4 py-3 shadow-sm">
-                <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">{title}</p>
+              <div key={type} className="rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm">
+                <p className="mb-2 text-xs font-medium text-[var(--ink-muted)]">{title}</p>
                 <div className="flex flex-wrap gap-2">
                   {options.map((option) => (
                     <button
                       key={`${type}-${option.value}-${option.label}`}
                       type="button"
-                      className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs text-[var(--brand-700)] transition hover:bg-[var(--brand-100)]"
+                      className="rounded-full bg-[var(--brand-bg)] px-3 py-1 text-xs text-[var(--brand-dark)] transition hover:bg-[var(--brand-bg)]"
                       onClick={() => void sendAssistantMessage(option.label)}
                     >
                       {option.label}
@@ -334,9 +334,9 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
           })}
 
           {assistantState?.confirmation ? (
-            <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-1)] px-4 py-3 shadow-sm">
-              <p className="mb-2 text-xs font-medium text-[var(--ink-500)]">结构化确认</p>
-              <div className="space-y-1 text-xs text-[var(--ink-700)]">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-dim)] px-4 py-3 shadow-sm">
+              <p className="mb-2 text-xs font-medium text-[var(--ink-muted)]">结构化确认</p>
+              <div className="space-y-1 text-xs text-[var(--ink-default)]">
                 <p>业务目标：APP</p>
                 <p>形式：图文</p>
                 <p>目标人群：{getTargetAudienceLabel(assistantState.confirmation.targetAudience)}</p>
@@ -361,8 +361,8 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             </div>
           ) : null}
           {assistantLoading && (
-            <div className="flex items-center gap-2 text-xs text-[var(--ink-500)]">
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--brand-400)] border-t-transparent" />
+            <div className="flex items-center gap-2 text-xs text-[var(--ink-muted)]">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent" />
               AI 正在思考...
             </div>
           )}
@@ -373,7 +373,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
         {assistantState?.stage === "confirming" && (
           <div className="shrink-0 px-4 pb-3">
             <Button
-              className="w-full bg-gradient-to-r from-[var(--brand-500)] to-[var(--brand-600)] text-white shadow-md hover:shadow-lg"
+              className="w-full bg-[var(--brand)] text-white shadow-md hover:shadow-lg"
               onClick={confirmAndFill}
               disabled={assistantLoading}
               variant="primary"
@@ -391,12 +391,12 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
         )}
 
         {/* Chat input - 美化输入框 */}
-        <div className="shrink-0 border-t border-[var(--line-soft)] bg-white/60 px-4 py-3 backdrop-blur-sm">
+        <div className="shrink-0 border-t border-[var(--border)] bg-white/60 px-4 py-3">
           <div className="flex gap-2">
             <div className="flex-1 relative">
               <Textarea
                 minRows={1}
-                className="w-full rounded-xl border border-[var(--line-strong)] bg-white px-4 py-3 text-sm shadow-sm focus:border-[var(--brand-400)] focus:ring-2 focus:ring-[var(--brand-ring)]"
+                className="w-full rounded-xl border border-[var(--border-strong)] bg-white px-4 py-3 text-sm shadow-sm focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-ring)]"
                 placeholder={
                   assistantState?.stage === "done"
                     ? "继续补充需求、修改字段，或直接输入新想法..."
@@ -414,7 +414,7 @@ export function AgentPanel({ projectId, collapsed, onToggleCollapse }: AgentPane
             </div>
             <Button
               variant="primary"
-              className="shrink-0 bg-gradient-to-r from-[var(--brand-500)] to-[var(--brand-600)] px-6 text-sm font-medium shadow-md hover:shadow-lg"
+              className="shrink-0 bg-[var(--brand)] px-6 text-sm font-medium shadow-md hover:shadow-lg"
               disabled={!conversationInput.trim() || assistantLoading}
               onClick={handleConversationSend}
             >

@@ -161,70 +161,72 @@ export function DirectionCard({
 
   const selectedCount = selectedIds.size;
   const totalCount = directions.length;
+  const hasAnyDownstream = directions.some((d) => d.hasDownstream);
 
   const borderColorClass = isError
-    ? "border-[var(--danger-500)]"
+    ? "border-[var(--danger)]"
     : selected
-      ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
-      : "border-[var(--line-soft)]";
+      ? "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]"
+      : "border-[var(--border)]";
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-white p-6 shadow-[var(--shadow-card)] transition-all duration-350 ease-out",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition-all duration-[var(--duration-normal)] ease-out",
         borderColorClass,
         isLoading && "ring-2 ring-[var(--brand-ring)]",
       )}
-      style={{ width: 620, maxWidth: '100%' } satisfies CSSProperties}
+      style={{ width: 480, maxWidth: '100%' } satisfies CSSProperties}
     >
       {isLoading && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/70 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[var(--radius-lg)] bg-white/70">
           <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[var(--brand-200)] border-t-[var(--brand-500)]" />
-            <span className="text-xs font-medium text-[var(--brand-600)]">生成中...</span>
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--brand-light)] border-t-[var(--brand)]" />
+            <span className="text-xs font-medium text-[var(--brand-hover)]">生成中...</span>
           </div>
         </div>
       )}
 
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)] !shadow-sm"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
 
       {/* Top color bar */}
       <div className={cn(
-        "absolute inset-x-0 top-0 h-2",
-        isError ? "bg-[var(--danger-500)]" : "bg-gradient-to-r from-[var(--brand-300)] to-[var(--brand-500)]",
+        "absolute inset-x-0 top-0 h-1",
+        isError ? "bg-[var(--danger)]" : "bg-[var(--brand)]",
       )} />
 
       {/* Header */}
-      <div className="workflow-drag-handle mb-5 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--line-soft)] pb-4 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-center justify-between gap-3 border-b border-[var(--border)] pb-3 active:cursor-grabbing">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--ink-950)]">方向卡</h3>
-          <p className="mt-0.5 text-[11px] text-[var(--ink-500)]">
-            {totalCount}条方向 {selectedCount > 0 && <span className="font-medium text-[var(--brand-600)]">· 已选{selectedCount}</span>}
+          <h3 className="text-xl font-semibold text-[var(--ink-strong)]">方向卡</h3>
+          <p className="mt-0.5 text-xs text-[var(--ink-subtle)]">
+            {totalCount}条方向 {selectedCount > 0 && <span className="font-medium text-[var(--brand-hover)]">· 已选{selectedCount}</span>}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
           <Badge tone="brand" size="sm">方向</Badge>
           {isDone && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success-500)] text-[9px] text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success)] text-xs text-white">
               ✓
             </span>
           )}
           {isError && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger-500)] text-[9px] text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger)] text-xs text-white">
               ✕
             </span>
           )}
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-[var(--ink-500)] hover:text-[var(--danger-600)]"
-            disabled={isDeletingCard || directions.length === 0}
+            className="h-6 px-1.5 text-[var(--ink-muted)] hover:text-[var(--danger-text)]"
+            disabled={isDeletingCard || directions.length === 0 || hasAnyDownstream}
+            title={hasAnyDownstream ? "请先删除下游的文案卡" : "删除方向卡"}
             onClick={async () => {
-              if (isDeletingCard || !data.projectId) return;
+              if (isDeletingCard || !data.projectId || hasAnyDownstream) return;
               if (!confirm(`确定删除整张方向卡（包含 ${totalCount} 条方向）？`)) return;
               setIsDeletingCard(true);
               setActionError(null);
@@ -239,7 +241,7 @@ export function DirectionCard({
             }}
           >
             {isDeletingCard ? (
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ink-300)] border-t-[var(--ink-500)]" />
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ink-subtle)] border-t-[var(--ink-muted)]" />
             ) : (
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -250,17 +252,17 @@ export function DirectionCard({
       </div>
 
       {isError ? (
-        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="mb-4 rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           方向生成失败，请重试
         </div>
       ) : null}
       {actionError ? (
-        <div className="mb-4 rounded-xl bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-700)]">
+        <div className="mb-4 rounded-lg bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           {actionError}
         </div>
       ) : null}
 
-      <div className="mb-5 grid gap-3 rounded-2xl bg-[var(--surface-1)] p-4 md:grid-cols-2">
+      <div className="mb-4 grid gap-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4 md:grid-cols-2">
         <Field label="渠道">
           <Select value={channel} onChange={handleChannelChange}>
             {CHANNELS.map((item) => (
@@ -368,17 +370,17 @@ export function DirectionCard({
         })}
 
         {directions.length === 0 ? (
-          <div className="rounded-2xl bg-[var(--surface-1)] p-6 text-center">
-            <p className="text-sm font-medium text-[var(--ink-700)]">暂无方向</p>
-            <p className="mt-2 text-xs text-[var(--ink-500)]">请先从需求卡生成方向</p>
+          <div className="rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-4 text-center">
+            <p className="text-sm font-medium text-[var(--ink-default)]">暂无方向</p>
+            <p className="mt-2 text-xs text-[var(--ink-subtle)]">请先从需求卡生成方向</p>
           </div>
         ) : null}
       </div>
 
-      <div className="my-5 h-px bg-[var(--line-soft)]" />
+      <div className="my-4 h-px bg-[var(--border)]" />
 
       {/* Copy generation settings */}
-      <div className="mb-5">
+      <div className="mb-4">
         <Field label="文案生成数量">
           <div className="flex gap-1.5">
             {["1", "2", "3", "4", "5"].map((count) => (
@@ -386,10 +388,10 @@ export function DirectionCard({
                 key={count}
                 type="button"
                 className={cn(
-                  "h-8 w-8 rounded-lg text-xs font-medium transition",
+                  "h-8 w-8 rounded-[var(--radius-md)] text-xs font-medium transition",
                   copyGenerationCount === count
-                    ? "bg-gradient-to-r from-[var(--brand-400)] to-[var(--brand-500)] text-white shadow-sm"
-                    : "border border-[var(--line-strong)] bg-white text-[var(--ink-700)] hover:border-[var(--brand-400)]",
+                    ? "bg-[var(--brand)] text-white"
+                    : "border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-default)] hover:border-[var(--brand-light)]",
                 )}
                 onClick={() => setCopyGenerationCount(count)}
               >
@@ -431,7 +433,7 @@ export function DirectionCard({
         </Button>
         <Button
           variant="primary"
-          className="flex-1 shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-hover)]"
+          className="flex-1"
           disabled={selectedCount === 0 || isGeneratingSelected}
           onClick={async () => {
             const selectedDirections = directions.filter(
@@ -491,9 +493,9 @@ function ReadOnlyDirectionDetails({
 
 function DetailBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-[var(--surface-1)] px-4 py-3.5">
-      <div className="text-[11px] font-medium leading-4 text-[var(--ink-500)]">{label}</div>
-      <div className="mt-2.5 whitespace-pre-wrap break-words text-xs leading-7 text-[var(--ink-800)]">{value}</div>
+    <div className="rounded-[var(--radius-md)] bg-[var(--surface-dim)] px-4 py-3.5">
+      <div className="text-xs font-medium leading-4 text-[var(--ink-subtle)]">{label}</div>
+      <div className="mt-2.5 whitespace-pre-wrap break-words text-xs leading-7 text-[var(--ink-default)]">{value}</div>
     </div>
   );
 }

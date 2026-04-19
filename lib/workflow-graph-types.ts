@@ -90,6 +90,7 @@ export type GraphNodeData =
           id: string;
           fileUrl: string | null;
           status: "pending" | "generating" | "done" | "failed";
+          errorMessage?: string | null;
           slotIndex: number;
           aspectRatio?: string;
           updatedAt?: number;

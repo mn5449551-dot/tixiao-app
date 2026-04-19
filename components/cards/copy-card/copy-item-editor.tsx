@@ -19,13 +19,13 @@ export function CopyItemEditor({
   onSave: () => void;
 }) {
   if (locked) {
-    return <p className="text-[11px] text-[var(--ink-400)]">已锁定，需先删除对应图片配置卡才能修改</p>;
+    return <p className="text-xs text-[var(--ink-subtle)]">已锁定，需先删除对应图片配置卡才能修改</p>;
   }
 
   return (
     <div className="space-y-2">
       {rows.map((row) => (
-        <label key={row.label} className="grid grid-cols-[64px_1fr] items-center gap-2 text-[11px] text-[var(--ink-600)]">
+        <label key={row.label} className="grid grid-cols-[64px_1fr] items-center gap-2 text-xs text-[var(--ink-default)]">
           <span>{row.label}：</span>
           <Textarea
             minRows={1}

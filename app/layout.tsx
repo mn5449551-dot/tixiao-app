@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
+import { IBM_Plex_Mono, Noto_Sans_SC } from "next/font/google";
 import "./globals.css";
 
 const sans = Noto_Sans_SC({
   variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const serif = Noto_Serif_SC({
-  variable: "--font-serif",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -31,11 +25,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" data-scroll-behavior="smooth" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="zh-CN" data-scroll-behavior="smooth" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-5 focus:py-3 focus:text-sm focus:font-medium focus:text-[var(--brand-700)] focus:shadow-[var(--shadow-elevated)] focus:outline-2 focus:outline-[var(--brand-400)] focus:outline-offset-2"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-5 focus:py-3 focus:text-sm focus:font-medium focus:text-[var(--brand-dark)] focus:shadow-[var(--shadow-lg)] focus:outline-2 focus:outline-[var(--brand-light)] focus:outline-offset-2"
         >
           跳转到主要内容
         </a>

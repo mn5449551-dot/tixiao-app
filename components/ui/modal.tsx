@@ -47,16 +47,16 @@ export function Modal({
       aria-labelledby="modal-title"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-[rgba(28,25,23,0.42)] backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-[rgba(28,25,23,0.4)]" />
       <div
-        className={`relative w-full max-w-xl rounded-[28px] border border-[var(--line-soft)] bg-[var(--surface-0)] p-6 shadow-[var(--shadow-elevated)]${scrollable ? " max-h-[85vh]" : ""}`}
+        className={`relative w-full max-w-lg rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-lg)]${scrollable ? " max-h-[85vh]" : ""}`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="space-y-2">
-          <h2 id="modal-title" className="text-2xl font-semibold text-[var(--ink-950)]">
+        <div className="space-y-1">
+          <h2 id="modal-title" className="text-xl font-semibold text-[var(--ink-strong)]">
             {title}
           </h2>
-          {description ? <p className="text-sm leading-7 text-[var(--ink-600)]">{description}</p> : null}
+          {description ? <p className="text-sm leading-relaxed text-[var(--ink-subtle)]">{description}</p> : null}
         </div>
         <div className={scrollable ? "mt-5 max-h-[70vh] overflow-y-auto pr-1" : "mt-5"}>{children}</div>
       </div>

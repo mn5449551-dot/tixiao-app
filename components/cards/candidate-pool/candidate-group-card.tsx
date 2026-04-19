@@ -37,14 +37,14 @@ export function CandidateGroupCard({
   const groupHasGenerating = group.images.some((image) => image.status === "generating" || image.status === "pending");
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-[var(--line-soft)] bg-white p-4 shadow-[var(--shadow-inset)]">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-[var(--ink-900)]">第 {group.variantIndex} 套{modelLabel ? <span className="font-normal text-[var(--ink-400)]"> · {modelLabel}</span> : ""}</p>
+            <p className="text-sm font-semibold text-[var(--ink-strong)]">第 {group.variantIndex} 套{modelLabel ? <span className="font-normal text-[var(--ink-subtle)]"> · {modelLabel}</span> : ""}</p>
             {isLatest ? <Badge tone="neutral">最新</Badge> : null}
           </div>
-          <p className="mt-1 text-[11px] text-[var(--ink-400)]">
+          <p className="mt-1 text-xs text-[var(--ink-subtle)]">
             {displayMode === "double" ? "双图" : "三图"} · {group.aspectRatio} · {group.imageStyle}
           </p>
         </div>
@@ -64,7 +64,7 @@ export function CandidateGroupCard({
             onViewPromptDetails={onViewPromptDetails}
             onDiscardInpaint={group.isConfirmed ? undefined : onDiscardInpaint}
             footer={
-              <div className="flex items-center justify-between text-[10px] text-[var(--ink-400)]">
+              <div className="flex items-center justify-between text-xs text-[var(--ink-subtle)]">
                 <span>图 {image.slotIndex}</span>
                 <span>{image.status === "done" ? "可预览" : image.status}</span>
               </div>
@@ -72,12 +72,12 @@ export function CandidateGroupCard({
           />
         ))}
       </div>
-      <div className="mt-4 flex items-center gap-2 border-t border-[var(--line-soft)] pt-3">
-        <Button variant="secondary" className="h-9 px-3 text-[11px]" onClick={onConfirmGroup} disabled={groupHasGenerating}>
+      <div className="mt-4 flex items-center gap-2 border-t border-[var(--border)] pt-3">
+        <Button variant="secondary" className="h-9 px-3 text-xs" onClick={onConfirmGroup} disabled={groupHasGenerating}>
           {group.isConfirmed ? "取消定稿" : "选定稿"}
         </Button>
         {group.isConfirmed ? null : (
-          <Button variant="ghost" className="h-9 px-3 text-[11px]" onClick={() => onDeleteGroup(group.id)} disabled={loadingKey === group.id || groupHasGenerating}>
+          <Button variant="ghost" className="h-9 px-3 text-xs" onClick={() => onDeleteGroup(group.id)} disabled={loadingKey === group.id || groupHasGenerating}>
             删除整套
           </Button>
         )}

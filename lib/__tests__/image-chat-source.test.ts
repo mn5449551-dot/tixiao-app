@@ -18,14 +18,15 @@ test("image chat supports both chat-completions and images-generations transport
   assert.doesNotMatch(source, /buildNativeParts/);
 });
 
-test("image chat resolves the global image-generation model and routes by model capability", async () => {
+test("image chat resolves the default image-generation model and routes by model capability", async () => {
   const [source, constantsSource] = await Promise.all([
     readFile(imageChatPath, "utf8"),
     readFile(new URL("../constants.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(source, /model_image_generation/);
-  assert.match(source, /getModelSetting/);
+  assert.match(source, /DEFAULT_IMAGE_MODEL/);
+  assert.doesNotMatch(source, /model_image_generation/);
+  assert.doesNotMatch(source, /getModelSetting/);
   assert.match(constantsSource, /qwen-image-2\.0/);
   assert.match(constantsSource, /gpt-image-1\.5/);
   assert.match(constantsSource, /doubao-seedream-5-0-lite/);

@@ -1,4 +1,3 @@
-import { getModelSetting } from "@/lib/project-data";
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL_VALUE, getModelDefaultSize } from "@/lib/constants";
 
 const DEFAULT_BASE_URL = process.env.NEW_API_BASE_URL ?? "https://ops-ai-gateway.yc345.tv";
@@ -128,7 +127,7 @@ function resolveImageModel(model?: string): {
   supportsReference: boolean;
   supportsEdits: boolean;
 } {
-  const resolvedModel = model ?? getModelSetting("model_image_generation") ?? DEFAULT_IMAGE_MODEL;
+  const resolvedModel = model ?? DEFAULT_IMAGE_MODEL;
 
   const capability = IMAGE_MODEL_CAPABILITIES.get(resolvedModel);
   return {
