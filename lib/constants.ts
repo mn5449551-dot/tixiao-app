@@ -28,7 +28,17 @@ export const IMAGE_MODELS = [
   { value: "gemini-3-pro-image-preview", label: "Gemini 3 Pro（不稳定）", transport: "chat_completions" as const, supportsReference: true, supportsEdits: false, aspectRatios: ["16:9", "9:16"] as const },
   { value: "gpt-image-1.5", label: "GPT Image 1.5", transport: "images_generations" as const, supportsReference: true, supportsEdits: false, aspectRatios: ["1:1"] as const },
 ] as const;
+export const FINALIZED_ADAPTATION_MODEL_VALUES = [
+  "doubao-seedream-4-0",
+  "doubao-seedream-4-5",
+  "doubao-seedream-5-0-lite",
+  "qwen-image-2.0",
+] as const;
+export const FINALIZED_ADAPTATION_MODELS = IMAGE_MODELS.filter((model) =>
+  FINALIZED_ADAPTATION_MODEL_VALUES.includes(model.value as (typeof FINALIZED_ADAPTATION_MODEL_VALUES)[number]),
+);
 export const DEFAULT_IMAGE_MODEL_VALUE = IMAGE_MODELS[0].value;
+export const DEFAULT_FINALIZED_ADAPTATION_MODEL_VALUE = FINALIZED_ADAPTATION_MODELS[0].value;
 
 export function getAspectRatiosForModel(modelValue: string | null | undefined): readonly string[] {
   if (!modelValue) return [];

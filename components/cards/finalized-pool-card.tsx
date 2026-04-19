@@ -22,7 +22,10 @@ import {
   splitExportSlotSpecsByCoverage,
   type ExportSlotSpec,
 } from "@/lib/export/utils";
-import { IMAGE_MODELS } from "@/lib/constants";
+import {
+  DEFAULT_FINALIZED_ADAPTATION_MODEL_VALUE,
+  FINALIZED_ADAPTATION_MODELS,
+} from "@/lib/constants";
 import { LOGO_ASSET_OPTIONS } from "@/lib/logo-asset-metadata";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
@@ -129,7 +132,9 @@ export function FinalizedPoolCard({
   const [regeneratingImageId, setRegeneratingImageId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<FinalizedImage | null>(null);
-  const [imageModel, setImageModel] = useState<string>(data.defaultImageModel ?? IMAGE_MODELS[0]?.value ?? "doubao-seedream-4-0");
+  const [imageModel, setImageModel] = useState<string>(
+    data.defaultImageModel ?? DEFAULT_FINALIZED_ADAPTATION_MODEL_VALUE,
+  );
 
   const selectedGroups = useMemo(() => groups.filter((g) => selectedGroupIds.has(g.id)), [groups, selectedGroupIds]);
   const selectedImages = useMemo(() => selectedGroups.flatMap((g) => g.images), [selectedGroups]);
@@ -460,7 +465,7 @@ export function FinalizedPoolCard({
 
       <div className="mb-3 flex items-center gap-2">
         <Select value={imageModel} onChange={(e) => setImageModel(e.target.value)} className="h-8 text-xs">
-          {IMAGE_MODELS.map((m) => (
+          {FINALIZED_ADAPTATION_MODELS.map((m) => (
             <option key={m.value} value={m.value}>
               {m.label}
             </option>
