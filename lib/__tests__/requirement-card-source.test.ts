@@ -23,7 +23,8 @@ test("requirement card syncs local form state when initial props change", async 
 test("requirement card submit copy matches the approved workflow language", async () => {
   const source = await readFile(requirementCardPath, "utf8");
 
-  assert.match(source, /保存并生成方向/);
+  assert.match(source, /生成方向/);
+  assert.doesNotMatch(source, /保存并生成方向/);
 });
 
 test("requirement card distinguishes save and direction-generation failures", async () => {

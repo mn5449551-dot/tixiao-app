@@ -10,7 +10,8 @@ test("copy card source supports checkbox selection and bottom batch generation",
   await readFile(copyCardActionsPath, "utf8");
 
   assert.match(source, /const \[selectedIds, setSelectedIds\]/);
-  assert.match(source, /toggleSelectAll/);
+  assert.match(source, /toggleSelect/);
+  assert.doesNotMatch(source, /toggleSelectAll/);
   assert.match(source, /生成图片配置/);
 });
 

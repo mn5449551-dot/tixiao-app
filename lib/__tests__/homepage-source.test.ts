@@ -10,9 +10,9 @@ test("homepage hero copy is rewritten for the operator-facing workbench", async 
   const source = await readFile(homePagePath, "utf8");
 
   assert.match(source, /AI 图文生产工作台/);
-  assert.match(source, /集中管理您的 AI 图文创作项目与素材资产。/);
-  assert.match(source, /方向卡总数/);
-  assert.match(source, /文案卡总数/);
+  assert.match(source, /我的文件夹/);
+  assert.match(source, /还没有文件夹/);
+  assert.match(source, /新建文件夹/);
   assert.doesNotMatch(source, /已接入本地 SQLite/);
 });
 

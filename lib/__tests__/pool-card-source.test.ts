@@ -8,19 +8,16 @@ const candidateGroupCardPath = new URL("../../components/cards/candidate-pool/ca
 const modalPath = new URL("../../components/ui/modal.tsx", import.meta.url);
 const promptDetailsModalPath = new URL("../../components/cards/candidate-pool/prompt-details-modal.tsx", import.meta.url);
 const finalizedPoolCardPath = new URL("../../components/cards/finalized-pool-card.tsx", import.meta.url);
-const finalizedPreviewCardPath = new URL("../../components/cards/finalized-pool/finalized-preview-card.tsx", import.meta.url);
-
 test("candidate and finalized pool cards use contain-fit previews and image preview modal", async () => {
   const candidateSource = await readFile(candidatePoolCardPath, "utf8");
   const candidateImageSource = await readFile(candidateImageCardPath, "utf8");
   const candidateGroupSource = await readFile(candidateGroupCardPath, "utf8");
   const finalizedSource = await readFile(finalizedPoolCardPath, "utf8");
-  const finalizedPreviewSource = await readFile(finalizedPreviewCardPath, "utf8");
 
   assert.match(candidateSource, /ImagePreviewModal/);
   assert.match(finalizedSource, /ImagePreviewModal/);
   assert.match(candidateImageSource, /object-contain/);
-  assert.match(finalizedPreviewSource, /object-contain/);
+  assert.match(finalizedSource, /object-contain/);
   assert.doesNotMatch(candidateSource, /aspect-\[3\/4\]/);
   assert.doesNotMatch(finalizedSource, /aspect-\[3\/4\]/);
   assert.doesNotMatch(candidateSource, /pointer-events-none absolute inset-0 z-10/);
@@ -51,7 +48,9 @@ test("candidate pool keeps failures at the single-image level instead of a pool-
 test("finalized pool card delegates preview and export actions", async () => {
   const source = await readFile(finalizedPoolCardPath, "utf8");
 
-  assert.match(source, /FinalizedPreviewCard/);
+  assert.match(source, /exportFinalizedImages/);
+  assert.match(source, /generateFinalizedVariants/);
+  assert.match(source, /deleteDerivedGroup/);
   assert.match(source, /finalized-pool-actions/);
 });
 
@@ -95,30 +94,30 @@ test("candidate pool exposes prompt inspection only for eligible images", async 
 test("finalized pool defaults to manual channel selection", async () => {
   const source = await readFile(finalizedPoolCardPath, "utf8");
 
-  assert.match(source, /const \[selectedChannels, setSelectedChannels\] = useState<string\[]>\(\[\]\)/);
+  assert.match(source, /const \[activeChannel, setActiveChannel\] = useState<string \| null>\(null\)/);
 });
 
 test("finalized pool defaults to manual slot selection instead of selecting all available slots", async () => {
   const source = await readFile(finalizedPoolCardPath, "utf8");
 
-  assert.match(source, /const \[selectedSlots, setSelectedSlots\] = useState<string\[]>\(\[\]\)/);
+  assert.match(source, /const \[selectedSlotNames, setSelectedSlotNames\] = useState<string\[]>\(\[\]\)/);
   assert.match(source, /directSlots\.filter/);
-  assert.doesNotMatch(source, /selectedSlots\.length > 0 \? directSlots\.filter\([^)]+\) : directSlots/);
+  assert.doesNotMatch(source, /selectedSlotNames\.length > 0 \? directSlots\.filter\([^)]+\) : directSlots/);
 });
 
-test("finalized pool auto-selects generated variants and checks export coverage per slot", async () => {
+test("finalized pool uses channel-scoped slot coverage and per-ratio regeneration", async () => {
   const source = await readFile(finalizedPoolCardPath, "utf8");
 
   assert.match(source, /splitExportSlotSpecsByCoverage/);
-  assert.match(source, /mergeSelectedGroupIds/);
-  assert.match(source, /可直接导出版位/);
-  assert.match(source, /需适配后导出/);
-  assert.match(source, /splitExportSlotSpecsByCoverage\(\{ selectedImageRatios, slotSpecs: availableSlots \}\)/);
-  assert.match(
-    source,
-    /setSelectedGroupIds\(\(prev\) => new Set\(mergeSelectedGroupIds\(prev,\s*result\.groups\.map\(\(group\) => group\.id\)\)\)\)/,
-  );
-  assert.match(source, /slotNames:\s*adaptationRequiredSlots\.map\(\(slot\) => slot\.slotName\)/);
+  assert.match(source, /selectedImageRatios:\s*availableRatios/);
+  assert.match(source, /请选择渠道后查看该渠道版位/);
+  assert.match(source, /可直接导出/);
+  assert.match(source, /需适配/);
+  assert.match(source, /slotNames:\s*selectedAdaptiveSlotSpecs\.map\(\(slot\) => slot\.slotName\)/);
   assert.match(source, /slotNames:\s*selectedDirectSlotSpecs\.map\(\(slot\) => slot\.slotName\)/);
+  assert.match(source, /sourceGroupId:\s*resolvedSourceGroupId/);
+  assert.match(source, /targetChannel:\s*activeChannel/);
+  assert.match(source, /重新生成/);
+  assert.doesNotMatch(source, /mergeSelectedGroupIds/);
   assert.doesNotMatch(source, /以下版位比例与原图不匹配，请先生成适配版本/);
 });

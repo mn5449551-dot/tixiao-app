@@ -12,13 +12,13 @@ test("copy card source does not render the removed metadata summary block", asyn
   assert.equal(source.includes("文案格式："), false);
 });
 
-test("copy card source supports per-item expand and edit state", async () => {
+test("copy card source keeps per-item edit state without the removed expand toggle", async () => {
   const source = await readFile(copyCardPath, "utf8");
   const rowSource = await readFile(copyItemRowPath, "utf8");
 
-  assert.match(source, /const \[expandedIds, setExpandedIds\]/);
   assert.match(source, /const \[editingId, setEditingId\]/);
-  assert.match(rowSource, /title=\{expanded \? "收起" : "展开"\}/);
+  assert.match(rowSource, /title=\{editing \? "保存" : "编辑"\}/);
+  assert.doesNotMatch(rowSource, /收起|展开/);
 });
 
 test("copy card delegates item rendering and action logic", async () => {
