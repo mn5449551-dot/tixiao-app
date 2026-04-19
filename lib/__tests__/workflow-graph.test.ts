@@ -438,6 +438,7 @@ test("buildGraph creates one finalized node per confirmed source image and attac
         channel: "应用商店",
         imageForm: "single",
         copyGenerationCount: 1,
+        imageTextRelation: "单图直给",
         sortOrder: 0,
         isSelected: 1,
         createdAt: 0,
@@ -624,9 +625,14 @@ test("buildGraph creates one finalized node per confirmed source image and attac
 
   const finalizedNode = graph.nodes.find((node) => node.id === "finalized-grp_source_1");
   assert.ok(finalizedNode && "sourceGroupId" in finalizedNode.data);
-  assert.equal(finalizedNode.data.sourceGroupId, "grp_source_1");
-  assert.equal(finalizedNode.data.sourceAspectRatio, "1:1");
-  assert.equal(finalizedNode.data.assets.some((asset) => asset.ratio === "16:9"), true);
+  const finalizedData = finalizedNode.data as {
+    sourceGroupId: string;
+    sourceAspectRatio: string;
+    assets: Array<{ ratio: string }>;
+  };
+  assert.equal(finalizedData.sourceGroupId, "grp_source_1");
+  assert.equal(finalizedData.sourceAspectRatio, "1:1");
+  assert.equal(finalizedData.assets.some((asset) => asset.ratio === "16:9"), true);
 });
 
 test("buildGraph keeps candidate pool visible while images are still pending", () => {
@@ -963,9 +969,14 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
   assert.equal(candidateNode.data.groups.length, 1);
   assert.equal(candidateNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
   assert.ok(finalizedNode && "groups" in finalizedNode.data);
-  assert.equal(finalizedNode.data.sourceGroupId, "grp_2");
-  assert.equal(finalizedNode.data.groups.length, 2);
-  assert.equal(finalizedNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
-  assert.equal(finalizedNode.data.groups[1]?.images[0]?.fileUrl, "/api/images/img_2_derived/file?v=0");
-  assert.equal(finalizedNode.data.assets.some((asset) => asset.ratio === "16:9"), true);
+  const finalizedData = finalizedNode.data as {
+    sourceGroupId: string;
+    groups: Array<{ images: Array<{ fileUrl: string | null }> }>;
+    assets: Array<{ ratio: string }>;
+  };
+  assert.equal(finalizedData.sourceGroupId, "grp_2");
+  assert.equal(finalizedData.groups.length, 2);
+  assert.equal(finalizedData.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
+  assert.equal(finalizedData.groups[1]?.images[0]?.fileUrl, "/api/images/img_2_derived/file?v=0");
+  assert.equal(finalizedData.assets.some((asset) => asset.ratio === "16:9"), true);
 });

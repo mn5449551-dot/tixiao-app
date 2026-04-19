@@ -106,8 +106,8 @@ function mergeGraphNode(
       data: {
         ...finalizedData,
         groups: mergeFinalizedGroups(finalizedData.groups, imageStatusMap),
-      },
-    };
+      } as FinalizedPoolCardData,
+    } as GraphNode;
   }
 
   return node;

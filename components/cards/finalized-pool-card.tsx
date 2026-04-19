@@ -66,12 +66,12 @@ export type FinalizedAsset = {
 
 export type FinalizedPoolCardData = {
   displayMode: "single" | "double" | "triple";
-  sourceGroupId?: string;
-  sourceImageConfigId?: string;
-  sourceAspectRatio?: string;
-  sourceImages?: FinalizedImage[];
-  assets?: FinalizedAsset[];
-  groups?: FinalizedGroup[];
+  sourceGroupId: string;
+  sourceImageConfigId: string;
+  sourceAspectRatio: string;
+  sourceImages: FinalizedImage[];
+  assets: FinalizedAsset[];
+  groups: FinalizedGroup[];
   groupLabel?: string;
   projectId?: string;
   defaultImageModel?: string | null;
