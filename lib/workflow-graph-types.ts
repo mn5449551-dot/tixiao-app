@@ -77,6 +77,29 @@ export type GraphNodeData =
     }
   | {
       displayMode: "single" | "double" | "triple";
+      sourceGroupId?: string;
+      sourceImageConfigId?: string;
+      sourceAspectRatio?: string;
+      sourceImages?: Array<{
+        id: string;
+        fileUrl: string | null;
+        thumbnailUrl?: string | null;
+        aspectRatio: string;
+        updatedAt?: number;
+      }>;
+      assets?: Array<{
+        ratio: string;
+        groupId: string;
+        imageIds: string[];
+        kind: "source" | "derived";
+        images: Array<{
+          id: string;
+          fileUrl: string | null;
+          thumbnailUrl?: string | null;
+          aspectRatio: string;
+          updatedAt?: number;
+        }>;
+      }>;
       groups: Array<{
         id: string;
         variantIndex: number;

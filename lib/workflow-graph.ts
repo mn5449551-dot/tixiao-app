@@ -194,9 +194,11 @@ export function buildGraph(workspace: WorkspaceData) {
           projectId: workspace.project.id,
           imageModel: copy.imageConfig?.imageModel ?? null,
         });
-        if (finalizedPool.hasConfirmedGroups && finalizedPool.node) {
-          nodes.push(finalizedPool.node);
-          edges.push(edgeOf(candidatePool.node.id, finalizedPool.node.id, "定稿"));
+        if (finalizedPool.hasConfirmedGroups) {
+          for (const finalizedNode of finalizedPool.nodes) {
+            nodes.push(finalizedNode);
+            edges.push(edgeOf(candidatePool.node.id, finalizedNode.id, "定稿"));
+          }
         }
       });
     });
