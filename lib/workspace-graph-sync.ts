@@ -61,6 +61,8 @@ function mergeFinalizedImage(
     ...image,
     fileUrl: toVersionedFileUrl(nextImage.fileUrl, nextImage.updatedAt),
     thumbnailUrl: toVersionedFileUrl(nextImage.thumbnailUrl, nextImage.updatedAt),
+    status: nextImage.status as FinalizedImage["status"],
+    errorMessage: nextImage.errorMessage ?? null,
     updatedAt: nextImage.updatedAt,
   };
 }
@@ -85,6 +87,25 @@ function mergeFinalizedGroups(
   }));
 }
 
+function mergeFinalizedAssets(
+  assets: FinalizedPoolCardData["assets"] | undefined,
+  imageStatusMap: Map<GenerationStatusImage["id"], GenerationStatusImage>,
+): FinalizedPoolCardData["assets"] | undefined {
+  if (!assets) return undefined;
+  return assets.map((asset) => ({
+    ...asset,
+    images: asset.images.map((image) => mergeFinalizedImage(image, imageStatusMap.get(image.id))),
+  }));
+}
+
+function mergeFinalizedImageList(
+  images: FinalizedPoolCardData["sourceImages"] | undefined,
+  imageStatusMap: Map<GenerationStatusImage["id"], GenerationStatusImage>,
+): FinalizedPoolCardData["sourceImages"] | undefined {
+  if (!images) return undefined;
+  return images.map((image) => mergeFinalizedImage(image, imageStatusMap.get(image.id)));
+}
+
 function mergeGraphNode(
   node: GraphNode,
   imageStatusMap: Map<GenerationStatusImage["id"], GenerationStatusImage>,
@@ -107,6 +128,8 @@ function mergeGraphNode(
       data: {
         ...finalizedData,
         groups: mergeFinalizedGroups(finalizedData.groups, imageStatusMap),
+        assets: mergeFinalizedAssets(finalizedData.assets, imageStatusMap),
+        sourceImages: mergeFinalizedImageList(finalizedData.sourceImages, imageStatusMap),
       } as FinalizedPoolCardData,
     } as GraphNode;
   }

@@ -25,7 +25,7 @@ export function buildFinalizedCardView(input: {
     )
     .map((group) => ({
       ...group,
-      images: group.images.filter((img) => img.status === "done"),
+      images: group.images.filter((img) => img.status !== "pending"),
     }))
     .filter((group) => group.images.length > 0);
 
@@ -49,6 +49,8 @@ export function buildFinalizedCardView(input: {
         aspectRatio: ratio,
         actualWidth: img.actualWidth ?? null,
         actualHeight: img.actualHeight ?? null,
+        status: img.status as "generating" | "done" | "failed",
+        errorMessage: img.errorMessage ?? null,
         groupLabel: group.id === input.sourceGroup.id ? `组 #${group.variantIndex}` : `适配 ${ratio}`,
         isConfirmed: true,
         updatedAt: img.updatedAt,
@@ -73,6 +75,8 @@ export function buildFinalizedCardView(input: {
         aspectRatio: img.aspectRatio,
         actualWidth: img.actualWidth ?? null,
         actualHeight: img.actualHeight ?? null,
+        status: img.status as "generating" | "done" | "failed",
+        errorMessage: img.errorMessage ?? null,
         updatedAt: img.updatedAt,
       })),
     })),

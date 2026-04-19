@@ -2,13 +2,14 @@
 
 import dynamic from "next/dynamic";
 import type { CSSProperties, ReactElement } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Node, NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   deleteDerivedGroup,
   exportFinalizedImages,
@@ -42,6 +43,8 @@ export type FinalizedImage = {
   aspectRatio: string;
   actualWidth?: number | null;
   actualHeight?: number | null;
+  status?: "generating" | "done" | "failed";
+  errorMessage?: string | null;
   groupLabel?: string;
   isConfirmed?: boolean;
   updatedAt?: number;
@@ -83,8 +86,8 @@ export type FinalizedPoolCardNode = Node<FinalizedPoolCardData, "finalizedPool">
 
 function getFinalizedPoolBorderClass(selected: boolean): string {
   return selected
-    ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
-    : "border-[var(--line-soft)]";
+    ? "border-[var(--brand-light)] ring-4 ring-[var(--brand-ring)]"
+    : "border-[var(--border)]";
 }
 
 function normalizeAssetsFromLegacyGroups(groups: FinalizedGroup[]): FinalizedAsset[] {
@@ -108,6 +111,11 @@ function getActualSizeLabel(image: FinalizedImage | null) {
 
 function getAssetByRatio(assets: FinalizedAsset[], ratio: string) {
   return assets.find((asset) => asset.ratio === ratio) ?? null;
+}
+
+function isImageBusy(image: FinalizedImage | null, localRegeneratingId: string | null): boolean {
+  if (!image) return false;
+  return image.status === "generating" || image.id === localRegeneratingId;
 }
 
 function getSourceGroupId(data: FinalizedPoolCardData, assets: FinalizedAsset[]) {
@@ -200,42 +208,54 @@ export function FinalizedPoolCard({
     if (!image.id || regeneratingImageId) return;
     setRegeneratingImageId(image.id);
     try {
-      const res = await fetch(`/api/images/${image.id}`, { method: "POST" });
+      const res = await fetch(`/api/images/${image.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageModel }),
+      });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
         setFeedback(payload.error ?? "重新生成失败");
+        setRegeneratingImageId(null);
         return;
       }
       dispatchWorkspaceInvalidated();
     } catch {
       setFeedback("重新生成失败");
-    } finally {
       setRegeneratingImageId(null);
     }
-  }, [regeneratingImageId]);
+  }, [regeneratingImageId, imageModel]);
+
+  useEffect(() => {
+    if (!regeneratingImageId) return;
+    const image = assets.flatMap((a) => a.images).find((img) => img.id === regeneratingImageId);
+    if (image && (image.status === "generating" || image.status === "done" || image.status === "failed")) {
+      setRegeneratingImageId(null);
+    }
+  }, [assets, regeneratingImageId]);
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
+        "relative overflow-hidden rounded-[16px] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition",
         getFinalizedPoolBorderClass(selected),
       )}
       style={{ width: 480, maxWidth: "100%" } satisfies CSSProperties}
     >
-      <div className="absolute inset-x-0 top-0 h-[4px] bg-[var(--brand-500)]" />
+      <div className="absolute inset-x-0 top-0 h-[4px] bg-[var(--brand)]" />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
         position={Position.Left}
         type="target"
       />
 
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--border)] pb-3 pt-1 active:cursor-grabbing">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-base leading-none">{"\u25C9"}</span>
-            <h3 className="text-sm font-semibold text-[#4a3728]">定稿卡片</h3>
+            <h3 className="text-sm font-semibold text-[var(--ink-strong)]">定稿卡片</h3>
           </div>
-          <p className="text-[11px] text-[var(--ink-400)]">
+          <p className="text-xs text-[var(--ink-muted)]">
             {sourceAspectRatio ?? sourceImages[0]?.aspectRatio ?? "1:1"} 原始定稿
           </p>
         </div>
@@ -243,39 +263,39 @@ export function FinalizedPoolCard({
       </div>
 
       {feedback ? (
-        <div className="mb-3 rounded-lg bg-[#fff7ed] px-3 py-2 text-xs text-[#9b6513]">
+        <div className="mb-3 rounded-lg bg-[var(--warning-bg)] px-3 py-2 text-xs text-[var(--warning-text)]">
           {feedback}
         </div>
       ) : null}
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">原始定稿</p>
+      <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
+        <p className="mb-2 text-xs font-medium text-[var(--ink-subtle)]">原始定稿</p>
         {sourceImages.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {sourceImages.map((image) => (
               <button
                 key={image.id}
                 type="button"
-                className="rounded-xl border border-[var(--line-soft)] bg-white p-2 text-left"
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-left"
                 onClick={() => setPreviewImage(image)}
               >
-                <div className="mb-2 aspect-[1/1] overflow-hidden rounded-lg bg-[var(--surface-2)]">
+                <div className="mb-2 aspect-[1/1] overflow-hidden rounded-lg bg-[var(--surface-dim)]">
                   {image.fileUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={image.thumbnailUrl ?? image.fileUrl} alt="定稿原图" className="h-full w-full object-contain" />
                   ) : null}
                 </div>
-                <p className="text-xs font-medium text-[var(--ink-700)]">{image.aspectRatio}</p>
+                <p className="text-xs font-medium text-[var(--ink-subtle)]">{image.aspectRatio}</p>
               </button>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-[var(--ink-500)]">当前卡片缺少可预览的原始定稿图。</p>
+          <p className="text-xs text-[var(--ink-muted)]">当前卡片缺少可预览的原始定稿图。</p>
         )}
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">渠道选择</p>
+      <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
+        <p className="mb-2 text-xs font-medium text-[var(--ink-subtle)]">渠道选择</p>
         <div className="flex flex-wrap gap-2">
           {EXPORT_CHANNELS.map((channel) => {
             const active = activeChannel === channel;
@@ -286,8 +306,8 @@ export function FinalizedPoolCard({
                 className={cn(
                   "rounded-full px-3 py-1 text-xs transition",
                   active
-                    ? "bg-[var(--brand-50)] text-[var(--brand-700)] ring-1 ring-[var(--brand-400)]"
-                    : "bg-white text-[var(--ink-500)] ring-1 ring-[var(--line-soft)]",
+                    ? "bg-[var(--brand-bg)] text-[var(--brand-dark)] ring-1 ring-[var(--brand-light)]"
+                    : "bg-[var(--surface)] text-[var(--ink-muted)] ring-1 ring-[var(--border)]",
                 )}
                 onClick={() => toggleChannel(channel)}
               >
@@ -299,13 +319,13 @@ export function FinalizedPoolCard({
       </div>
 
       {!activeChannel ? (
-        <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3 text-xs text-[var(--ink-500)]">
+        <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3 text-xs text-[var(--ink-muted)]">
           请选择渠道后查看该渠道版位
         </div>
       ) : (
         <>
-          <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-            <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">可直接导出</p>
+          <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
+            <p className="mb-2 text-xs font-medium text-[var(--ink-subtle)]">可直接导出</p>
             {directSlots.length > 0 ? (
               <div className="space-y-2">
                 {directSlots.map((slot) => {
@@ -318,14 +338,14 @@ export function FinalizedPoolCard({
                       className={cn(
                         "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs",
                         active
-                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                          : "border-[var(--line-soft)] bg-white text-[var(--ink-600)]",
+                          ? "border-[var(--brand-light)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
+                          : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink-subtle)]",
                       )}
                       onClick={() => toggleSlot(slot.slotName)}
                     >
                       <div>
                         <p className="font-medium">{slot.slotName}</p>
-                        <p className="mt-1 text-[11px] text-[var(--ink-500)]">
+                        <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
                           当前使用：{asset ? getAssetLabel(asset) : `${slot.ratio} 资产`}
                         </p>
                       </div>
@@ -335,12 +355,12 @@ export function FinalizedPoolCard({
                 })}
               </div>
             ) : (
-              <p className="text-xs text-[var(--ink-500)]">当前渠道暂无可直接导出的版位。</p>
+              <p className="text-xs text-[var(--ink-muted)]">当前渠道暂无可直接导出的版位。</p>
             )}
           </div>
 
-          <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-            <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">需适配</p>
+          <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
+            <p className="mb-2 text-xs font-medium text-[var(--ink-subtle)]">需适配</p>
             {adaptationRequiredSlots.length > 0 ? (
               <div className="space-y-2">
                 {adaptationRequiredSlots.map((slot) => {
@@ -352,8 +372,8 @@ export function FinalizedPoolCard({
                       className={cn(
                         "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs",
                         active
-                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
-                          : "border-[var(--line-soft)] bg-white text-[var(--ink-600)]",
+                          ? "border-[var(--brand-light)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
+                          : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink-subtle)]",
                       )}
                       onClick={() => toggleSlot(slot.slotName)}
                     >
@@ -364,18 +384,18 @@ export function FinalizedPoolCard({
                 })}
               </div>
             ) : (
-              <p className="text-xs text-[var(--ink-500)]">当前渠道所需比例已齐备。</p>
+              <p className="text-xs text-[var(--ink-muted)]">当前渠道所需比例已齐备。</p>
             )}
           </div>
 
-          <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
-            <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">暂不支持</p>
+          <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
+            <p className="mb-2 text-xs font-medium text-[var(--ink-subtle)]">暂不支持</p>
             {specialSlots.length > 0 ? (
-              <div className="space-y-2 text-xs text-[var(--ink-500)]">
+              <div className="space-y-2 text-xs text-[var(--ink-muted)]">
                 {specialSlots.map((slot) => (
                   <div
                     key={`${slot.channel}-${slot.slotName}`}
-                    className="flex items-center justify-between rounded-xl border border-dashed border-[var(--line-soft)] bg-white px-3 py-2"
+                    className="flex items-center justify-between rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-2"
                   >
                     <span>{slot.slotName}</span>
                     <span>{slot.ratio}</span>
@@ -383,33 +403,46 @@ export function FinalizedPoolCard({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-[var(--ink-500)]">当前渠道没有暂不支持的版位。</p>
+              <p className="text-xs text-[var(--ink-muted)]">当前渠道没有暂不支持的版位。</p>
             )}
           </div>
         </>
       )}
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium text-[var(--ink-700)]">已有比例资产</p>
-          <p className="text-[11px] text-[var(--ink-500)]">适配图按比例复用，不按渠道重复生成</p>
+          <p className="text-xs font-medium text-[var(--ink-subtle)]">已有比例资产</p>
+          <p className="text-xs text-[var(--ink-muted)]">适配图按比例复用，不按渠道重复生成</p>
         </div>
         <div className="space-y-2">
           {assets.map((asset) => {
             const image = asset.images[0] ?? null;
+            const busy = isImageBusy(image, regeneratingImageId);
+            const failed = image?.status === "failed";
             return (
               <div
                 key={asset.groupId}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line-soft)] bg-white px-3 py-2"
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-[var(--radius-md)] border bg-[var(--surface)] px-3 py-2",
+                  failed ? "border-[var(--danger)]" : "border-[var(--border)]",
+                )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <button
                     type="button"
-                    className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[var(--line-soft)] bg-[var(--surface-2)]"
-                    onClick={() => image && setPreviewImage(image)}
-                    title="查看大图"
+                    className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-dim)]"
+                    onClick={() => image?.fileUrl && setPreviewImage(image)}
+                    title={busy ? "生成中" : "查看大图"}
+                    disabled={busy || !image?.fileUrl}
                   >
-                    {image?.fileUrl ? (
+                    {busy ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <Spinner size="sm" />
+                        <span className="text-xs text-[var(--ink-muted)]">生成中</span>
+                      </div>
+                    ) : failed ? (
+                      <span className="text-xs text-[var(--danger)]">失败</span>
+                    ) : image?.fileUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={image.thumbnailUrl ?? image.fileUrl}
@@ -417,19 +450,22 @@ export function FinalizedPoolCard({
                         className="h-full w-full object-contain"
                       />
                     ) : (
-                      <span className="text-[10px] text-[var(--ink-400)]">无预览</span>
+                      <span className="text-xs text-[var(--ink-disabled)]">无预览</span>
                     )}
                   </button>
                   <div className="min-w-0 text-left">
-                    <p className="text-xs font-medium text-[var(--ink-700)]">{getAssetLabel(asset)}</p>
-                    <p className="mt-1 text-[11px] text-[var(--ink-500)]">目标比例：{asset.ratio}</p>
+                    <p className="text-xs font-medium text-[var(--ink-default)]">{getAssetLabel(asset)}</p>
+                    <p className="mt-1 text-xs text-[var(--ink-muted)]">目标比例：{asset.ratio}</p>
                     {getActualSizeLabel(image) ? (
-                      <p className="mt-1 text-[11px] text-[var(--ink-500)]">实际尺寸：{getActualSizeLabel(image)}</p>
+                      <p className="mt-1 text-xs text-[var(--ink-muted)]">实际尺寸：{getActualSizeLabel(image)}</p>
+                    ) : null}
+                    {failed && image?.errorMessage ? (
+                      <p className="mt-1 text-xs text-[var(--danger-text)]">{image.errorMessage}</p>
                     ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {image ? (
+                  {image?.fileUrl ? (
                     <Button
                       variant="ghost"
                       className="text-xs"
@@ -442,17 +478,18 @@ export function FinalizedPoolCard({
                     <Button
                       variant="secondary"
                       className="text-xs"
-                      disabled={regeneratingImageId === image.id}
+                      isLoading={busy}
+                      disabled={busy}
                       onClick={() => handleRegenerateImage(image)}
                     >
-                      {regeneratingImageId === image.id ? "重生成中..." : "重新生成"}
+                      重新生成
                     </Button>
                   ) : null}
                   {asset.kind === "derived" ? (
                     <Button
                       variant="ghost"
-                      className="text-xs text-[var(--danger-600)]"
-                      disabled={actionLoadingGroupId === asset.groupId}
+                      className="text-xs text-[var(--danger-text)]"
+                      disabled={actionLoadingGroupId === asset.groupId || busy}
                       onClick={() => handleDeleteDerivedAsset(asset.groupId)}
                     >
                       {actionLoadingGroupId === asset.groupId ? "删除中..." : "删除"}
@@ -516,7 +553,7 @@ export function FinalizedPoolCard({
         </Button>
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
         <Field label="文件格式">
           <Select value={fileFormat} onChange={(event) => setFileFormat(event.target.value as "jpg" | "png" | "webp")}>
             <option value="jpg">JPG</option>
@@ -526,7 +563,7 @@ export function FinalizedPoolCard({
         </Field>
       </div>
 
-      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+      <div className="mb-3 rounded-[12px] bg-[var(--surface-dim)] p-3">
         <Field label="导出 Logo">
           <Select value={exportLogo} onChange={(event) => setExportLogo(event.target.value as "onion" | "onion_app" | "none")}>
             <option value="none">不添加 Logo</option>

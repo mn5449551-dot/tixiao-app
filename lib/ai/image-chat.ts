@@ -95,7 +95,22 @@ export async function generateImageFromReference(input: {
     });
   }
 
-  // doubao/qwen 系列：/v1/images/edits
+  // doubao/seedream 系列：/v1/images/generations + image 字段（图生图语义）
+  if (resolved.model.startsWith("doubao-seedream") && urls.length > 0) {
+    const imageParam = urls.length === 1 ? urls[0] : urls;
+    return generateImageViaImagesGenerations({
+      model: resolved.model,
+      prompt: input.instruction,
+      size: buildImagesGenerationSize({
+        model: resolved.model,
+        aspectRatio: input.aspectRatio,
+        resolution: input.resolution ?? DEFAULT_IMAGE_RESOLUTION,
+      }),
+      image: imageParam,
+    });
+  }
+
+  // qwen 等支持 edits 的模型：/v1/images/edits（图片编辑语义）
   if (resolved.supportsEdits && urls.length > 0) {
     return generateImageViaEdits({
       model: resolved.model,
@@ -225,18 +240,23 @@ async function generateImageViaImagesGenerations(input: {
   model: string;
   prompt: string;
   size: string;
+  image?: string | string[];
 }) {
   const apiKey = process.env.NEW_API_KEY;
   if (!apiKey) {
     throw new Error("缺少 NEW_API_KEY，无法调用图片模型");
   }
 
-  const requestBody = JSON.stringify({
+  const body: Record<string, unknown> = {
     model: input.model,
     prompt: input.prompt,
     size: input.size,
     n: 1,
-  });
+  };
+  if (input.image) {
+    body.image = input.image;
+  }
+  const requestBody = JSON.stringify(body);
 
   for (let attempt = 1; attempt <= IMAGE_REQUEST_RETRY_ATTEMPTS; attempt += 1) {
     let response: Response;

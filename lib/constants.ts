@@ -31,6 +31,7 @@ export const IMAGE_MODELS = [
 export const FINALIZED_ADAPTATION_MODEL_VALUES = [
   "doubao-seedream-4-0",
   "doubao-seedream-4-5",
+  "doubao-seedream-5-0-lite",
 ] as const;
 export const FINALIZED_ADAPTATION_MODELS = IMAGE_MODELS.filter((model) =>
   FINALIZED_ADAPTATION_MODEL_VALUES.includes(model.value as (typeof FINALIZED_ADAPTATION_MODEL_VALUES)[number]),

@@ -30,8 +30,10 @@ test("generateFinalizedVariants builds adaptation prompts based on ratio directi
   const source = await readFile(internalPath, "utf8");
   assert.match(source, /buildAdaptationPrompt/);
   assert.match(source, /compareAspectRatios/);
-  assert.match(source, /向左右两侧自然延伸场景内容来填充更宽的画幅/);
-  assert.match(source, /向上下方向自然延伸场景内容来填充更高的画幅/);
+  assert.match(source, /参考原图|原图内容描述/);
+  assert.match(source, /不可改变/);
+  assert.match(source, /可以调整/);
+  assert.match(source, /专业设计感/);
 });
 
 test("generateFinalizedVariants creates pending images and updates status after generation", async () => {
@@ -41,7 +43,7 @@ test("generateFinalizedVariants creates pending images and updates status after 
   assert.match(source, /status: "done"/);
   assert.match(source, /status: "failed"/);
   assert.match(source, /generationRequestJson|generation_request_json/);
-  assert.match(source, /referenceImages/);
+  assert.match(source, /promptText/);
   assert.match(source, /actualWidth|actual_height/);
   assert.match(source, /actualHeight|actual_width/);
   assert.match(source, /实际比例|aspect ratio/i);

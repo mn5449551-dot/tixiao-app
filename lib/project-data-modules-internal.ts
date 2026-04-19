@@ -1423,7 +1423,7 @@ export async function generateFinalizedVariants(
             for (const sourceImage of sourceImages) {
               const imageId = createId("img");
               const aspectDirection = compareAspectRatios(sourceAspectRatio, ratio);
-              const prompt = buildAdaptationPrompt(sourceAspectRatio, ratio, aspectDirection);
+              const prompt = buildAdaptationPrompt(sourceAspectRatio, ratio, aspectDirection, sourceImage.finalPromptText);
               const imageBuffer = await readFile(sourceImage.filePath!);
               const mimeType = getMimeTypeFromPath(sourceImage.filePath!);
               const referenceDataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
@@ -1447,7 +1447,6 @@ export async function generateFinalizedVariants(
                     negativePrompt: null,
                     model,
                     aspectRatio: ratio,
-                    referenceImages: [{ url: referenceDataUrl }],
                   }),
                   actualWidth: null,
                   actualHeight: null,
@@ -1511,7 +1510,6 @@ export async function generateFinalizedVariants(
                         negativePrompt: null,
                         model,
                         aspectRatio: ratio,
-                        referenceImages: [{ url: workItems[i].referenceDataUrl }],
                       }),
                       updatedAt: Date.now(),
                     })
@@ -1535,7 +1533,6 @@ export async function generateFinalizedVariants(
                       negativePrompt: null,
                       model,
                       aspectRatio: ratio,
-                      referenceImages: [{ url: workItems[i].referenceDataUrl }],
                     }),
                     updatedAt: Date.now(),
                   })
@@ -1600,18 +1597,24 @@ function getAspectRatioValidationError(input: {
   return `适配结果实际比例与目标比例不一致：目标 ${input.targetRatio}，实际 ${input.width}x${input.height}`;
 }
 
-function buildAdaptationPrompt(sourceRatio: string, targetRatio: string, direction: "wider" | "taller" | "same"): string {
-  const base = "保持原图内容、构图、主体位置和色调完全不变，";
-  const noBorder = "画面必须铺满整个画幅，绝对不能出现黑边、留白、letterboxing或任何空白区域。";
-  const style = "扩展区域必须与原图风格、色调、光影完全一致，形成一个完整统一的画面。";
-
-  if (direction === "wider") {
-    return `${base}将画面比例从 ${sourceRatio} 扩展为 ${targetRatio}。向左右两侧自然延伸场景内容来填充更宽的画幅，${noBorder}${style}`;
-  }
-  if (direction === "taller") {
-    return `${base}将画面比例从 ${sourceRatio} 扩展为 ${targetRatio}。向上下方向自然延伸场景内容来填充更高的画幅，${noBorder}${style}`;
-  }
-  return `${base}将画面比例适配为 ${targetRatio}。${noBorder}${style}`;
+function buildAdaptationPrompt(_sourceRatio: string, targetRatio: string, _direction: "wider" | "taller" | "same", sourcePrompt?: string | null): string {
+  const contentDescription = sourcePrompt
+    ? `原图内容描述：${sourcePrompt}\n\n`
+    : "";
+  return [
+    contentDescription,
+    `基于参考原图，重新生成一张 ${targetRatio} 比例的图片。请严格遵守以下规则：\n\n`,
+    "【不可改变】\n",
+    "- 画面核心主体（人物、产品、IP 角色等）必须与原图完全一致，包括形象、姿态、表情、服饰、配色。\n",
+    "- 整体色调、光影风格、画风（写实/动漫/3D 等）必须与原图保持一致。\n\n",
+    "【可以调整】\n",
+    "- 背景：根据新比例自然延伸或裁切背景，补充的背景内容须与原图场景风格协调统一。\n",
+    "- 文字排版：根据新比例重新布局文字的位置、大小、行数。例如原图一行五个字，新比例下可以变为一行四个字或六个字，字号也可以适当放大或缩小。文字内容本身不变，但排版必须适配新画幅，保证清晰可读且具有设计感。\n",
+    "- 元素布局：主体与文字的相对位置可以根据新比例重新编排，确保整体构图平衡、有层次感。\n\n",
+    "【整体要求】\n",
+    "- 画面必须铺满整个画幅，不能有黑边、白边或空白区域。\n",
+    "- 最终成品应具有专业设计感，像是设计师针对该比例专门设计的作品，而非简单的拉伸或裁切。",
+  ].join("");
 }
 
 function getMimeTypeFromPath(filePath: string): string {

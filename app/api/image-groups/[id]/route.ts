@@ -40,6 +40,7 @@ export async function DELETE(
     await deleteFileIfExists(image.filePath);
     await deleteFileIfExists(image.thumbnailPath);
   }
+  db.delete(generatedImages).where(eq(generatedImages.imageGroupId, id)).run();
   db.delete(imageGroups).where(eq(imageGroups.id, id)).run();
   return NextResponse.json({ deleted: true });
 }

@@ -87,6 +87,8 @@ export type GraphNodeData =
         aspectRatio: string;
         actualWidth?: number | null;
         actualHeight?: number | null;
+        status?: "generating" | "done" | "failed";
+        errorMessage?: string | null;
         updatedAt?: number;
       }>;
       assets?: Array<{
@@ -101,6 +103,8 @@ export type GraphNodeData =
           aspectRatio: string;
           actualWidth?: number | null;
           actualHeight?: number | null;
+          status?: "generating" | "done" | "failed";
+          errorMessage?: string | null;
           updatedAt?: number;
         }>;
       }>;
@@ -147,6 +151,8 @@ export type GraphNodeData =
           aspectRatio: string;
           actualWidth?: number | null;
           actualHeight?: number | null;
+          status?: "generating" | "done" | "failed";
+          errorMessage?: string | null;
           groupLabel?: string;
           isConfirmed: boolean;
           updatedAt?: number;

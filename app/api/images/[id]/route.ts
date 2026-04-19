@@ -13,6 +13,7 @@ import {
 } from "@/lib/generation-runs";
 import { generatedImages, imageConfigs, directions, copies, imageGroups } from "@/lib/schema";
 import { generateImageFromPrompt, generateImageFromReference } from "@/lib/ai/image-chat";
+import { parseAspectRatio } from "@/lib/export/utils";
 import sharp from "sharp";
 
 function getMimeTypeFromPath(filePath: string | null | undefined): string {
@@ -27,6 +28,28 @@ function getMimeTypeFromPath(filePath: string | null | undefined): string {
   }
 
   return "image/png";
+}
+
+function extractModelFromRequestJson(json: string | null | undefined): string | undefined {
+  if (!json) return undefined;
+  try {
+    const parsed = JSON.parse(json);
+    return parsed.model ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function validateAspectRatio(width: number | null, height: number | null, targetRatio: string): string | null {
+  if (!width || !height) {
+    return `适配结果缺少实际尺寸，无法确认是否生成成目标比例 ${targetRatio}`;
+  }
+  const expected = parseAspectRatio(targetRatio);
+  if (!expected) return null;
+  const actual = width / height;
+  const relativeError = Math.abs(actual - expected) / expected;
+  if (relativeError <= 0.015) return null;
+  return `适配结果实际比例与目标比例不一致：目标 ${targetRatio}，实际 ${width}x${height}`;
 }
 
 function getImageById(imageId: string) {
@@ -176,7 +199,8 @@ export async function POST(
 
   try {
     const id = await readIdParam(context);
-    await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({} as Record<string, unknown>));
+    const requestModel = typeof body.imageModel === "string" ? body.imageModel : undefined;
 
     const regenerationContext = loadRegenerationContext(id);
     if (!regenerationContext) {
@@ -215,6 +239,7 @@ export async function POST(
         image,
         config,
         projectId: direction.projectId,
+        requestModel,
       });
     });
 
@@ -258,33 +283,51 @@ async function regenerateSingleImage(input: {
   image: typeof generatedImages.$inferSelect;
   config: typeof imageConfigs.$inferSelect;
   projectId: string;
+  requestModel?: string;
 }) {
   const db = getDb();
-  const { runId, image, config, projectId } = input;
+  const { runId, image, config, projectId, requestModel } = input;
 
   try {
     const group = db.select().from(imageGroups).where(eq(imageGroups.id, image.imageGroupId)).get();
 
     // 派生图（适配版本）：用父图作为参考图 + 适配 prompt 重新生成
-    if (group?.groupType.startsWith("derived|") && image.inpaintParentId) {
-      const parentImage = db.select().from(generatedImages).where(eq(generatedImages.id, image.inpaintParentId)).get();
+    // 也兜住孤儿 derived image（group 已删但 image 记录残留）的情况
+    const isDerivedWithParent = (group?.groupType.startsWith("derived|") || !group) && image.inpaintParentId;
+    if (isDerivedWithParent) {
+      const parentImage = db.select().from(generatedImages).where(eq(generatedImages.id, image.inpaintParentId!)).get();
       if (!parentImage?.filePath) {
         throw new Error("原始定稿图不存在");
       }
 
-      const prompt = image.finalPromptText ?? "保持原图内容和构图不变，扩展画面适配目标比例，画面必须铺满整个画幅，不能有黑边。";
+      // 从 groupType 提取目标比例：derived|{groupId}|{ratio}
+      const targetRatio = group?.groupType.split("|")[2] ?? config.aspectRatio;
+      const parentPromptContext = parentImage.finalPromptText ? `原图内容描述：${parentImage.finalPromptText}\n\n` : "";
+      const prompt = image.finalPromptText ?? [
+        parentPromptContext,
+        `基于参考原图，重新生成一张 ${targetRatio} 比例的图片。请严格遵守以下规则：\n\n`,
+        "【不可改变】\n",
+        "- 画面核心主体（人物、产品、IP 角色等）必须与原图完全一致，包括形象、姿态、表情、服饰、配色。\n",
+        "- 整体色调、光影风格、画风（写实/动漫/3D 等）必须与原图保持一致。\n\n",
+        "【可以调整】\n",
+        "- 背景：根据新比例自然延伸或裁切背景，补充的背景内容须与原图场景风格协调统一。\n",
+        "- 文字排版：根据新比例重新布局文字的位置、大小、行数。例如原图一行五个字，新比例下可以变为一行四个字或六个字，字号也可以适当放大或缩小。文字内容本身不变，但排版必须适配新画幅，保证清晰可读且具有设计感。\n",
+        "- 元素布局：主体与文字的相对位置可以根据新比例重新编排，确保整体构图平衡、有层次感。\n\n",
+        "【整体要求】\n",
+        "- 画面必须铺满整个画幅，不能有黑边、白边或空白区域。\n",
+        "- 最终成品应具有专业设计感，像是设计师针对该比例专门设计的作品，而非简单的拉伸或裁切。",
+      ].join("");
       const imageBuffer = await readFile(parentImage.filePath);
       const mimeType = getMimeTypeFromPath(parentImage.filePath);
       const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
 
-      // 从 groupType 提取目标比例：derived|{groupId}|{ratio}
-      const targetRatio = group.groupType.split("|")[2] ?? config.aspectRatio;
+      const adaptationModel = requestModel ?? extractModelFromRequestJson(image.generationRequestJson) ?? config.imageModel ?? undefined;
 
       const binaries = await generateImageFromReference({
         instruction: prompt,
         imageUrls: [dataUrl],
         aspectRatio: targetRatio,
-        model: config.imageModel ?? undefined,
+        model: adaptationModel,
       });
 
       const binary = binaries[0];
@@ -296,7 +339,28 @@ async function regenerateSingleImage(input: {
         extension: "png",
       });
 
+      const ratioError = validateAspectRatio(saved.width, saved.height, targetRatio);
+      if (ratioError) {
+        await deleteFileIfExists(saved.filePath);
+        await deleteFileIfExists(saved.thumbnailPath);
+        setImageFailed(image.id, ratioError);
+        finishGenerationRun(runId, { status: "failed", errorMessage: ratioError });
+        return;
+      }
+
       setImageDone(image.id, saved);
+      db.update(generatedImages)
+        .set({
+          finalPromptText: prompt,
+          generationRequestJson: JSON.stringify({
+            promptText: prompt,
+            negativePrompt: null,
+            model: adaptationModel,
+            aspectRatio: targetRatio,
+          }),
+        })
+        .where(eq(generatedImages.id, image.id))
+        .run();
       finishGenerationRun(runId, { status: "done" });
       return;
     }
