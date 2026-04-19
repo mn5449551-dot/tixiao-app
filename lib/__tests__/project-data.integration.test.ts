@@ -619,6 +619,8 @@ test("generateFinalizedVariants creates derived finalized groups for mismatched 
     assert.equal(derivedImages.length, 1);
     assert.equal(derivedImages[0]?.status, "done");
     assert.ok(derivedImages[0]?.filePath);
+    assert.ok(derivedImages.every((item) => item.generationRequestJson));
+    assert.ok(derivedImages.every((item) => item.inpaintParentId));
   } finally {
     globalThis.fetch = previousFetch;
     process.env.NEW_API_KEY = previousApiKey;

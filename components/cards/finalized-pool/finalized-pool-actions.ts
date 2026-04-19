@@ -6,19 +6,26 @@ export async function deleteDerivedGroup(groupId: string) {
 
 export async function generateFinalizedVariants(input: {
   projectId: string;
-  selectedGroupIds: string[];
-  selectedChannels: string[];
+  sourceGroupId?: string;
+  targetChannel?: string;
+  selectedGroupIds?: string[];
+  selectedChannels?: string[];
   slotNames: string[];
   imageModel: string;
 }) {
   try {
+    const sourceGroupId = input.sourceGroupId ?? input.selectedGroupIds?.[0] ?? null;
+    const targetChannel = input.targetChannel ?? input.selectedChannels?.[0] ?? null;
     const payload = await apiFetch<{ groups?: Array<{ id: string }>; skipped_slots?: string[] }>(
       `/api/projects/${input.projectId}/finalized/variants`,
       {
         method: "POST",
         body: {
-          target_group_ids: input.selectedGroupIds,
-          target_channels: input.selectedChannels,
+          source_group_id: sourceGroupId,
+          target_channel: targetChannel,
+          slot_names: input.slotNames,
+          target_group_ids: input.selectedGroupIds ?? (sourceGroupId ? [sourceGroupId] : []),
+          target_channels: input.selectedChannels ?? (targetChannel ? [targetChannel] : []),
           target_slots: input.slotNames,
           image_model: input.imageModel,
         },

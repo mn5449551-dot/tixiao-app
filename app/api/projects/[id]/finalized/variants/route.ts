@@ -9,6 +9,9 @@ export async function POST(
   try {
     const { id } = await context.params;
     const body = (await request.json()) as {
+      source_group_id?: string;
+      target_channel?: string;
+      slot_names?: string[];
       target_group_ids?: string[];
       target_channels?: string[];
       target_slots?: string[];
@@ -16,6 +19,9 @@ export async function POST(
     };
 
     const result = await generateFinalizedVariants(id, {
+      sourceGroupId: body.source_group_id,
+      targetChannel: body.target_channel,
+      slotNames: body.slot_names,
       targetGroupIds: body.target_group_ids,
       targetChannels: body.target_channels,
       targetSlots: body.target_slots,
