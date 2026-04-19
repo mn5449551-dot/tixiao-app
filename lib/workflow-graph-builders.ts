@@ -5,6 +5,7 @@ import type {
   GraphNodeType,
   WorkspaceData,
 } from "@/lib/workflow-graph-types";
+import { buildFinalizedCardView } from "@/lib/finalized-card";
 import { toVersionedFileUrl } from "@/lib/utils";
 
 function getDisplayMode(slotCount: number): "single" | "double" | "triple" {
@@ -171,52 +172,40 @@ export function buildFinalizedPoolNode(input: {
   const { copy, configY, projectId } = input;
   const config = copy.imageConfig!;
 
-  const confirmedGroups = copy.groups
-    .filter((group) => group.isConfirmed)
-    .map((group) => ({
-      id: group.id,
-      variantIndex: group.variantIndex,
-      slotCount: group.slotCount,
-      groupType: group.groupType,
-      aspectRatio: group.aspectRatio ?? config.aspectRatio,
-      styleMode: group.styleMode ?? config.styleMode,
-      imageStyle: group.imageStyle ?? config.imageStyle,
-      images: group.images
-        .filter((img) => img.status === "done")
-        .map((img) => ({
-          id: img.id,
-          fileUrl: toVersionedFileUrl(img.fileUrl, img.updatedAt),
-          thumbnailUrl: toVersionedFileUrl(img.thumbnailUrl, img.updatedAt),
-          aspectRatio: getGroupAspectRatio(group.groupType, group.aspectRatio ?? config.aspectRatio ?? "1:1"),
-          groupLabel: group.groupType.startsWith("derived|")
-            ? `适配 ${getGroupAspectRatio(group.groupType, group.aspectRatio ?? config.aspectRatio ?? "1:1")}`
-            : `组 #${group.variantIndex}`,
-          isConfirmed: true,
-          updatedAt: img.updatedAt,
-        })),
-    }))
-    .filter((group) => group.images.length > 0);
+  const confirmedSourceGroups = copy.groups.filter(
+    (group) => group.isConfirmed && !group.groupType.startsWith("derived|"),
+  );
 
-  const node = confirmedGroups.length > 0
-    ? ({
-        id: `finalized-${config.id}`,
+  const nodes = confirmedSourceGroups
+    .map((group, index) => {
+      const card = buildFinalizedCardView({
+        sourceGroup: group,
+        siblingGroups: copy.groups,
+        fallbackAspectRatio: config.aspectRatio,
+      });
+
+      if (card.groups.length === 0) return null;
+
+      return {
+        id: `finalized-${group.id}`,
         type: "finalizedPool",
-        position: { x: 2320, y: configY },
+        position: { x: 2320, y: configY + index * 360 },
         data: {
-          displayMode: getDisplayMode(confirmedGroups[0]?.slotCount ?? 1),
-          groups: confirmedGroups,
+          displayMode: getDisplayMode(group.slotCount),
+          ...card,
           groupLabel:
-            (confirmedGroups[0]?.slotCount ?? 1) === 1
-              ? `${confirmedGroups.reduce((sum, group) => sum + group.images.length, 0)} 张已定稿`
-              : `${confirmedGroups.length} 套已定稿`,
+            group.slotCount === 1
+              ? `${card.groups.reduce((sum, item) => sum + item.images.length, 0)} 张已定稿`
+              : `${card.groups.length} 套已定稿`,
           projectId,
           defaultImageModel: input.imageModel ?? null,
         },
-      } satisfies Node<GraphNodeData, GraphNodeType>)
-    : null;
+      } satisfies Node<GraphNodeData, GraphNodeType>;
+    })
+    .filter(Boolean) as Array<Node<GraphNodeData, GraphNodeType>>;
 
   return {
-    node,
-    hasConfirmedGroups: confirmedGroups.length > 0,
+    nodes,
+    hasConfirmedGroups: nodes.length > 0,
   };
 }

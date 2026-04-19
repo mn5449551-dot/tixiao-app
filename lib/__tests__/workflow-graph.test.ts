@@ -398,6 +398,241 @@ test("buildGraph keeps image config card interactive while candidate images are 
   assert.equal(candidateImage.promptDetails?.hasSnapshot, false);
 });
 
+test("buildGraph creates one finalized node per confirmed source image and attaches derived ratio assets", () => {
+  const graph = buildGraph({
+    project: {
+      id: "proj_finalized_split",
+      title: "P-finalized-split",
+      status: "active",
+      folderId: null,
+      createdAt: 0,
+      updatedAt: 0,
+    },
+    requirement: {
+      id: "req_finalized_split",
+      projectId: "proj_finalized_split",
+      rawInput: null,
+      businessGoal: "app",
+      targetAudience: "parent",
+      formatType: "image_text",
+      feature: "拍题精学",
+      sellingPoints: ["10 秒出解析"],
+      timeNode: "期中考试",
+      directionCount: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    },
+    directions: [
+      {
+        id: "dir_finalized_split",
+        projectId: "proj_finalized_split",
+        requirementCardId: "req_finalized_split",
+        title: "方向split",
+        targetAudience: "家长",
+        adaptationStage: "期中考试",
+        scenarioProblem: "场景split",
+        differentiation: "解法split",
+        effect: "效果split",
+        channel: "应用商店",
+        imageForm: "single",
+        copyGenerationCount: 1,
+        imageTextRelation: "单图直给",
+        sortOrder: 0,
+        isSelected: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        copyCards: [
+          {
+            id: "card_finalized_split",
+            directionId: "dir_finalized_split",
+            channel: "应用商店",
+            imageForm: "single",
+            version: 1,
+            sourceReason: "initial",
+            createdAt: 0,
+            updatedAt: 0,
+            copies: [
+              {
+                id: "copy_finalized_split",
+                copyCardId: "card_finalized_split",
+                directionId: "dir_finalized_split",
+                titleMain: "主标题split",
+                titleSub: "副标题split",
+                titleExtra: null,
+                copyType: "单图主副标题",
+                variantIndex: 1,
+                isLocked: 1,
+                createdAt: 0,
+                updatedAt: 0,
+                imageConfig: {
+                  id: "cfg_finalized_split",
+                  copyId: "copy_finalized_split",
+                  directionId: "dir_finalized_split",
+                  aspectRatio: "1:1",
+                  styleMode: "normal",
+                  ipRole: null,
+                  logo: "onion",
+                  imageStyle: "realistic",
+                  referenceImageUrl: null,
+                  ctaEnabled: 0,
+                  ctaText: null,
+                  promptBundleJson: null,
+                  count: 1,
+                  imageModel: "doubao-seedream-4-0",
+                  createdAt: 0,
+                  updatedAt: 0,
+                },
+                groups: [
+                  {
+                    id: "grp_source_1",
+                    imageConfigId: "cfg_finalized_split",
+                    groupType: "candidate",
+                    variantIndex: 1,
+                    slotCount: 1,
+                    aspectRatio: "1:1",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
+                    promptBundleJson: null,
+                    referenceImageUrl: null,
+                    logo: "onion",
+                    isConfirmed: 1,
+                    createdAt: 0,
+                    updatedAt: 0,
+                    imageModel: "doubao-seedream-4-0",
+                    images: [
+                      {
+                        id: "img_source_1",
+                        imageGroupId: "grp_source_1",
+                        imageConfigId: "cfg_finalized_split",
+                        slotIndex: 1,
+                        filePath: "/tmp/img_source_1.png",
+                        fileUrl: "/api/images/img_source_1/file",
+                        status: "done",
+                        inpaintParentId: null,
+                        errorMessage: null,
+                        finalPromptText: "提示词1",
+                        finalNegativePrompt: null,
+                        generationRequestJson: null,
+                        seed: 1,
+                        thumbnailPath: null,
+                        thumbnailUrl: null,
+                        promptType: null,
+                        createdAt: 0,
+                        updatedAt: 0,
+                      },
+                    ],
+                  },
+                  {
+                    id: "grp_source_2",
+                    imageConfigId: "cfg_finalized_split",
+                    groupType: "candidate",
+                    variantIndex: 2,
+                    slotCount: 1,
+                    aspectRatio: "9:16",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
+                    promptBundleJson: null,
+                    referenceImageUrl: null,
+                    logo: "onion",
+                    isConfirmed: 1,
+                    createdAt: 0,
+                    updatedAt: 0,
+                    imageModel: "doubao-seedream-4-0",
+                    images: [
+                      {
+                        id: "img_source_2",
+                        imageGroupId: "grp_source_2",
+                        imageConfigId: "cfg_finalized_split",
+                        slotIndex: 1,
+                        filePath: "/tmp/img_source_2.png",
+                        fileUrl: "/api/images/img_source_2/file",
+                        status: "done",
+                        inpaintParentId: null,
+                        errorMessage: null,
+                        finalPromptText: "提示词2",
+                        finalNegativePrompt: null,
+                        generationRequestJson: null,
+                        seed: 2,
+                        thumbnailPath: null,
+                        thumbnailUrl: null,
+                        promptType: null,
+                        createdAt: 0,
+                        updatedAt: 0,
+                      },
+                    ],
+                  },
+                  {
+                    id: "grp_derived_1",
+                    imageConfigId: "cfg_finalized_split",
+                    groupType: "derived|grp_source_1|16:9",
+                    variantIndex: 3,
+                    slotCount: 1,
+                    aspectRatio: "16:9",
+                    styleMode: "normal",
+                    imageStyle: "realistic",
+                    promptBundleJson: null,
+                    referenceImageUrl: null,
+                    logo: "onion",
+                    isConfirmed: 1,
+                    createdAt: 0,
+                    updatedAt: 0,
+                    imageModel: "doubao-seedream-4-0",
+                    images: [
+                      {
+                        id: "img_derived_1",
+                        imageGroupId: "grp_derived_1",
+                        imageConfigId: "cfg_finalized_split",
+                        slotIndex: 1,
+                        filePath: "/tmp/img_derived_1.png",
+                        fileUrl: "/api/images/img_derived_1/file",
+                        status: "done",
+                        inpaintParentId: "img_source_1",
+                        errorMessage: null,
+                        finalPromptText: "适配提示词",
+                        finalNegativePrompt: null,
+                        generationRequestJson: null,
+                        seed: 3,
+                        thumbnailPath: null,
+                        thumbnailUrl: null,
+                        promptType: null,
+                        createdAt: 0,
+                        updatedAt: 0,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    meta: {
+      availableChannels: CHANNELS,
+      availableFeatures: FEATURE_LIBRARY,
+      availableAspectRatios: IMAGE_MODELS[0].aspectRatios,
+      availableImageStyles: IMAGE_STYLES,
+      availableLogoOptions: LOGO_OPTIONS,
+      availableIpRoles: IP_ROLES,
+    },
+  });
+
+  assert.ok(graph.nodes.find((node) => node.id === "finalized-grp_source_1"));
+  assert.ok(graph.nodes.find((node) => node.id === "finalized-grp_source_2"));
+  assert.equal(graph.nodes.filter((node) => node.type === "finalizedPool").length, 2);
+
+  const finalizedNode = graph.nodes.find((node) => node.id === "finalized-grp_source_1");
+  assert.ok(finalizedNode && "sourceGroupId" in finalizedNode.data);
+  const finalizedData = finalizedNode.data as {
+    sourceGroupId: string;
+    sourceAspectRatio: string;
+    assets: Array<{ ratio: string }>;
+  };
+  assert.equal(finalizedData.sourceGroupId, "grp_source_1");
+  assert.equal(finalizedData.sourceAspectRatio, "1:1");
+  assert.equal(finalizedData.assets.some((asset) => asset.ratio === "16:9"), true);
+});
+
 test("buildGraph keeps candidate pool visible while images are still pending", () => {
   const graph = buildGraph({
     project: {
@@ -724,13 +959,20 @@ test("buildGraph keeps derived finalized groups out of candidate pool but shows 
   });
 
   const candidateNode = graph.nodes.find((node) => node.id === "candidate-cfg_2");
-  const finalizedNode = graph.nodes.find((node) => node.id === "finalized-cfg_2");
+  const finalizedNode = graph.nodes.find((node) => node.id === "finalized-grp_2");
 
   assert.ok(candidateNode && "groups" in candidateNode.data);
   assert.equal(candidateNode.data.groups.length, 1);
   assert.equal(candidateNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
   assert.ok(finalizedNode && "groups" in finalizedNode.data);
-  assert.equal(finalizedNode.data.groups.length, 2);
-  assert.equal(finalizedNode.data.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
-  assert.equal(finalizedNode.data.groups[1]?.images[0]?.fileUrl, "/api/images/img_2_derived/file?v=0");
+  const finalizedData = finalizedNode.data as {
+    sourceGroupId: string;
+    groups: Array<{ images: Array<{ fileUrl: string | null }> }>;
+    assets: Array<{ ratio: string }>;
+  };
+  assert.equal(finalizedData.sourceGroupId, "grp_2");
+  assert.equal(finalizedData.groups.length, 2);
+  assert.equal(finalizedData.groups[0]?.images[0]?.fileUrl, "/api/images/img_2/file?v=0");
+  assert.equal(finalizedData.groups[1]?.images[0]?.fileUrl, "/api/images/img_2_derived/file?v=0");
+  assert.equal(finalizedData.assets.some((asset) => asset.ratio === "16:9"), true);
 });

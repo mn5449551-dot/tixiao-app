@@ -35,6 +35,28 @@ test("image chat resolves the default image-generation model and routes by model
   assert.match(source, /\/v1\/images\/edits/);
 });
 
+test("finalized adaptation models exclude Gemini Flash and non-4-ratio models", async () => {
+  const constantsPath = new URL("../constants.ts", import.meta.url);
+  const source = await readFile(constantsPath, "utf8");
+
+  assert.match(source, /FINALIZED_ADAPTATION_MODEL_VALUES/);
+  assert.match(source, /doubao-seedream-4-0/);
+  assert.match(source, /doubao-seedream-4-5/);
+  assert.match(source, /doubao-seedream-5-0-lite/);
+  assert.match(source, /qwen-image-2\.0/);
+  assert.doesNotMatch(source, /FINALIZED_ADAPTATION_MODEL_VALUES[\s\S]*gemini-3\.1-flash-image-preview/);
+  assert.doesNotMatch(source, /FINALIZED_ADAPTATION_MODEL_VALUES[\s\S]*gpt-image-1\.5/);
+});
+
+test("image chat uses edits transport for finalized adaptation reference-image models", async () => {
+  const source = await readFile(imageChatPath, "utf8");
+
+  assert.match(source, /supportsEdits/);
+  assert.match(source, /generateImageViaEdits/);
+  assert.match(source, /buildEditSize/);
+  assert.match(source, /qwen-image-2\.0/);
+});
+
 test("image chat source maps transport failures to specific timeout and network errors", async () => {
   const source = await readFile(imageChatPath, "utf8");
 

@@ -9,6 +9,7 @@ test("image config brand section no longer exposes logo selection and only manag
 
   assert.doesNotMatch(source, /LOGO_ASSET_OPTIONS/);
   assert.doesNotMatch(source, /Logo/);
-  assert.match(source, /普通模式不可选，切换到 IP 风格后才可选择/);
-  assert.match(source, /showIpAssetSelector \? \(/);
+  assert.match(source, /if \(!isIpMode\) return null/);
+  assert.match(source, /IP 形象/);
+  assert.match(source, /IP_ASSET_OPTIONS/);
 });

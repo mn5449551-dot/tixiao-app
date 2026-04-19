@@ -101,7 +101,7 @@ export async function generateImageFromReference(input: {
       model: resolved.model,
       prompt: input.instruction,
       imageUrl: urls[0],
-      size: buildImagesGenerationSize({
+      size: buildEditSize({
         model: resolved.model,
         aspectRatio: input.aspectRatio,
         resolution: input.resolution ?? DEFAULT_IMAGE_RESOLUTION,
@@ -144,6 +144,18 @@ function buildImagesGenerationSize(input: {
   resolution: ImageResolution;
 }) {
   return getModelDefaultSize(input.model, input.aspectRatio ?? "1:1");
+}
+
+function buildEditSize(input: {
+  model: string;
+  aspectRatio?: string;
+  resolution: ImageResolution;
+}) {
+  const size = getModelDefaultSize(input.model, input.aspectRatio ?? "1:1");
+  if (input.model === "qwen-image-2.0") {
+    return size.replace("x", "*");
+  }
+  return size;
 }
 
 async function generateImageViaChatCompletions(input: {
@@ -362,7 +374,7 @@ export async function editImage(input: {
     model: resolved.model,
     prompt: input.prompt,
     imageUrl: input.imageUrl,
-    size: buildImagesGenerationSize({
+    size: buildEditSize({
       model: resolved.model,
       aspectRatio: input.aspectRatio,
       resolution: DEFAULT_IMAGE_RESOLUTION,

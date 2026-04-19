@@ -1321,6 +1321,9 @@ export async function appendImageConfigGroup(imageConfigId: string) {
 export async function generateFinalizedVariants(
   projectId: string,
   input: {
+    sourceGroupId?: string;
+    targetChannel?: string;
+    slotNames?: string[];
     targetGroupIds?: string[];
     targetChannels?: string[];
     targetSlots?: string[];
@@ -1328,8 +1331,14 @@ export async function generateFinalizedVariants(
   },
 ) {
   const db = getDb();
-  const selectedGroupIds = new Set(input.targetGroupIds ?? []);
-  const slotSpecs = resolveExportSlotSpecs(input);
+  const targetGroupIds = input.targetGroupIds ?? (input.sourceGroupId ? [input.sourceGroupId] : []);
+  const targetChannels = input.targetChannels ?? (input.targetChannel ? [input.targetChannel] : []);
+  const targetSlots = input.targetSlots ?? input.slotNames;
+  const selectedGroupIds = new Set(targetGroupIds);
+  const slotSpecs = resolveExportSlotSpecs({
+    targetChannels,
+    targetSlots,
+  });
   const model = input.imageModel ?? "doubao-seedream-4-0";
 
   const ratioSpecs = new Map(
@@ -1407,10 +1416,17 @@ export async function generateFinalizedVariants(
               imageId: string;
               sourceImage: typeof sourceImages[number];
               prompt: string;
+              referenceDataUrl: string;
             }> = [];
 
             for (const sourceImage of sourceImages) {
               const imageId = createId("img");
+              const aspectDirection = compareAspectRatios(config.aspectRatio, ratio);
+              const prompt = buildAdaptationPrompt(config.aspectRatio, ratio, aspectDirection);
+              const imageBuffer = await readFile(sourceImage.filePath!);
+              const mimeType = getMimeTypeFromPath(sourceImage.filePath!);
+              const referenceDataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
               db.insert(generatedImages)
                 .values({
                   id: imageId,
@@ -1423,28 +1439,28 @@ export async function generateFinalizedVariants(
                   inpaintParentId: sourceImage.id,
                   errorMessage: null,
                   seed: sourceImage.seed,
-                  finalPromptText: null,
+                  finalPromptText: prompt,
                   finalNegativePrompt: null,
+                  generationRequestJson: JSON.stringify({
+                    promptText: prompt,
+                    negativePrompt: null,
+                    model,
+                    aspectRatio: ratio,
+                    referenceImages: [{ url: referenceDataUrl }],
+                  }),
                   createdAt: timestamp,
                   updatedAt: timestamp,
                 })
                 .run();
 
-              const aspectDirection = compareAspectRatios(config.aspectRatio, ratio);
-              const prompt = buildAdaptationPrompt(config.aspectRatio, ratio, aspectDirection);
-
-              workItems.push({ imageId, sourceImage, prompt });
+              workItems.push({ imageId, sourceImage, prompt, referenceDataUrl });
             }
 
             const generationResults = await Promise.allSettled(
               workItems.map(async (item) => {
-                const imageBuffer = await readFile(item.sourceImage.filePath!);
-                const mimeType = getMimeTypeFromPath(item.sourceImage.filePath!);
-                const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
-
                 const binaries = await generateImageFromReference({
                   instruction: item.prompt,
-                  imageUrls: [dataUrl],
+                  imageUrls: [item.referenceDataUrl],
                   aspectRatio: ratio,
                   model,
                 });
@@ -1474,6 +1490,13 @@ export async function generateFinalizedVariants(
                     thumbnailUrl: result.value.saved.thumbnailUrl,
                     status: "done",
                     finalPromptText: result.value.prompt,
+                    generationRequestJson: JSON.stringify({
+                      promptText: result.value.prompt,
+                      negativePrompt: null,
+                      model,
+                      aspectRatio: ratio,
+                      referenceImages: [{ url: workItems[i].referenceDataUrl }],
+                    }),
                     updatedAt: Date.now(),
                   })
                   .where(eq(generatedImages.id, imageId))

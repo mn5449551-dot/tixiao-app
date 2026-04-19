@@ -14,15 +14,16 @@ import {
   exportFinalizedImages,
   generateFinalizedVariants,
 } from "@/components/cards/finalized-pool/finalized-pool-actions";
-import { FinalizedPreviewCard } from "@/components/cards/finalized-pool/finalized-preview-card";
 import { Field, Select } from "@/components/ui/field";
 import {
   EXPORT_SLOT_SPECS,
-  mergeSelectedGroupIds,
   splitExportSlotSpecsByCoverage,
   type ExportSlotSpec,
 } from "@/lib/export/utils";
-import { IMAGE_MODELS } from "@/lib/constants";
+import {
+  DEFAULT_FINALIZED_ADAPTATION_MODEL_VALUE,
+  FINALIZED_ADAPTATION_MODELS,
+} from "@/lib/constants";
 import { LOGO_ASSET_OPTIONS } from "@/lib/logo-asset-metadata";
 import { cn } from "@/lib/utils";
 import { dispatchWorkspaceInvalidated } from "@/lib/workspace-events";
@@ -40,7 +41,7 @@ export type FinalizedImage = {
   thumbnailUrl?: string | null;
   aspectRatio: string;
   groupLabel?: string;
-  isConfirmed: boolean;
+  isConfirmed?: boolean;
   updatedAt?: number;
 };
 
@@ -49,11 +50,27 @@ export type FinalizedGroup = {
   variantIndex: number;
   slotCount: number;
   groupType?: string;
+  aspectRatio?: string;
+  styleMode?: string;
+  imageStyle?: string;
+  images: FinalizedImage[];
+};
+
+export type FinalizedAsset = {
+  ratio: string;
+  groupId: string;
+  imageIds: string[];
+  kind: "source" | "derived";
   images: FinalizedImage[];
 };
 
 export type FinalizedPoolCardData = {
   displayMode: "single" | "double" | "triple";
+  sourceGroupId: string;
+  sourceImageConfigId: string;
+  sourceAspectRatio: string;
+  sourceImages: FinalizedImage[];
+  assets: FinalizedAsset[];
   groups: FinalizedGroup[];
   groupLabel?: string;
   projectId?: string;
@@ -62,62 +79,64 @@ export type FinalizedPoolCardData = {
 
 export type FinalizedPoolCardNode = Node<FinalizedPoolCardData, "finalizedPool">;
 
-function isDerivedGroup(group: { groupType?: string }) {
-  return group.groupType?.startsWith("derived|") ?? false;
-}
-
-function getSlotsForChannels(channels: string[]): ExportSlotSpec[] {
-  if (channels.length === 0) return [];
-  return EXPORT_SLOT_SPECS.filter((spec) => channels.includes(spec.channel));
-}
-
 function getFinalizedPoolBorderClass(selected: boolean): string {
-  if (selected) return "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]";
-  return "border-[var(--border)]";
+  return selected
+    ? "border-[var(--brand-300)] ring-4 ring-[var(--brand-ring)]"
+    : "border-[var(--line-soft)]";
 }
 
-function getFinalizedSummaryText(
-  displayMode: FinalizedPoolCardData["displayMode"],
-  confirmedCount: number,
-  groupCount: number,
-  selectedGroupCount: number,
-): string {
-  const baseText =
-    displayMode === "single" ? `共 ${confirmedCount} 张已定稿` : `共 ${groupCount} 套已定稿`;
-
-  if (selectedGroupCount > 0) {
-    return `${baseText} · 已选 ${selectedGroupCount}`;
-  }
-
-  return baseText;
+function normalizeAssetsFromLegacyGroups(groups: FinalizedGroup[]): FinalizedAsset[] {
+  return groups.map((group) => ({
+    ratio: group.aspectRatio ?? group.images[0]?.aspectRatio ?? "1:1",
+    groupId: group.id,
+    imageIds: group.images.map((image) => image.id),
+    kind: group.groupType?.startsWith("derived|") ? "derived" : "source",
+    images: group.images,
+  }));
 }
 
-function getFinalizedGroupCardClass(selected: boolean): string {
-  return cn(
-    "rounded-[var(--radius-md)] border bg-[var(--surface)] p-3",
-    selected
-      ? "border-[var(--brand-light)] ring-2 ring-[var(--brand-ring)]"
-      : "border-[var(--border)]",
-  );
+function getAssetLabel(asset: FinalizedAsset): string {
+  return asset.kind === "source" ? `${asset.ratio} 原图` : `${asset.ratio} 适配图`;
 }
 
-function getFinalizedGroupSelectButtonClass(selected: boolean): string {
-  return cn(
-    "flex h-5 w-5 items-center justify-center rounded border text-xs",
-    selected
-      ? "border-[var(--brand)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
-      : "border-[var(--border)] bg-[var(--surface)] text-transparent",
-  );
+function getAssetByRatio(assets: FinalizedAsset[], ratio: string) {
+  return assets.find((asset) => asset.ratio === ratio) ?? null;
+}
+
+function getSourceGroupId(data: FinalizedPoolCardData, assets: FinalizedAsset[]) {
+  return data.sourceGroupId ?? assets.find((asset) => asset.kind === "source")?.groupId ?? null;
 }
 
 export function FinalizedPoolCard({
   data,
   selected,
 }: NodeProps<FinalizedPoolCardNode>): ReactElement {
-  const { displayMode, groups, groupLabel, projectId } = data;
-  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(() => new Set());
-  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const {
+    displayMode,
+    sourceAspectRatio,
+    sourceImages: rawSourceImages,
+    assets: rawAssets,
+    groups = [],
+    groupLabel,
+    projectId,
+    defaultImageModel,
+  } = data;
+
+  const assets = useMemo(
+    () => (rawAssets && rawAssets.length > 0 ? rawAssets : normalizeAssetsFromLegacyGroups(groups)),
+    [groups, rawAssets],
+  );
+  const sourceImages = useMemo(
+    () => (rawSourceImages && rawSourceImages.length > 0
+      ? rawSourceImages
+      : assets.find((asset) => asset.kind === "source")?.images ?? []),
+    [assets, rawSourceImages],
+  );
+  const resolvedSourceGroupId = useMemo(() => getSourceGroupId(data, assets), [assets, data]);
+  const availableRatios = useMemo(() => Array.from(new Set(assets.map((asset) => asset.ratio))), [assets]);
+
+  const [activeChannel, setActiveChannel] = useState<string | null>(null);
+  const [selectedSlotNames, setSelectedSlotNames] = useState<string[]>([]);
   const [fileFormat, setFileFormat] = useState<"jpg" | "png" | "webp">("jpg");
   const [exportLogo, setExportLogo] = useState<"onion" | "onion_app" | "none">("none");
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
@@ -126,59 +145,39 @@ export function FinalizedPoolCard({
   const [regeneratingImageId, setRegeneratingImageId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<FinalizedImage | null>(null);
-  const [imageModel, setImageModel] = useState<string>(data.defaultImageModel ?? IMAGE_MODELS[0]?.value ?? "doubao-seedream-4-0");
-
-  const selectedGroups = useMemo(() => groups.filter((g) => selectedGroupIds.has(g.id)), [groups, selectedGroupIds]);
-  const selectedImages = useMemo(() => selectedGroups.flatMap((g) => g.images), [selectedGroups]);
-  const selectedImageRatios = useMemo(
-    () => Array.from(new Set(selectedImages.map((image) => image.aspectRatio))),
-    [selectedImages],
+  const [imageModel, setImageModel] = useState<string>(
+    defaultImageModel ?? DEFAULT_FINALIZED_ADAPTATION_MODEL_VALUE,
   );
-  const availableSlots = useMemo(() => getSlotsForChannels(selectedChannels), [selectedChannels]);
+
+  const activeSlotSpecs = useMemo(
+    () => (activeChannel ? EXPORT_SLOT_SPECS.filter((spec) => spec.channel === activeChannel) : []),
+    [activeChannel],
+  );
   const { directSlots, adaptationRequiredSlots, specialSlots } = useMemo(
-    () => splitExportSlotSpecsByCoverage({ selectedImageRatios, slotSpecs: availableSlots }),
-    [availableSlots, selectedImageRatios],
+    () => splitExportSlotSpecsByCoverage({ selectedImageRatios: availableRatios, slotSpecs: activeSlotSpecs }),
+    [activeSlotSpecs, availableRatios],
   );
   const selectedDirectSlotSpecs = useMemo(
-    () => directSlots.filter((slot) => selectedSlots.includes(slot.slotName)),
-    [directSlots, selectedSlots],
+    () => directSlots.filter((slot) => selectedSlotNames.includes(slot.slotName)),
+    [directSlots, selectedSlotNames],
+  );
+  const selectedAdaptiveSlotSpecs = useMemo(
+    () => adaptationRequiredSlots.filter((slot) => selectedSlotNames.includes(slot.slotName)),
+    [adaptationRequiredSlots, selectedSlotNames],
   );
 
   const toggleChannel = useCallback((channel: string) => {
-    setSelectedChannels((prev) =>
-      prev.includes(channel) ? prev.filter((item) => item !== channel) : [...prev, channel],
-    );
-    setSelectedSlots([]);
+    setActiveChannel((prev) => (prev === channel ? null : channel));
+    setSelectedSlotNames([]);
   }, []);
 
   const toggleSlot = useCallback((slotName: string) => {
-    setSelectedSlots((prev) =>
+    setSelectedSlotNames((prev) =>
       prev.includes(slotName) ? prev.filter((item) => item !== slotName) : [...prev, slotName],
     );
   }, []);
 
-  const exportCount = displayMode === "single" ? selectedImages.length : selectedGroups.length;
-  const selectedGroupCount = selectedGroupIds.size;
-  const selectedGroupIdList = useMemo(() => [...selectedGroupIds], [selectedGroupIds]);
-  const allGroupsSelected = selectedGroupIds.size === groups.length;
-
-  const toggleGroupSelection = useCallback((groupId: string) => {
-    setSelectedGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  }, []);
-
-  const toggleSelectAllGroups = useCallback(() => {
-    setSelectedGroupIds((prev) => {
-      if (prev.size === groups.length) return new Set();
-      return new Set(groups.map((group) => group.id));
-    });
-  }, [groups]);
-
-  const handleDeleteDerivedGroup = useCallback(async (groupId: string) => {
+  const handleDeleteDerivedAsset = useCallback(async (groupId: string) => {
     setActionLoadingGroupId(groupId);
     try {
       const ok = await deleteDerivedGroup(groupId);
@@ -196,8 +195,8 @@ export function FinalizedPoolCard({
     try {
       const res = await fetch(`/api/images/${image.id}`, { method: "POST" });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setFeedback(data.error ?? "重新生成失败");
+        const payload = await res.json().catch(() => ({}));
+        setFeedback(payload.error ?? "重新生成失败");
         return;
       }
       dispatchWorkspaceInvalidated();
@@ -211,159 +210,68 @@ export function FinalizedPoolCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] transition",
+        "relative overflow-hidden rounded-[28px] border bg-white p-4 shadow-[var(--shadow-card)] transition",
         getFinalizedPoolBorderClass(selected),
       )}
-      style={{ width: 480, maxWidth: '100%' } satisfies CSSProperties}
+      style={{ width: 480, maxWidth: "100%" } satisfies CSSProperties}
     >
-      <div className="absolute inset-x-0 top-0 h-1 bg-[var(--brand)]" />
+      <div className="absolute inset-x-0 top-0 h-[4px] bg-[var(--brand-500)]" />
       <Handle
-        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand)]"
+        className="!h-3 !w-3 !border-2 !border-white !bg-[var(--brand-500)]"
         position={Position.Left}
         type="target"
       />
 
-      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[var(--border)] pb-3 pt-1 active:cursor-grabbing">
+      <div className="workflow-drag-handle mb-4 flex cursor-grab items-start justify-between gap-3 border-b border-[#f5f0eb] pb-3 pt-1 active:cursor-grabbing">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-xl font-semibold text-[var(--ink-strong)]">定稿池</h3>
+            <span className="text-base leading-none">{"\u25C9"}</span>
+            <h3 className="text-sm font-semibold text-[#4a3728]">定稿卡片</h3>
           </div>
-          <p className="text-xs text-[var(--ink-muted)]">
-            {getFinalizedSummaryText(displayMode, groups.flatMap((group) => group.images).length, groups.length, selectedGroupCount)}
+          <p className="text-[11px] text-[var(--ink-400)]">
+            {sourceAspectRatio ?? sourceImages[0]?.aspectRatio ?? "1:1"} 原始定稿
           </p>
         </div>
         {groupLabel ? <Badge tone="success">{groupLabel}</Badge> : null}
       </div>
 
       {feedback ? (
-        <div className="mb-3 rounded-lg bg-[var(--warning-bg)] px-3 py-2 text-xs text-[var(--warning-text)]">
+        <div className="mb-3 rounded-lg bg-[#fff7ed] px-3 py-2 text-xs text-[#9b6513]">
           {feedback}
         </div>
       ) : null}
 
-      <div className="mb-4 flex items-center gap-2">
-        <Button variant="secondary" onClick={toggleSelectAllGroups} className="shrink-0 text-xs">
-          {allGroupsSelected ? "全不选" : "全选"}
-        </Button>
-        <span className="flex-1 text-center text-xs text-[var(--ink-muted)]">
-          已选 {selectedGroupIds.size}/{groups.length}
-        </span>
-      </div>
-
-      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-default)]">已定稿预览</p>
-        {displayMode === "single" ? (
-          <div className="space-y-3">
-            {groups.map((group) => (
-              <div
-                key={group.id}
-                className={getFinalizedGroupCardClass(selectedGroupIds.has(group.id))}
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">原始定稿</p>
+        {sourceImages.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {sourceImages.map((image) => (
+              <button
+                key={image.id}
+                type="button"
+                className="rounded-xl border border-[var(--line-soft)] bg-white p-2 text-left"
+                onClick={() => setPreviewImage(image)}
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className={getFinalizedGroupSelectButtonClass(selectedGroupIds.has(group.id))}
-                      onClick={() => toggleGroupSelection(group.id)}
-                      aria-label={selectedGroupIds.has(group.id) ? "取消选择定稿组" : "选择定稿组"}
-                    >
-                      ✓
-                    </button>
-                    <p className="text-xs font-medium text-[var(--ink-default)]">
-                      {isDerivedGroup(group) ? "适配版本" : `第 ${group.variantIndex} 组`}
-                    </p>
-                  </div>
-                  {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : <Badge tone="success">原始定稿</Badge>}
+                <div className="mb-2 aspect-[1/1] overflow-hidden rounded-lg bg-[var(--surface-2)]">
+                  {image.fileUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={image.thumbnailUrl ?? image.fileUrl} alt="定稿原图" className="h-full w-full object-contain" />
+                  ) : null}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {group.images.map((image) => (
-                    <FinalizedPreviewCard
-                      key={image.id}
-                      image={image}
-                      onPreview={setPreviewImage}
-                      {...(isDerivedGroup(group) ? {
-                        onRegenerate: handleRegenerateImage,
-                        isRegenerating: regeneratingImageId === image.id,
-                      } : {})}
-                    />
-                  ))}
-                </div>
-                {isDerivedGroup(group) ? (
-                  <div className="mt-3 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      className="text-xs"
-                      disabled={actionLoadingGroupId === group.id}
-                      onClick={() => void handleDeleteDerivedGroup(group.id)}
-                    >
-                      删除适配版本
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
+                <p className="text-xs font-medium text-[var(--ink-700)]">{image.aspectRatio}</p>
+              </button>
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
-            {groups.map((group) => (
-              <div
-                key={group.id}
-                className={getFinalizedGroupCardClass(selectedGroupIds.has(group.id))}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className={getFinalizedGroupSelectButtonClass(selectedGroupIds.has(group.id))}
-                      onClick={() => toggleGroupSelection(group.id)}
-                      aria-label={selectedGroupIds.has(group.id) ? "取消选择定稿组" : "选择定稿组"}
-                    >
-                      ✓
-                    </button>
-                    <p className="text-xs font-medium text-[var(--ink-default)]">第 {group.variantIndex} 套</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isDerivedGroup(group) ? <Badge tone="brand">适配版本</Badge> : null}
-                    <Badge tone="success">{group.slotCount} 图</Badge>
-                  </div>
-                </div>
-                <div className={cn("grid gap-2", displayMode === "double" ? "grid-cols-2" : "grid-cols-3")}>
-                  {group.images.map((image) => (
-                    <FinalizedPreviewCard
-                      key={image.id}
-                      image={image}
-                      compact
-                      onPreview={setPreviewImage}
-                      {...(isDerivedGroup(group) ? {
-                        onRegenerate: handleRegenerateImage,
-                        isRegenerating: regeneratingImageId === image.id,
-                      } : {})}
-                    />
-                  ))}
-                </div>
-                {isDerivedGroup(group) ? (
-                  <div className="mt-3 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      className="text-xs"
-                      disabled={actionLoadingGroupId === group.id}
-                      onClick={() => void handleDeleteDerivedGroup(group.id)}
-                    >
-                      删除适配版本
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          <p className="text-xs text-[var(--ink-500)]">当前卡片缺少可预览的原始定稿图。</p>
         )}
       </div>
 
-      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
-        <p className="mb-2 text-xs font-medium text-[var(--ink-default)]">投放渠道</p>
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+        <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">渠道选择</p>
         <div className="flex flex-wrap gap-2">
           {EXPORT_CHANNELS.map((channel) => {
-            const active = selectedChannels.includes(channel);
+            const active = activeChannel === channel;
             return (
               <button
                 key={channel}
@@ -371,8 +279,8 @@ export function FinalizedPoolCard({
                 className={cn(
                   "rounded-full px-3 py-1 text-xs transition",
                   active
-                    ? "bg-[var(--brand-bg)] text-[var(--brand-dark)] ring-1 ring-[var(--brand)]"
-                    : "bg-[var(--surface)] text-[var(--ink-subtle)] ring-1 ring-[var(--border)]",
+                    ? "bg-[var(--brand-50)] text-[var(--brand-700)] ring-1 ring-[var(--brand-400)]"
+                    : "bg-white text-[var(--ink-500)] ring-1 ring-[var(--line-soft)]",
                 )}
                 onClick={() => toggleChannel(channel)}
               >
@@ -383,55 +291,198 @@ export function FinalizedPoolCard({
         </div>
       </div>
 
-      {availableSlots.length > 0 && (
-        <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
-          <p className="mb-2 text-xs font-medium text-[var(--ink-default)]">投放版位</p>
-          <div className="space-y-1.5">
-            {directSlots.map((slot) => {
-              const active = selectedSlots.includes(slot.slotName);
-              return (
-                <button
-                  key={`${slot.channel}-${slot.slotName}`}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition",
-                    active
-                      ? "border-[var(--brand)] bg-[var(--brand-bg)] text-[var(--brand-dark)]"
-                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink-subtle)]",
-                  )}
-                  onClick={() => toggleSlot(slot.slotName)}
-                >
-                  <span className="font-medium">{slot.channel} · {slot.slotName}</span>
-                  <span className="text-xs text-[var(--ink-muted)]">{slot.ratio}</span>
-                </button>
-              );
-            })}
-            {adaptationRequiredSlots.map((slot) => (
-              <div
-                key={`${slot.channel}-${slot.slotName}`}
-                className="flex items-center justify-between rounded-lg border border-dashed border-[var(--border)] px-3 py-2 text-xs text-[var(--ink-muted)]"
-              >
-                <span>{slot.channel} · {slot.slotName}</span>
-                <span className="text-xs">需适配</span>
-              </div>
-            ))}
-          </div>
-          {specialSlots.length > 0 && (
-            <p className="mt-2 text-xs text-[var(--ink-muted)]">
-              特殊比例暂不支持：{specialSlots.map((slot) => `${slot.channel} · ${slot.slotName}`).join("、")}
-            </p>
-          )}
+      {!activeChannel ? (
+        <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3 text-xs text-[var(--ink-500)]">
+          请选择渠道后查看该渠道版位
         </div>
+      ) : (
+        <>
+          <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+            <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">可直接导出</p>
+            {directSlots.length > 0 ? (
+              <div className="space-y-2">
+                {directSlots.map((slot) => {
+                  const active = selectedSlotNames.includes(slot.slotName);
+                  const asset = getAssetByRatio(assets, slot.ratio);
+                  return (
+                    <button
+                      key={`${slot.channel}-${slot.slotName}`}
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs",
+                        active
+                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                          : "border-[var(--line-soft)] bg-white text-[var(--ink-600)]",
+                      )}
+                      onClick={() => toggleSlot(slot.slotName)}
+                    >
+                      <div>
+                        <p className="font-medium">{slot.slotName}</p>
+                        <p className="mt-1 text-[11px] text-[var(--ink-500)]">
+                          当前使用：{asset ? getAssetLabel(asset) : `${slot.ratio} 资产`}
+                        </p>
+                      </div>
+                      <span>{slot.ratio}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--ink-500)]">当前渠道暂无可直接导出的版位。</p>
+            )}
+          </div>
+
+          <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+            <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">需适配</p>
+            {adaptationRequiredSlots.length > 0 ? (
+              <div className="space-y-2">
+                {adaptationRequiredSlots.map((slot) => {
+                  const active = selectedSlotNames.includes(slot.slotName);
+                  return (
+                    <button
+                      key={`${slot.channel}-${slot.slotName}`}
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs",
+                        active
+                          ? "border-[var(--brand-400)] bg-[var(--brand-50)] text-[var(--brand-700)]"
+                          : "border-[var(--line-soft)] bg-white text-[var(--ink-600)]",
+                      )}
+                      onClick={() => toggleSlot(slot.slotName)}
+                    >
+                      <span className="font-medium">{slot.slotName}</span>
+                      <span>{slot.ratio}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--ink-500)]">当前渠道所需比例已齐备。</p>
+            )}
+          </div>
+
+          <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+            <p className="mb-2 text-xs font-medium text-[var(--ink-700)]">暂不支持</p>
+            {specialSlots.length > 0 ? (
+              <div className="space-y-2 text-xs text-[var(--ink-500)]">
+                {specialSlots.map((slot) => (
+                  <div
+                    key={`${slot.channel}-${slot.slotName}`}
+                    className="flex items-center justify-between rounded-xl border border-dashed border-[var(--line-soft)] bg-white px-3 py-2"
+                  >
+                    <span>{slot.slotName}</span>
+                    <span>{slot.ratio}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--ink-500)]">当前渠道没有暂不支持的版位。</p>
+            )}
+          </div>
+        </>
       )}
 
-      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
-        <p className="mb-1 text-xs font-medium text-[var(--ink-default)]">导出预览</p>
-        <p className="text-xs text-[var(--ink-subtle)]">
-          已选 {exportCount} {displayMode === "single" ? "张" : "套"} · 直接导出 {selectedDirectSlotSpecs.length} 个版位 · 待适配 {adaptationRequiredSlots.length} 个
-        </p>
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-medium text-[var(--ink-700)]">已有比例资产</p>
+          <p className="text-[11px] text-[var(--ink-500)]">适配图按比例复用，不按渠道重复生成</p>
+        </div>
+        <div className="space-y-2">
+          {assets.map((asset) => {
+            const image = asset.images[0] ?? null;
+            return (
+              <div
+                key={asset.groupId}
+                className="flex items-center justify-between rounded-xl border border-[var(--line-soft)] bg-white px-3 py-2"
+              >
+                <button
+                  type="button"
+                  className="min-w-0 text-left"
+                  onClick={() => image && setPreviewImage(image)}
+                >
+                  <p className="text-xs font-medium text-[var(--ink-700)]">{getAssetLabel(asset)}</p>
+                  <p className="mt-1 text-[11px] text-[var(--ink-500)]">{asset.ratio}</p>
+                </button>
+                <div className="flex items-center gap-2">
+                  {asset.kind === "derived" && image ? (
+                    <Button
+                      variant="secondary"
+                      className="text-xs"
+                      disabled={regeneratingImageId === image.id}
+                      onClick={() => handleRegenerateImage(image)}
+                    >
+                      {regeneratingImageId === image.id ? "重生成中..." : "重新生成"}
+                    </Button>
+                  ) : null}
+                  {asset.kind === "derived" ? (
+                    <Button
+                      variant="ghost"
+                      className="text-xs text-[var(--danger-600)]"
+                      disabled={actionLoadingGroupId === asset.groupId}
+                      onClick={() => handleDeleteDerivedAsset(asset.groupId)}
+                    >
+                      {actionLoadingGroupId === asset.groupId ? "删除中..." : "删除"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <Select value={imageModel} onChange={(event) => setImageModel(event.target.value)} className="h-8 text-xs">
+          {FINALIZED_ADAPTATION_MODELS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </Select>
+        <Button
+          variant="secondary"
+          className="shrink-0 text-xs"
+          disabled={
+            isGeneratingVariants ||
+            !projectId ||
+            !resolvedSourceGroupId ||
+            !activeChannel ||
+            selectedAdaptiveSlotSpecs.length === 0
+          }
+          onClick={async () => {
+            if (!projectId || !resolvedSourceGroupId || !activeChannel) return;
+            setIsGeneratingVariants(true);
+            setFeedback(null);
+            try {
+              const result = await generateFinalizedVariants({
+                projectId,
+                sourceGroupId: resolvedSourceGroupId,
+                targetChannel: activeChannel,
+                slotNames: selectedAdaptiveSlotSpecs.map((slot) => slot.slotName),
+                imageModel,
+              });
+              if (!result.ok) {
+                setFeedback(result.error ?? "生成适配版本失败");
+                return;
+              }
+              if (result.skippedSlots.length > 0) {
+                setFeedback(`以下版位暂不支持：${result.skippedSlots.join("、")}`);
+              } else if (result.groups.length === 0) {
+                setFeedback("当前选择的版位无需生成适配版本。");
+              } else {
+                setFeedback(`已生成 ${result.groups.length} 个适配版本。`);
+              }
+              dispatchWorkspaceInvalidated();
+            } finally {
+              setIsGeneratingVariants(false);
+            }
+          }}
+        >
+          {isGeneratingVariants ? "生成中..." : "生成适配版本"}
+        </Button>
+      </div>
+
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <Field label="文件格式">
           <Select value={fileFormat} onChange={(event) => setFileFormat(event.target.value as "jpg" | "png" | "webp")}>
             <option value="jpg">JPG</option>
@@ -441,7 +492,7 @@ export function FinalizedPoolCard({
         </Field>
       </div>
 
-      <div className="mb-3 rounded-[var(--radius-md)] bg-[var(--surface-dim)] p-3">
+      <div className="mb-3 rounded-[22px] bg-[var(--surface-1)] p-3">
         <Field label="导出 Logo">
           <Select value={exportLogo} onChange={(event) => setExportLogo(event.target.value as "onion" | "onion_app" | "none")}>
             <option value="none">不添加 Logo</option>
@@ -454,70 +505,19 @@ export function FinalizedPoolCard({
         </Field>
       </div>
 
-      <div className="mb-3 flex items-center gap-2">
-        <Select value={imageModel} onChange={(e) => setImageModel(e.target.value)} className="h-8 text-xs">
-          {IMAGE_MODELS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </Select>
-        <Button
-          variant="secondary"
-          className="shrink-0 text-xs"
-          disabled={isGeneratingVariants || adaptationRequiredSlots.length === 0 || selectedGroupIds.size === 0 || !projectId}
-          onClick={async () => {
-            if (!projectId) return;
-            setIsGeneratingVariants(true);
-            setFeedback(null);
-            try {
-              const result = await generateFinalizedVariants({
-                projectId,
-                selectedGroupIds: selectedGroupIdList,
-                selectedChannels,
-                slotNames: adaptationRequiredSlots.map((slot) => slot.slotName),
-                imageModel,
-              });
-              if (!result.ok) {
-                setFeedback(result.error ?? "生成适配版本失败");
-                return;
-              }
-              if (result.groups.length > 0) {
-                setSelectedGroupIds((prev) => new Set(mergeSelectedGroupIds(prev, result.groups.map((group) => group.id))));
-              }
-              if (result.skippedSlots.length > 0) {
-                setFeedback(`以下版位暂不支持，功能开发中：${result.skippedSlots.join("、")}${result.groups.length > 0 ? `。已生成 ${result.groups.length} 个适配版本，并加入当前选择。` : ""}`);
-              } else if (result.groups.length === 0) {
-                setFeedback("当前选中版位都可直接导出，无需生成适配版本。");
-              } else {
-                setFeedback(`已生成 ${result.groups.length} 个适配版本，并加入当前选择。`);
-              }
-              dispatchWorkspaceInvalidated();
-            } finally {
-              setIsGeneratingVariants(false);
-            }
-          }}
-        >
-          {isGeneratingVariants ? "生成中..." : "生成适配版本"}
-        </Button>
-      </div>
-
       <Button
         variant="primary"
         className="w-full py-3.5 text-sm font-semibold"
+        disabled={isExporting || !projectId || !resolvedSourceGroupId || !activeChannel || selectedDirectSlotSpecs.length === 0}
         onClick={async () => {
-          if (selectedGroupIds.size === 0 || selectedChannels.length === 0 || !projectId) return;
-
-          const confirmMsg = `确认导出 ${exportCount} ${displayMode === "single" ? "张" : "套"}图片到 ${selectedDirectSlotSpecs.length} 个版位？`;
-          if (!confirm(confirmMsg)) return;
-
+          if (!projectId || !resolvedSourceGroupId || !activeChannel) return;
           setIsExporting(true);
           setFeedback(null);
           try {
             const result = await exportFinalizedImages({
               projectId,
-              selectedGroupIds: selectedGroupIdList,
-              selectedChannels,
+              sourceGroupId: resolvedSourceGroupId,
+              targetChannel: activeChannel,
               slotNames: selectedDirectSlotSpecs.map((slot) => slot.slotName),
               logo: exportLogo,
               fileFormat,
@@ -532,9 +532,8 @@ export function FinalizedPoolCard({
             setIsExporting(false);
           }
         }}
-        disabled={isExporting || selectedGroupIds.size === 0 || selectedChannels.length === 0 || selectedDirectSlotSpecs.length === 0}
       >
-        {isExporting ? "导出中..." : "确认导出"}
+        {isExporting ? "导出中..." : "导出所选版位"}
       </Button>
 
       {previewImage ? (

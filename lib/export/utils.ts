@@ -165,3 +165,14 @@ export function mergeSelectedGroupIds(
   }
   return [...next];
 }
+
+export function findDirectExportImage(input: {
+  images: Array<{ imageGroupId: string; filePath: string | null; imageConfigId: string }>;
+  groupMap: Map<string, { aspectRatio: string | null }>;
+  targetRatio: string;
+}) {
+  return input.images.find((image) => {
+    const ratio = input.groupMap.get(image.imageGroupId)?.aspectRatio ?? "1:1";
+    return classifyExportAdaptation(ratio, input.targetRatio) === "direct";
+  }) ?? null;
+}
