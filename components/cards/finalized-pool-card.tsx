@@ -40,6 +40,8 @@ export type FinalizedImage = {
   fileUrl: string | null;
   thumbnailUrl?: string | null;
   aspectRatio: string;
+  actualWidth?: number | null;
+  actualHeight?: number | null;
   groupLabel?: string;
   isConfirmed?: boolean;
   updatedAt?: number;
@@ -97,6 +99,11 @@ function normalizeAssetsFromLegacyGroups(groups: FinalizedGroup[]): FinalizedAss
 
 function getAssetLabel(asset: FinalizedAsset): string {
   return asset.kind === "source" ? `${asset.ratio} 原图` : `${asset.ratio} 适配图`;
+}
+
+function getActualSizeLabel(image: FinalizedImage | null) {
+  if (!image?.actualWidth || !image?.actualHeight) return null;
+  return `${image.actualWidth}×${image.actualHeight}`;
 }
 
 function getAssetByRatio(assets: FinalizedAsset[], ratio: string) {
@@ -415,7 +422,10 @@ export function FinalizedPoolCard({
                   </button>
                   <div className="min-w-0 text-left">
                     <p className="text-xs font-medium text-[var(--ink-700)]">{getAssetLabel(asset)}</p>
-                    <p className="mt-1 text-[11px] text-[var(--ink-500)]">{asset.ratio}</p>
+                    <p className="mt-1 text-[11px] text-[var(--ink-500)]">目标比例：{asset.ratio}</p>
+                    {getActualSizeLabel(image) ? (
+                      <p className="mt-1 text-[11px] text-[var(--ink-500)]">实际尺寸：{getActualSizeLabel(image)}</p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

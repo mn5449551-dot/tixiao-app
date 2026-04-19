@@ -153,6 +153,8 @@ export const generatedImages = sqliteTable("generated_images", {
   finalPromptText: text("final_prompt_text"),
   finalNegativePrompt: text("final_negative_prompt"),
   generationRequestJson: text("generation_request_json"),
+  actualWidth: integer("actual_width"),
+  actualHeight: integer("actual_height"),
   seed: integer("seed"),
   promptType: text("prompt_type"), // "full" | "delta" | null
   thumbnailPath: text("thumbnail_path"),

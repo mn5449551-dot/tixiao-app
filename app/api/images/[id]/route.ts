@@ -47,6 +47,8 @@ function setImageRegenerating(imageId: string): void {
       fileUrl: null,
       thumbnailPath: null,
       thumbnailUrl: null,
+      actualWidth: null,
+      actualHeight: null,
       errorMessage: null,
       updatedAt: Date.now(),
     })
@@ -62,6 +64,8 @@ function setImageDone(imageId: string, saved: Awaited<ReturnType<typeof saveImag
       fileUrl: saved.fileUrl,
       thumbnailPath: saved.thumbnailPath,
       thumbnailUrl: saved.thumbnailUrl,
+      actualWidth: saved.width,
+      actualHeight: saved.height,
       status: "done",
       updatedAt: Date.now(),
     })

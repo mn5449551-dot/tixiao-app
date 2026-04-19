@@ -42,8 +42,8 @@ test("finalized adaptation models exclude Gemini Flash and non-4-ratio models", 
   assert.match(source, /FINALIZED_ADAPTATION_MODEL_VALUES/);
   assert.match(source, /doubao-seedream-4-0/);
   assert.match(source, /doubao-seedream-4-5/);
-  assert.match(source, /doubao-seedream-5-0-lite/);
-  assert.match(source, /qwen-image-2\.0/);
+  assert.doesNotMatch(source, /FINALIZED_ADAPTATION_MODEL_VALUES[\s\S]*doubao-seedream-5-0-lite/);
+  assert.doesNotMatch(source, /FINALIZED_ADAPTATION_MODEL_VALUES[\s\S]*qwen-image-2\.0/);
   assert.doesNotMatch(source, /FINALIZED_ADAPTATION_MODEL_VALUES[\s\S]*gemini-3\.1-flash-image-preview/);
   assert.doesNotMatch(source, /FINALIZED_ADAPTATION_MODEL_VALUES[\s\S]*gpt-image-1\.5/);
 });

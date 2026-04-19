@@ -305,6 +305,14 @@ function bootstrap(connection: Database.Database) {
     connection.exec("ALTER TABLE generated_images ADD COLUMN generation_request_json TEXT;");
   }
 
+  if (!generatedImageColumns.some((column) => column.name === "actual_width")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN actual_width INTEGER;");
+  }
+
+  if (!generatedImageColumns.some((column) => column.name === "actual_height")) {
+    connection.exec("ALTER TABLE generated_images ADD COLUMN actual_height INTEGER;");
+  }
+
   if (!generatedImageColumns.some((column) => column.name === "thumbnail_path")) {
     connection.exec("ALTER TABLE generated_images ADD COLUMN thumbnail_path TEXT;");
   }

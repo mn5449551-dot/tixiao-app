@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const internalPath = new URL("../project-data-modules-internal.ts", import.meta.url);
+const schemaPath = new URL("../schema.ts", import.meta.url);
+const dbPath = new URL("../db.ts", import.meta.url);
 const exportUtilsPath = new URL("../export/utils.ts", import.meta.url);
 const variantsRoutePath = new URL("../../app/api/projects/[id]/finalized/variants/route.ts", import.meta.url);
 const finalizedPoolActionsPath = new URL("../../components/cards/finalized-pool/finalized-pool-actions.ts", import.meta.url);
@@ -40,6 +42,21 @@ test("generateFinalizedVariants creates pending images and updates status after 
   assert.match(source, /status: "failed"/);
   assert.match(source, /generationRequestJson|generation_request_json/);
   assert.match(source, /referenceImages/);
+  assert.match(source, /actualWidth|actual_height/);
+  assert.match(source, /actualHeight|actual_width/);
+  assert.match(source, /实际比例|aspect ratio/i);
+});
+
+test("generated image schema persists actual output dimensions for ratio validation", async () => {
+  const [schemaSource, dbSource] = await Promise.all([
+    readFile(schemaPath, "utf8"),
+    readFile(dbPath, "utf8"),
+  ]);
+
+  assert.match(schemaSource, /actualWidth:\s*integer\("actual_width"\)/);
+  assert.match(schemaSource, /actualHeight:\s*integer\("actual_height"\)/);
+  assert.match(dbSource, /ALTER TABLE generated_images ADD COLUMN actual_width INTEGER/);
+  assert.match(dbSource, /ALTER TABLE generated_images ADD COLUMN actual_height INTEGER/);
 });
 
 test("variants API route accepts image_model and returns skipped_slots", async () => {

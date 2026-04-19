@@ -178,11 +178,14 @@ function createMockChatCompletionResponse(content: unknown): Response {
   );
 }
 
-async function createMockImageGenerationResponse(): Promise<Response> {
+async function createMockImageGenerationResponse(input?: {
+  width?: number;
+  height?: number;
+}): Promise<Response> {
   const buffer = await createSolidPlaceholder({
     text: "生成图",
-    width: 512,
-    height: 512,
+    width: input?.width ?? 512,
+    height: input?.height ?? 512,
   });
 
   return new Response(
@@ -526,7 +529,7 @@ test("generateFinalizedVariants creates derived finalized groups for mismatched 
     .where(eq(generatedImages.id, image.id))
     .run();
 
-  globalThis.fetch = (async () => createMockImageGenerationResponse()) as typeof fetch;
+  globalThis.fetch = (async () => createMockImageGenerationResponse({ width: 1600, height: 900 })) as typeof fetch;
 
   try {
     const result = await generateFinalizedVariants(fixture.projectId, {
@@ -546,6 +549,8 @@ test("generateFinalizedVariants creates derived finalized groups for mismatched 
     assert.ok(derivedImages[0]?.filePath);
     assert.ok(derivedImages.every((item) => item.generationRequestJson));
     assert.ok(derivedImages.every((item) => item.inpaintParentId));
+    assert.equal(derivedImages[0]?.actualWidth, 1600);
+    assert.equal(derivedImages[0]?.actualHeight, 900);
   } finally {
     globalThis.fetch = previousFetch;
     process.env.NEW_API_KEY = previousApiKey;
@@ -599,7 +604,7 @@ test("generateFinalizedVariants uses the finalized source group's real aspect ra
     .where(eq(imageConfigs.id, config.id))
     .run();
 
-  globalThis.fetch = (async () => createMockImageGenerationResponse()) as typeof fetch;
+  globalThis.fetch = (async () => createMockImageGenerationResponse({ width: 900, height: 1600 })) as typeof fetch;
 
   try {
     const result = await generateFinalizedVariants(fixture.projectId, {
@@ -612,6 +617,70 @@ test("generateFinalizedVariants uses the finalized source group's real aspect ra
     assert.equal(result.groups.length, 1);
     assert.ok(result.groups[0]);
     assert.equal(result.groups[0]!.aspectRatio, "9:16");
+  } finally {
+    globalThis.fetch = previousFetch;
+    process.env.NEW_API_KEY = previousApiKey;
+  }
+});
+
+test("generateFinalizedVariants fails when the generated image's real dimensions do not match the target ratio", async () => {
+  const db = getDb();
+  const previousFetch = globalThis.fetch;
+  const previousApiKey = process.env.NEW_API_KEY;
+  process.env.NEW_API_KEY = "test-key";
+
+  const fixture = seedImageConfigFixture({ imageForm: "single" });
+  const config = await saveImageConfig(fixture.copyId, {
+    aspectRatio: "16:9",
+    styleMode: "normal",
+    logo: "none",
+    imageStyle: "realistic",
+    count: 1,
+    createGroups: true,
+  });
+
+  assert.ok(config);
+  const [group] = config.groups;
+  assert.ok(group);
+  db.update(imageGroups).set({ isConfirmed: 1 }).where(eq(imageGroups.id, group.id)).run();
+
+  const [image] = db.select().from(generatedImages).where(eq(generatedImages.imageGroupId, group.id)).all();
+  assert.ok(image);
+  const saved = await saveImageBuffer({
+    projectId: fixture.projectId,
+    imageId: image.id,
+    buffer: await createSolidPlaceholder({ text: "16:9 原图", width: 768, height: 432 }),
+    extension: "png",
+  });
+  db.update(generatedImages)
+    .set({
+      filePath: saved.filePath,
+      fileUrl: saved.fileUrl,
+      thumbnailPath: saved.thumbnailPath,
+      thumbnailUrl: saved.thumbnailUrl,
+      status: "done",
+      updatedAt: Date.now(),
+    })
+    .where(eq(generatedImages.id, image.id))
+    .run();
+
+  globalThis.fetch = (async () => createMockImageGenerationResponse({ width: 512, height: 768 })) as typeof fetch;
+
+  try {
+    const result = await generateFinalizedVariants(fixture.projectId, {
+      sourceGroupId: group.id,
+      targetChannel: "OPPO",
+      slotNames: ["富媒体-横版两图"],
+      imageModel: "doubao-seedream-4-0",
+    });
+
+    assert.equal(result.groups.length, 0);
+    const failedDerivedImages = db.select().from(generatedImages).where(eq(generatedImages.inpaintParentId, image.id)).all();
+    assert.ok(failedDerivedImages.length > 0);
+    assert.equal(failedDerivedImages[0]?.status, "failed");
+    assert.match(failedDerivedImages[0]?.errorMessage ?? "", /实际比例|目标比例/);
+    assert.equal(failedDerivedImages[0]?.actualWidth, 512);
+    assert.equal(failedDerivedImages[0]?.actualHeight, 768);
   } finally {
     globalThis.fetch = previousFetch;
     process.env.NEW_API_KEY = previousApiKey;
@@ -637,7 +706,7 @@ test("generateFinalizedVariants only processes selected finalized groups", async
   assert.ok(config);
   assert.equal(config.groups.length, 2);
 
-  globalThis.fetch = (async () => createMockImageGenerationResponse()) as typeof fetch;
+  globalThis.fetch = (async () => createMockImageGenerationResponse({ width: 1600, height: 900 })) as typeof fetch;
 
   try {
     for (const group of config.groups) {

@@ -85,6 +85,8 @@ export type GraphNodeData =
         fileUrl: string | null;
         thumbnailUrl?: string | null;
         aspectRatio: string;
+        actualWidth?: number | null;
+        actualHeight?: number | null;
         updatedAt?: number;
       }>;
       assets?: Array<{
@@ -97,6 +99,8 @@ export type GraphNodeData =
           fileUrl: string | null;
           thumbnailUrl?: string | null;
           aspectRatio: string;
+          actualWidth?: number | null;
+          actualHeight?: number | null;
           updatedAt?: number;
         }>;
       }>;
@@ -141,6 +145,8 @@ export type GraphNodeData =
           fileUrl: string | null;
           thumbnailUrl?: string | null;
           aspectRatio: string;
+          actualWidth?: number | null;
+          actualHeight?: number | null;
           groupLabel?: string;
           isConfirmed: boolean;
           updatedAt?: number;

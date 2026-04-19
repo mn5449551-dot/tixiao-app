@@ -129,4 +129,5 @@ test("finalized pool exposes an explicit preview affordance for generated ratio 
   assert.match(source, /查看大图/);
   assert.match(source, /onClick=\{\(\) => image && setPreviewImage\(image\)\}/);
   assert.match(source, /object-contain/);
+  assert.match(source, /实际尺寸|实际比例/);
 });

@@ -17,7 +17,7 @@ import {
   LOGO_OPTIONS,
 } from "@/lib/constants";
 import { getDb, type DbOrTx } from "@/lib/db";
-import { classifyExportAdaptation, isSpecialRatio, resolveExportSlotSpecs } from "@/lib/export/utils";
+import { classifyExportAdaptation, isSpecialRatio, parseAspectRatio, resolveExportSlotSpecs } from "@/lib/export/utils";
 import { createId } from "@/lib/id";
 import { resolveReferenceImageUrl } from "@/lib/ip-assets";
 import {
@@ -1449,6 +1449,8 @@ export async function generateFinalizedVariants(
                     aspectRatio: ratio,
                     referenceImages: [{ url: referenceDataUrl }],
                   }),
+                  actualWidth: null,
+                  actualHeight: null,
                   createdAt: timestamp,
                   updatedAt: timestamp,
                 })
@@ -1483,12 +1485,49 @@ export async function generateFinalizedVariants(
               const imageId = workItems[i].imageId;
 
               if (result.status === "fulfilled") {
+                const actualWidth = result.value.saved.width;
+                const actualHeight = result.value.saved.height;
+                const ratioValidationError = getAspectRatioValidationError({
+                  width: actualWidth,
+                  height: actualHeight,
+                  targetRatio: ratio,
+                });
+
+                if (ratioValidationError) {
+                  await deleteFileIfExists(result.value.saved.filePath);
+                  await deleteFileIfExists(result.value.saved.thumbnailPath);
+                  db.update(generatedImages)
+                    .set({
+                      filePath: null,
+                      fileUrl: null,
+                      thumbnailPath: null,
+                      thumbnailUrl: null,
+                      status: "failed",
+                      errorMessage: ratioValidationError,
+                      actualWidth,
+                      actualHeight,
+                      generationRequestJson: JSON.stringify({
+                        promptText: result.value.prompt,
+                        negativePrompt: null,
+                        model,
+                        aspectRatio: ratio,
+                        referenceImages: [{ url: workItems[i].referenceDataUrl }],
+                      }),
+                      updatedAt: Date.now(),
+                    })
+                    .where(eq(generatedImages.id, imageId))
+                    .run();
+                  continue;
+                }
+
                 db.update(generatedImages)
                   .set({
                     filePath: result.value.saved.filePath,
                     fileUrl: result.value.saved.fileUrl,
                     thumbnailPath: result.value.saved.thumbnailPath,
                     thumbnailUrl: result.value.saved.thumbnailUrl,
+                    actualWidth,
+                    actualHeight,
                     status: "done",
                     finalPromptText: result.value.prompt,
                     generationRequestJson: JSON.stringify({
@@ -1512,7 +1551,11 @@ export async function generateFinalizedVariants(
             }
 
             const groupRecord = db.select().from(imageGroups).where(eq(imageGroups.id, derivedGroupId)).get();
-            if (groupRecord) created.push(groupRecord);
+            const hasDoneImages = db.select().from(generatedImages)
+              .where(eq(generatedImages.imageGroupId, derivedGroupId))
+              .all()
+              .some((image) => image.status === "done");
+            if (groupRecord && hasDoneImages) created.push(groupRecord);
           }
         }
       }
@@ -1532,6 +1575,29 @@ function compareAspectRatios(source: string, target: string): "wider" | "taller"
   const t = parseRatio(target);
   if (Math.abs(s - t) < 0.01) return "same";
   return t > s ? "wider" : "taller";
+}
+
+function getAspectRatioValidationError(input: {
+  width: number | null;
+  height: number | null;
+  targetRatio: string;
+}) {
+  if (!input.width || !input.height) {
+    return `适配结果缺少实际尺寸，无法确认是否生成成目标比例 ${input.targetRatio}`;
+  }
+
+  const expected = parseAspectRatio(input.targetRatio);
+  if (!expected) {
+    return null;
+  }
+
+  const actual = input.width / input.height;
+  const relativeError = Math.abs(actual - expected) / expected;
+  if (relativeError <= 0.015) {
+    return null;
+  }
+
+  return `适配结果实际比例与目标比例不一致：目标 ${input.targetRatio}，实际 ${input.width}x${input.height}`;
 }
 
 function buildAdaptationPrompt(sourceRatio: string, targetRatio: string, direction: "wider" | "taller" | "same"): string {
