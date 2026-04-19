@@ -393,17 +393,41 @@ export function FinalizedPoolCard({
             return (
               <div
                 key={asset.groupId}
-                className="flex items-center justify-between rounded-xl border border-[var(--line-soft)] bg-white px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line-soft)] bg-white px-3 py-2"
               >
-                <button
-                  type="button"
-                  className="min-w-0 text-left"
-                  onClick={() => image && setPreviewImage(image)}
-                >
-                  <p className="text-xs font-medium text-[var(--ink-700)]">{getAssetLabel(asset)}</p>
-                  <p className="mt-1 text-[11px] text-[var(--ink-500)]">{asset.ratio}</p>
-                </button>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <button
+                    type="button"
+                    className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[var(--line-soft)] bg-[var(--surface-2)]"
+                    onClick={() => image && setPreviewImage(image)}
+                    title="查看大图"
+                  >
+                    {image?.fileUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={image.thumbnailUrl ?? image.fileUrl}
+                        alt={getAssetLabel(asset)}
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-[10px] text-[var(--ink-400)]">无预览</span>
+                    )}
+                  </button>
+                  <div className="min-w-0 text-left">
+                    <p className="text-xs font-medium text-[var(--ink-700)]">{getAssetLabel(asset)}</p>
+                    <p className="mt-1 text-[11px] text-[var(--ink-500)]">{asset.ratio}</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
+                  {image ? (
+                    <Button
+                      variant="ghost"
+                      className="text-xs"
+                      onClick={() => image && setPreviewImage(image)}
+                    >
+                      查看大图
+                    </Button>
+                  ) : null}
                   {asset.kind === "derived" && image ? (
                     <Button
                       variant="secondary"

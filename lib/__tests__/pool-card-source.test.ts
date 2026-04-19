@@ -121,3 +121,12 @@ test("finalized pool uses channel-scoped slot coverage and per-ratio regeneratio
   assert.doesNotMatch(source, /mergeSelectedGroupIds/);
   assert.doesNotMatch(source, /以下版位比例与原图不匹配，请先生成适配版本/);
 });
+
+test("finalized pool exposes an explicit preview affordance for generated ratio assets", async () => {
+  const source = await readFile(finalizedPoolCardPath, "utf8");
+
+  assert.match(source, /已有比例资产/);
+  assert.match(source, /查看大图/);
+  assert.match(source, /onClick=\{\(\) => image && setPreviewImage\(image\)\}/);
+  assert.match(source, /object-contain/);
+});
