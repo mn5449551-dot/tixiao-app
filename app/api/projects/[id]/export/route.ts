@@ -8,6 +8,7 @@ import { getProjectExportContext } from "@/lib/project-data";
 import {
   buildExportFileName,
   classifyExportAdaptation,
+  findDirectExportImage,
   isSpecialRatio,
   parseSlotSize,
   resolveExportSlotSpecs,
@@ -25,6 +26,9 @@ export async function POST(
   try {
     const id = await readIdParam(context);
     const body = (await request.json()) as {
+      source_group_id?: string;
+      target_channel?: string;
+      slot_names?: string[];
       target_group_ids?: string[];
       target_channels?: string[];
       target_slots?: string[];
@@ -34,8 +38,11 @@ export async function POST(
     };
 
     const db = getDb();
+    const targetGroupIds = body.target_group_ids ?? (body.source_group_id ? [body.source_group_id] : []);
+    const targetChannels = body.target_channels ?? (body.target_channel ? [body.target_channel] : []);
+    const targetSlots = body.target_slots ?? body.slot_names;
     const exportContext = getProjectExportContext(id, {
-      targetGroupIds: body.target_group_ids,
+      targetGroupIds,
     });
     if (!exportContext) {
       return jsonError("项目不存在", 404);
@@ -46,8 +53,8 @@ export async function POST(
     }
 
     const slotSpecs = resolveExportSlotSpecs({
-      targetChannels: body.target_channels,
-      targetSlots: body.target_slots,
+      targetChannels,
+      targetSlots,
     }).filter((spec) => !isSpecialRatio(spec.ratio));
     if (slotSpecs.length === 0) {
       return jsonError("请先选择导出版位", 422);
@@ -61,40 +68,43 @@ export async function POST(
     const safeProjectTitle = sanitizeExportSegment(project.title);
     let index = 1;
     for (const slotSpec of slotSpecs) {
-      for (const image of images) {
-        const config = configMap.get(image.imageConfigId);
-        const group = groupMap.get(image.imageGroupId);
-        const imageRatio = group?.aspectRatio ?? config?.aspectRatio ?? "1:1";
-        const adaptation = classifyExportAdaptation(imageRatio, slotSpec.ratio);
+      const image = findDirectExportImage({
+        images,
+        groupMap,
+        targetRatio: slotSpec.ratio,
+      });
+      if (!image?.filePath) continue;
 
-        // 只导出比例匹配的图片（direct），不匹配的跳过
-        if (adaptation !== "direct") continue;
+      const config = configMap.get(image.imageConfigId);
+      const group = groupMap.get(image.imageGroupId);
+      const imageRatio = group?.aspectRatio ?? config?.aspectRatio ?? "1:1";
+      const adaptation = classifyExportAdaptation(imageRatio, slotSpec.ratio);
+      if (adaptation !== "direct") continue;
 
-        const slotSize = parseSlotSize(slotSpec.size);
-        const logoPath = body.logo && body.logo !== "none"
-          ? getLogoAssetPath(body.logo)
-          : null;
-        const outputPath = path.join(exportDir, buildExportFileName({
-          projectTitle: project.title,
-          channel: slotSpec.channel,
-          slotName: slotSpec.slotName,
-          ratio: slotSpec.ratio,
-          index,
-          format,
-          namingRule: body.naming_rule,
-        }));
+      const slotSize = parseSlotSize(slotSpec.size);
+      const logoPath = body.logo && body.logo !== "none"
+        ? getLogoAssetPath(body.logo)
+        : null;
+      const outputPath = path.join(exportDir, buildExportFileName({
+        projectTitle: project.title,
+        channel: slotSpec.channel,
+        slotName: slotSpec.slotName,
+        ratio: slotSpec.ratio,
+        index,
+        format,
+        namingRule: body.naming_rule,
+      }));
 
-        await writeExportImage({
-          sourcePath: image.filePath!,
-          outputPath,
-          format,
-          targetWidth: slotSize?.width,
-          targetHeight: slotSize?.height,
-          adaptationMode: "direct",
-          logoPath,
-        });
-        index += 1;
-      }
+      await writeExportImage({
+        sourcePath: image.filePath,
+        outputPath,
+        format,
+        targetWidth: slotSize?.width,
+        targetHeight: slotSize?.height,
+        adaptationMode: "direct",
+        logoPath,
+      });
+      index += 1;
     }
 
     const exportedFiles = await fs.readdir(exportDir);
@@ -110,8 +120,8 @@ export async function POST(
       .values({
         id: exportId,
         projectId: id,
-        targetChannels: JSON.stringify(body.target_channels ?? []),
-        targetSlots: JSON.stringify(body.target_slots ?? []),
+        targetChannels: JSON.stringify(targetChannels),
+        targetSlots: JSON.stringify(targetSlots ?? []),
         fileFormat: format,
         namingRule: body.naming_rule ?? "channel_slot_date_version",
         zipFilePath: zipPath,

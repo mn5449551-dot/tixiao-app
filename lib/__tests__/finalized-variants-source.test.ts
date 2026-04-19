@@ -72,5 +72,9 @@ test("derived image regenerate stays anchored to the original finalized source i
 
 test("export route filters out special ratio slots", async () => {
   const source = await readFile(exportRoutePath, "utf8");
+  assert.match(source, /source_group_id/);
+  assert.match(source, /slot_names/);
+  assert.match(source, /classifyExportAdaptation/);
+  assert.match(source, /adaptation !== "direct"/);
   assert.match(source, /isSpecialRatio/);
 });
